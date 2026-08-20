@@ -87,15 +87,20 @@ function renderImages() {
 }
 
 async function saveToSheet(numbers, note) {
-  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return;
+  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return false;
   const params = new URLSearchParams({
     t: new Date().toISOString(),
     note: note || '',
   });
   for (let i = 1; i <= 6; i++) {
-    params.set('s' + i, numbers.includes(i) ? '✓' : '');
+    params.set('s' + i, numbers.includes(i) ? '1' : '');
   }
-  await fetch(`${SHEET_URL.trim()}?${params}`, { mode: 'no-cors' });
+  const url = `${SHEET_URL.trim()}?${params.toString()}`;
+  // Reliable GET — works with Google Apps Script
+  await fetch(url, { mode: 'no-cors', keepalive: true });
+  const img = new Image();
+  img.src = url;
+  return true;
 }
 
 async function saveToEmail(numbers, note) {
@@ -121,7 +126,15 @@ submitBtn.addEventListener('click', async () => {
   const note = extraNote.value.trim();
 
   try {
-    await Promise.all([saveToSheet(numbers, note), saveToEmail(numbers, note)]);
+    const sheetOk = await saveToSheet(numbers, note);
+    try {
+      await saveToEmail(numbers, note);
+    } catch {
+      // Email fail unath sheet save unoth OK
+    }
+    if (!sheetOk && typeof SHEET_URL === 'string' && !SHEET_URL.trim()) {
+      await saveToEmail(numbers, note);
+    }
     overlay.classList.remove('hidden');
   } catch {
     alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');

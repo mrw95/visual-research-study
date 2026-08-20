@@ -1,3 +1,8 @@
+function tick(v) {
+  if (!v || v === '') return '';
+  return '✓';
+}
+
 function doGet(e) {
   var p = e.parameter;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -20,12 +25,12 @@ function doGet(e) {
   sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
   sh.appendRow([
     p.t || new Date(),
-    p.s1 || '',
-    p.s2 || '',
-    p.s3 || '',
-    p.s4 || '',
-    p.s5 || '',
-    p.s6 || '',
+    tick(p.s1),
+    tick(p.s2),
+    tick(p.s3),
+    tick(p.s4),
+    tick(p.s5),
+    tick(p.s6),
     p.note || ''
   ]);
   return ContentService.createTextOutput('ok');
