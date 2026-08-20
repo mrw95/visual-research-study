@@ -1,6 +1,21 @@
 # Vercel Deploy — Anuradhapura Survey
 
-## Step 1 — GitHub repo
+## 404 error (`DEPLOYMENT_NOT_FOUND`) — meka mokakda?
+
+**Project eka deploy wela ne** — link eka thiyenawa ne nisa 404 enne.
+
+GitHub repo eka check kara: `https://github.com/mrw95/visual-research-study` — **404** = repo create karala ne.
+
+---
+
+## Quick fix — `DEPLOY-NOW.bat` run karanna
+
+1. `DEPLOY-NOW.bat` double-click
+2. Steps A, B, C follow karanna (browser open wenne)
+
+---
+
+## Step 1 — GitHub repo (empty)
 
 1. Browser: https://github.com/new
 2. Repository name: **visual-research-study**
