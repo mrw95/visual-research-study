@@ -87,18 +87,24 @@ function renderImages() {
   updateUI();
 }
 
-async function saveToSheet(numbers, note) {
-  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return false;
+function saveToSheet(numbers, note, sid) {
+  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return Promise.resolve(false);
   const params = new URLSearchParams({
     t: new Date().toISOString(),
     note: note || '',
+    sid: sid,
   });
   for (let i = 1; i <= 6; i++) {
     params.set('s' + i, numbers.includes(i) ? '1' : '');
   }
   const url = `${SHEET_URL.trim()}?${params.toString()}`;
-  await fetch(url, { mode: 'no-cors', keepalive: true });
-  return true;
+  return new Promise((resolve) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'display:none;width:0;height:0;border:0';
+    iframe.onload = () => setTimeout(() => { iframe.remove(); resolve(true); }, 800);
+    iframe.src = url;
+    document.body.appendChild(iframe);
+  });
 }
 
 async function saveToEmail(numbers, note) {
@@ -123,10 +129,11 @@ submitBtn.addEventListener('click', async () => {
 
   const numbers = [...selected].sort((a, b) => a - b);
   const note = extraNote.value.trim();
+  const sid = Date.now() + '-' + Math.random().toString(36).slice(2, 9);
 
   try {
     if (typeof SHEET_URL === 'string' && SHEET_URL.trim()) {
-      await saveToSheet(numbers, note);
+      await saveToSheet(numbers, note, sid);
     }
     try {
       await saveToEmail(numbers, note);
