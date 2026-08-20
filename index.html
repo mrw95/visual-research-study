@@ -23,7 +23,13 @@
         <p class="counter" id="counter">0 / 3 තෝරා ඇත</p>
       </div>
       <div class="image-grid" id="grid"></div>
+      <p class="selected-picks hidden" id="selected-picks"></p>
       <p class="hint" id="hint">තව විකල්ප 3ක් තෝරන්න.</p>
+    </section>
+
+    <section class="card">
+      <label class="field-label" for="extra-note">වෙනත් අදහසක් ලියන්න <span class="optional">(optional)</span></label>
+      <input id="extra-note" type="text" maxlength="200" placeholder="ඔයාගේ අදහස මෙතන ලියන්න...">
     </section>
 
     <section class="card actions">
@@ -43,6 +49,7 @@
     </div>
   </div>
 
+  <script src="static/config.js"></script>
   <script src="static/app.js"></script>
 </body>
 </html>

@@ -16,11 +16,19 @@ const counter = document.getElementById('counter');
 const hint = document.getElementById('hint');
 const submitBtn = document.getElementById('submit');
 const overlay = document.getElementById('overlay');
+const selectedPicks = document.getElementById('selected-picks');
+const extraNote = document.getElementById('extra-note');
+
+function formatNumbers(nums) {
+  return nums.map(n => String(n)).join(' · ');
+}
 
 function updateUI() {
   const count = selected.size;
+  const sorted = [...selected].sort((a, b) => a - b);
   counter.textContent = `${count} / ${REQUIRED} තෝරා ඇත`;
   const left = REQUIRED - count;
+
   if (count === REQUIRED) {
     hint.textContent = 'Submit කරන්න පුළුවන්.';
     hint.classList.add('ready');
@@ -30,10 +38,22 @@ function updateUI() {
     hint.classList.remove('ready');
     submitBtn.disabled = true;
   }
+
+  if (count > 0) {
+    selectedPicks.textContent = `තෝරා ඇත: ${formatNumbers(sorted)}`;
+    selectedPicks.classList.remove('hidden');
+  } else {
+    selectedPicks.textContent = '';
+    selectedPicks.classList.add('hidden');
+  }
+
   document.querySelectorAll('.image-item').forEach(el => {
     const id = Number(el.dataset.id);
-    el.classList.toggle('selected', selected.has(id));
-    el.classList.toggle('disabled', count >= REQUIRED && !selected.has(id));
+    const isSelected = selected.has(id);
+    el.classList.toggle('selected', isSelected);
+    el.classList.toggle('disabled', count >= REQUIRED && !isSelected);
+    const badge = el.querySelector('.num-badge');
+    if (badge) badge.textContent = String(id);
   });
 }
 
@@ -45,12 +65,12 @@ function toggle(id) {
 
 function renderImages() {
   grid.innerHTML = IMAGES.map(img => `
-    <div class="image-item" data-id="${img.id}" tabindex="0" role="button">
+    <div class="image-item" data-id="${img.id}" tabindex="0" role="button" aria-label="Option ${img.id}">
       <div class="image-wrap">
-        <span class="check">✓</span>
-        <img src="${img.url}" alt="${img.label}">
+        <span class="num-badge">${img.id}</span>
+        <img src="${img.url}" alt="Option ${img.id}">
       </div>
-      <p class="caption">${img.label}</p>
+      <p class="caption"><span class="caption-num">${img.id}</span></p>
     </div>
   `).join('');
 
@@ -65,28 +85,42 @@ function renderImages() {
   updateUI();
 }
 
+async function saveToSheet(numbers, note) {
+  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return;
+  const params = new URLSearchParams({
+    t: new Date().toISOString(),
+    c1: numbers[0] || '',
+    c2: numbers[1] || '',
+    c3: numbers[2] || '',
+    note: note || '',
+  });
+  await fetch(`${SHEET_URL.trim()}?${params}`, { mode: 'no-cors' });
+}
+
+async function saveToEmail(numbers, note) {
+  const body = new FormData();
+  body.append('_subject', 'Anuradhapura Survey — new response');
+  body.append('Number 1', numbers[0] || '');
+  body.append('Number 2', numbers[1] || '');
+  body.append('Number 3', numbers[2] || '');
+  body.append('Extra note', note || '—');
+  body.append('_captcha', 'false');
+  body.append('_template', 'table');
+  const res = await fetch(`https://formsubmit.co/ajax/${NOTIFY_EMAIL}`, { method: 'POST', body });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error('Submit failed');
+}
+
 submitBtn.addEventListener('click', async () => {
   if (selected.size !== REQUIRED) return;
   submitBtn.disabled = true;
   submitBtn.textContent = 'යවමින්...';
 
-  const labels = [...selected].sort((a, b) => a - b).map(id =>
-    IMAGES.find(img => img.id === id)?.label || `Option ${id}`
-  );
+  const numbers = [...selected].sort((a, b) => a - b);
+  const note = extraNote.value.trim();
 
   try {
-    const body = new FormData();
-    body.append('_subject', 'Anuradhapura Survey — new response');
-    body.append('Selected', labels.join(' | '));
-    body.append('_captcha', 'false');
-    body.append('_template', 'table');
-
-    const res = await fetch(`https://formsubmit.co/ajax/${NOTIFY_EMAIL}`, {
-      method: 'POST',
-      body,
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error('Submit failed');
+    await Promise.all([saveToSheet(numbers, note), saveToEmail(numbers, note)]);
     overlay.classList.remove('hidden');
   } catch {
     alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');
