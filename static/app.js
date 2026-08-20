@@ -126,14 +126,13 @@ submitBtn.addEventListener('click', async () => {
   const note = extraNote.value.trim();
 
   try {
-    const sheetOk = await saveToSheet(numbers, note);
+    if (typeof SHEET_URL === 'string' && SHEET_URL.trim()) {
+      await saveToSheet(numbers, note);
+    }
     try {
       await saveToEmail(numbers, note);
     } catch {
-      // Email fail unath sheet save unoth OK
-    }
-    if (!sheetOk && typeof SHEET_URL === 'string' && !SHEET_URL.trim()) {
-      await saveToEmail(numbers, note);
+      // Sheet save unoth email fail unath OK
     }
     overlay.classList.remove('hidden');
   } catch {
