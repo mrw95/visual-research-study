@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>අනුරාධපුර — අත්දැකීම් සමීක්ෂණය</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page">
+    <header class="study-header">
+      <p class="study-badge">Research Survey</p>
+      <h1>වේගයෙන් සංවර්ධනය වන අනුරාධපුර නගරය</h1>
+      <p class="study-intro">
+        ඔයා අලුත් අත්දැකීමක් හොයනවා නම් ඔයා වැඩියෙන්ම කැමති මොන වගේ අත්දැකීමකටද?
+        පහළින් තියෙන විකල්ප වලින් <strong>3</strong>ක් තෝරන්න! 👇
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="grid-head">
+        <h2>විකල්ප 6 — 3ක් තෝරන්න</h2>
+        <p class="counter" id="counter">0 / 3 තෝරා ඇත</p>
+      </div>
+      <div class="image-grid" id="grid"></div>
+      <p class="hint" id="hint">තව විකල්ප 3ක් තෝරන්න.</p>
+    </section>
+
+    <section class="card actions">
+      <button type="button" id="submit" disabled>ඉදිරියට යන්න</button>
+    </section>
+
+    <footer class="study-footer">
+      <p>ඔබගේ පිළිතුර අනුරාධපුර නගර සංවර්ධන අධ්‍යයනය සඳහා භාවිතා කරනු ලැබේ.</p>
+    </footer>
+  </div>
+
+  <div class="overlay hidden" id="overlay">
+    <div class="thankyou">
+      <h2>ස්තූතියි! 🙏</h2>
+      <p>ඔබගේ පිළිතුර සාර්ථකව ලබා ගත්තා.</p>
+      <p class="small">දැන් මෙම පිටුව වසා දැමිය හැක.</p>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

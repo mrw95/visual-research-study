@@ -1,0 +1,6 @@
+submissions.json
+.env
+config.env
+__pycache__/
+*.pyc
+.vercel/
