@@ -21,7 +21,7 @@ IMAGE_LABELS = {
     2: "Mobile Accessories",
     3: "Branded Decants Perfumes",
     4: "Bookshop and Stationery",
-    5: "Budget Pice Cafe",
+    5: "Budget Price Cafe",
     6: "Smart Cafe",
 }
 

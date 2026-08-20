@@ -31,7 +31,7 @@ function doGet(e) {
     'Mobile Accessories',
     'Branded Decants Perfumes',
     'Bookshop and Stationery',
-    'Budget Pice Cafe',
+    'Budget Price Cafe',
     'Smart Cafe',
     'Extra note'
   ];
