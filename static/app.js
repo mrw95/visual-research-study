@@ -89,20 +89,20 @@ async function saveToSheet(numbers, note) {
   if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return;
   const params = new URLSearchParams({
     t: new Date().toISOString(),
-    c1: numbers[0] || '',
-    c2: numbers[1] || '',
-    c3: numbers[2] || '',
     note: note || '',
   });
+  for (let i = 1; i <= 6; i++) {
+    params.set('s' + i, numbers.includes(i) ? '✓' : '');
+  }
   await fetch(`${SHEET_URL.trim()}?${params}`, { mode: 'no-cors' });
 }
 
 async function saveToEmail(numbers, note) {
   const body = new FormData();
   body.append('_subject', 'Anuradhapura Survey — new response');
-  body.append('Number 1', numbers[0] || '');
-  body.append('Number 2', numbers[1] || '');
-  body.append('Number 3', numbers[2] || '');
+  IMAGES.forEach(img => {
+    body.append(img.label, numbers.includes(img.id) ? '✓' : '—');
+  });
   body.append('Extra note', note || '—');
   body.append('_captcha', 'false');
   body.append('_template', 'table');
