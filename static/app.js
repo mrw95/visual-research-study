@@ -1,7 +1,7 @@
 const REQUIRED = 3;
 const NOTIFY_EMAIL = 'mr1.widanagamage@gmail.com';
 
-const IMG_V = '10';
+const IMG_V = '12';
 
 const IMAGES = [
   { id: 1, url: `images/1.png?v=${IMG_V}`, label: 'Smart Study Area with AC / Free Wifi' },
@@ -91,6 +91,11 @@ function renderImages() {
 
 function saveToSheet(numbers, note, sid) {
   if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return Promise.resolve(false);
+  if (!SHEET_URL.includes('/macros/s/') || !SHEET_URL.endsWith('/exec')) {
+    console.warn('SHEET_URL must be a Web App URL ending with /exec');
+    return Promise.resolve(false);
+  }
+
   const params = new URLSearchParams({
     note: note || '',
     sid: sid,
@@ -99,12 +104,23 @@ function saveToSheet(numbers, note, sid) {
     params.set('s' + i, numbers.includes(i) ? '1' : '');
   }
   const url = `${SHEET_URL.trim()}?${params.toString()}`;
+
+  try {
+    fetch(url, { mode: 'no-cors', keepalive: true });
+  } catch {}
+
   return new Promise((resolve) => {
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'display:none;width:0;height:0;border:0';
-    iframe.onload = () => setTimeout(() => { iframe.remove(); resolve(true); }, 800);
+    const finish = () => {
+      iframe.remove();
+      resolve(true);
+    };
+    iframe.onload = () => setTimeout(finish, 2000);
+    iframe.onerror = finish;
     iframe.src = url;
     document.body.appendChild(iframe);
+    setTimeout(finish, 3500);
   });
 }
 
