@@ -1,7 +1,7 @@
 const REQUIRED = 3;
 const NOTIFY_EMAIL = 'mr1.widanagamage@gmail.com';
 
-const IMG_V = '9';
+const IMG_V = '10';
 
 const IMAGES = [
   { id: 1, url: `images/1.png?v=${IMG_V}`, label: 'Smart Study Area with AC / Free Wifi' },
@@ -92,7 +92,6 @@ function renderImages() {
 function saveToSheet(numbers, note, sid) {
   if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return Promise.resolve(false);
   const params = new URLSearchParams({
-    t: new Date().toISOString(),
     note: note || '',
     sid: sid,
   });
