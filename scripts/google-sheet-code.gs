@@ -13,17 +13,59 @@ function getHeaders() {
 
 function syncHeaders() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('Responses') || ss.insertSheet('Responses');
   var headers = getHeaders();
-  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  var sheets = ss.getSheets();
+  var updated = 0;
+
+  for (var i = 0; i < sheets.length; i++) {
+    var sh = sheets[i];
+    if (sh.getLastRow() === 0 && sh.getName() !== 'Responses') continue;
+    var a1 = String(sh.getRange(1, 1).getValue() || '');
+    if (a1 === 'Time' || sh.getName() === 'Responses' || sh.getLastRow() <= 1) {
+      sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+      updated++;
+    }
+  }
+
+  if (updated === 0) {
+    var sh = ss.getSheets()[0];
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  }
+}
+
+// Easy one-click fix — only changes "Budget Pice Cafe" -> "Budget Price Cafe"
+function fixBudgetColumn() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ss.getSheets();
+  var fixed = 0;
+
+  for (var i = 0; i < sheets.length; i++) {
+    var sh = sheets[i];
+    var lastCol = Math.max(sh.getLastColumn(), 6);
+    var row = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+    for (var c = 0; c < row.length; c++) {
+      if (String(row[c]).trim() === 'Budget Pice Cafe') {
+        sh.getRange(1, c + 1).setValue('Budget Price Cafe');
+        fixed++;
+      }
+    }
+  }
+
+  SpreadsheetApp.getUi().alert(
+    fixed > 0
+      ? 'Done! ' + fixed + ' column(s) updated to Budget Price Cafe.'
+      : 'No "Budget Pice Cafe" found. Check row 1 on your data tab, or run syncHeaders.'
+  );
 }
 
 function onOpen() {
   syncHeaders();
   SpreadsheetApp.getUi()
     .createMenu('Survey')
-    .addItem('Update column names', 'syncHeaders')
+    .addItem('Fix Budget Price Cafe column', 'fixBudgetColumn')
+    .addItem('Update all column names', 'syncHeaders')
     .addToUi();
 }
 
@@ -43,7 +85,6 @@ function doGet(e) {
   var p = e.parameter;
   var sid = p.sid || '';
 
-  // Block duplicate within 60 seconds (same submit id)
   if (sid) {
     var cache = CacheService.getScriptCache();
     if (cache.get(sid)) {
@@ -53,7 +94,7 @@ function doGet(e) {
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('Responses') || ss.insertSheet('Responses');
+  var sh = ss.getSheetByName('Responses') || ss.getSheets()[0];
   var headers = getHeaders();
 
   var newRow = [
@@ -65,7 +106,6 @@ function doGet(e) {
 
   syncHeaders();
 
-  // Block exact duplicate of last row (same ticks + note)
   if (sh.getLastRow() > 1) {
     var last = sh.getRange(sh.getLastRow(), 1, 1, newRow.length).getValues()[0];
     if (rowMatches(last, newRow)) {
