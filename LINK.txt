@@ -1,14 +1,13 @@
-# Survey link (automatic)
+SURVEY LINK (share karanna):
+https://mrw95.github.io/visual-research-study/
 
-Push unama GitHub Pages eken link labenne:
+Fresh version (cache clear):
+https://mrw95.github.io/visual-research-study/?v=3
 
-**https://mrw95.github.io/visual-research-study/**
+RESULTS (Google Sheet):
+RESULTS_SHEET link eka config.js eke danna
 
-## Results balanna
+EMAIL backup:
+mr1.widanagamage@gmail.com
 
-Submit unama **email** ekak enne: `mr1.widanagamage@gmail.com`  
-(FormSubmit first time confirm email ekak enna puluwan — link eka click karanna)
-
-## Local test
-
-`index.html` file eka browser eke open karanna.
+Admin: config.js file eke salli links thiyenawa
