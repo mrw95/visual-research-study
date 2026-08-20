@@ -1,7 +1,5 @@
 // === EXCEL SAVE SETUP ===
-// Step 1: SETUP-EXCEL.bat run karanna
-// Step 2: Web app URL copy karala me line eke paste karanna
-const SHEET_URL = '';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyU4GZoFuds2NbaNIR_a6zXClEmyxEC8TbPlk-7lzMUFBmNcAjhLP4zNn-HRnw8Di9V/exec';
 
-// Step 3: Google Sheet open link (browser address bar eke URL) — results balanna
+// Sheet open link — browser eke sheet tab eke address bar URL (optional, results open karanna)
 const RESULTS_SHEET = '';
