@@ -6,7 +6,7 @@ const IMAGES = [
   { id: 2, url: 'images/2.png', label: 'Mobile Accessories' },
   { id: 3, url: 'images/3.png', label: 'Branded Decants Perfumes' },
   { id: 4, url: 'images/4.png', label: 'Bookshop and Stationery' },
-  { id: 5, url: 'images/5.png', label: 'Budget Rice Cafe' },
+  { id: 5, url: 'images/5.png', label: 'Budget Pice Cafe' },
   { id: 6, url: 'images/6.png', label: 'Smart Cafe' },
 ];
 
