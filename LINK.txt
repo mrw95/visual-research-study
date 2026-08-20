@@ -1,0 +1,14 @@
+# Survey link (automatic)
+
+Push unama GitHub Pages eken link labenne:
+
+**https://mrw95.github.io/visual-research-study/**
+
+## Results balanna
+
+Submit unama **email** ekak enne: `mr1.widanagamage@gmail.com`  
+(FormSubmit first time confirm email ekak enna puluwan — link eka click karanna)
+
+## Local test
+
+`index.html` file eka browser eke open karanna.

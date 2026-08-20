@@ -3,7 +3,7 @@ title Push Survey to GitHub
 cd /d "%~dp0"
 
 echo.
-echo  GitHub repo: https://github.com/mrw95/visual-research-study
+echo  GitHub repo: https://github.com/mrw95/anuradhapura-survey
 echo  (Create this repo on GitHub first if it does not exist — empty, no README)
 echo.
 
@@ -15,7 +15,7 @@ if errorlevel 1 (
 
 git remote get-url origin >nul 2>&1
 if errorlevel 1 (
-  git remote add origin https://github.com/mrw95/visual-research-study.git
+  git remote add origin https://github.com/mrw95/anuradhapura-survey.git
 )
 
 git add -A
@@ -36,7 +36,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo  Next: Vercel.com → Import → visual-research-study → Deploy
+echo  Next: Vercel.com → Import → anuradhapura-survey → Deploy
 echo  See DEPLOY-VERCEL.md
 echo.
 pause

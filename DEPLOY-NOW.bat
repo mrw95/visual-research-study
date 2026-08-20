@@ -13,7 +13,7 @@ echo.
 echo  STEP A — GitHub repo create
 echo    Browser open wenne...
 start https://github.com/new
-echo    Name: visual-research-study
+echo    Name: anuradhapura-survey
 echo    README add karanna EPAA — Create repository
 echo.
 pause
@@ -25,7 +25,7 @@ git rev-parse --is-inside-work-tree >nul 2>&1
 if errorlevel 1 git init -b main
 
 git remote get-url origin >nul 2>&1
-if errorlevel 1 git remote add origin https://github.com/mrw95/visual-research-study.git
+if errorlevel 1 git remote add origin https://github.com/mrw95/anuradhapura-survey.git
 
 git add -A
 set GIT_AUTHOR_NAME=Malki Widanagamage
@@ -45,8 +45,8 @@ if errorlevel 1 (
 echo.
 echo  STEP C — Vercel deploy
 start https://vercel.com/new
-echo    visual-research-study repo import karanna
+echo    anuradhapura-survey repo import karanna
 echo    Deploy click karanna
-echo    Link: https://visual-research-study.vercel.app/
+echo    Link: https://anuradhapura-survey.vercel.app/
 echo.
 pause
