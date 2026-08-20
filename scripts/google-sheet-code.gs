@@ -4,7 +4,7 @@ function doGet(e) {
   var sh = ss.getSheetByName('Responses') || ss.insertSheet('Responses');
   var headers = [
     'Time',
-    'Smart Study Area / Free Wifi',
+    'Smart Study Area with AC / Free Wifi',
     'Mobile Accessories',
     'Branded Decants Perfumes',
     'Bookshop and Stationery',

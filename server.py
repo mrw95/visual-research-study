@@ -17,7 +17,7 @@ ADMIN_KEY = os.environ.get("ADMIN_KEY", "research2026")
 REQUIRED = 3
 IMAGE_COUNT = 6
 IMAGE_LABELS = {
-    1: "Smart Study Area / Free Wifi",
+    1: "Smart Study Area with AC / Free Wifi",
     2: "Mobile Accessories",
     3: "Branded Decants Perfumes",
     4: "Bookshop and Stationery",
