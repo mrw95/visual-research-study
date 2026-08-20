@@ -11,6 +11,32 @@ function getHeaders() {
   ];
 }
 
+function formatTime(date) {
+  return Utilities.formatDate(date, 'Asia/Colombo', 'dd/MM/yyyy HH:mm:ss');
+}
+
+function parseToDate(value) {
+  if (value instanceof Date) return value;
+  var s = String(value || '').trim();
+  if (!s) return new Date();
+
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6]));
+  }
+
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
+function rowFingerprint(row) {
+  var out = [];
+  for (var i = 1; i < row.length; i++) {
+    out.push(String(row[i] || '').trim());
+  }
+  return out.join('|');
+}
+
 function syncHeaders() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var headers = getHeaders();
@@ -35,7 +61,6 @@ function syncHeaders() {
   }
 }
 
-// Easy one-click fix — only changes "Budget Pice Cafe" -> "Budget Price Cafe"
 function fixBudgetColumn() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheets = ss.getSheets();
@@ -60,10 +85,66 @@ function fixBudgetColumn() {
   );
 }
 
+function fixTimeFormat() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var fixed = 0;
+
+  ss.getSheets().forEach(function(sh) {
+    if (String(sh.getRange(1, 1).getValue()) !== 'Time') return;
+    var lastRow = sh.getLastRow();
+    if (lastRow < 2) return;
+
+    var values = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < values.length; i++) {
+      var formatted = formatTime(parseToDate(values[i][0]));
+      if (String(values[i][0]) !== formatted) {
+        sh.getRange(i + 2, 1).setValue(formatted);
+        fixed++;
+      }
+    }
+  });
+
+  SpreadsheetApp.getUi().alert('Done! ' + fixed + ' time cell(s) updated.');
+}
+
+function removeDuplicates() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var removed = 0;
+
+  ss.getSheets().forEach(function(sh) {
+    if (String(sh.getRange(1, 1).getValue()) !== 'Time') return;
+    var lastRow = sh.getLastRow();
+    if (lastRow < 3) return;
+
+    var width = getHeaders().length;
+    var data = sh.getRange(2, 1, lastRow - 1, width).getValues();
+    var seen = {};
+    var rowsToDelete = [];
+
+    for (var i = 0; i < data.length; i++) {
+      var fp = rowFingerprint(data[i]);
+      if (seen[fp]) {
+        rowsToDelete.push(i + 2);
+      } else {
+        seen[fp] = true;
+      }
+    }
+
+    rowsToDelete.sort(function(a, b) { return b - a; }).forEach(function(rowNum) {
+      sh.deleteRow(rowNum);
+      removed++;
+    });
+  });
+
+  SpreadsheetApp.getUi().alert('Done! ' + removed + ' duplicate row(s) removed.');
+}
+
 function onOpen() {
   syncHeaders();
   SpreadsheetApp.getUi()
     .createMenu('Survey')
+    .addItem('Fix time format (20/08/2026 16:52:32)', 'fixTimeFormat')
+    .addItem('Remove duplicate rows', 'removeDuplicates')
     .addItem('Fix Budget Price Cafe column', 'fixBudgetColumn')
     .addItem('Update all column names', 'syncHeaders')
     .addToUi();
@@ -74,45 +155,56 @@ function tick(v) {
   return '✓';
 }
 
-function rowMatches(last, next) {
-  for (var i = 1; i < next.length; i++) {
-    if (String(last[i] || '') !== String(next[i] || '')) return false;
+function isDuplicateRow(sh, newRow) {
+  var fp = rowFingerprint(newRow);
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return false;
+
+  var width = newRow.length;
+  var start = Math.max(2, lastRow - 49);
+  var data = sh.getRange(start, 1, lastRow - 1, width).getValues();
+
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (rowFingerprint(data[i]) === fp) return true;
   }
-  return true;
+  return false;
 }
 
 function doGet(e) {
-  var p = e.parameter;
-  var sid = p.sid || '';
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
 
-  if (sid) {
-    var cache = CacheService.getScriptCache();
-    if (cache.get(sid)) {
+  try {
+    var p = e.parameter;
+    var sid = p.sid || '';
+
+    if (sid) {
+      var cache = CacheService.getScriptCache();
+      if (cache.get(sid)) {
+        return ContentService.createTextOutput('ok');
+      }
+      cache.put(sid, '1', 120);
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName('Responses') || ss.getSheets()[0];
+
+    var newRow = [
+      formatTime(new Date()),
+      tick(p.s1), tick(p.s2), tick(p.s3),
+      tick(p.s4), tick(p.s5), tick(p.s6),
+      p.note || ''
+    ];
+
+    syncHeaders();
+
+    if (isDuplicateRow(sh, newRow)) {
       return ContentService.createTextOutput('ok');
     }
-    cache.put(sid, '1', 60);
+
+    sh.appendRow(newRow);
+    return ContentService.createTextOutput('ok');
+  } finally {
+    lock.releaseLock();
   }
-
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('Responses') || ss.getSheets()[0];
-  var headers = getHeaders();
-
-  var newRow = [
-    p.t || new Date(),
-    tick(p.s1), tick(p.s2), tick(p.s3),
-    tick(p.s4), tick(p.s5), tick(p.s6),
-    p.note || ''
-  ];
-
-  syncHeaders();
-
-  if (sh.getLastRow() > 1) {
-    var last = sh.getRange(sh.getLastRow(), 1, 1, newRow.length).getValues()[0];
-    if (rowMatches(last, newRow)) {
-      return ContentService.createTextOutput('ok');
-    }
-  }
-
-  sh.appendRow(newRow);
-  return ContentService.createTextOutput('ok');
 }
