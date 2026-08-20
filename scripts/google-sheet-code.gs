@@ -39,6 +39,13 @@ function ensureHeaders(sh) {
   sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
+function hasSelection(p) {
+  for (var i = 1; i <= 6; i++) {
+    if (p['s' + i]) return true;
+  }
+  return false;
+}
+
 function saveResponse(p) {
   var sh = getSheet();
   ensureHeaders(sh);
@@ -61,6 +68,10 @@ function doGet(e) {
         return ContentService.createTextOutput('ok');
       }
       cache.put(sid, '1', 120);
+    }
+
+    if (!hasSelection(p)) {
+      return ContentService.createTextOutput('skip');
     }
 
     saveResponse(p);

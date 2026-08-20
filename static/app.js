@@ -1,7 +1,7 @@
 const REQUIRED = 3;
 const NOTIFY_EMAIL = 'mr1.widanagamage@gmail.com';
 
-const IMG_V = '12';
+const IMG_V = '13';
 
 const IMAGES = [
   { id: 1, url: `images/1.png?v=${IMG_V}`, label: 'Smart Study Area with AC / Free Wifi' },
@@ -96,31 +96,43 @@ function saveToSheet(numbers, note, sid) {
     return Promise.resolve(false);
   }
 
-  const params = new URLSearchParams({
-    note: note || '',
-    sid: sid,
-  });
-  for (let i = 1; i <= 6; i++) {
-    params.set('s' + i, numbers.includes(i) ? '1' : '');
-  }
-  const url = `${SHEET_URL.trim()}?${params.toString()}`;
-
-  try {
-    fetch(url, { mode: 'no-cors', keepalive: true });
-  } catch {}
-
   return new Promise((resolve) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'display:none;width:0;height:0;border:0';
-    const finish = () => {
-      iframe.remove();
-      resolve(true);
+    let iframe = document.getElementById('sheet-save-frame');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'sheet-save-frame';
+      iframe.name = 'sheet-save-frame';
+      iframe.style.cssText = 'display:none;width:0;height:0;border:0';
+      document.body.appendChild(iframe);
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = SHEET_URL.trim();
+    form.target = 'sheet-save-frame';
+    form.style.display = 'none';
+
+    const addField = (name, value) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
     };
-    iframe.onload = () => setTimeout(finish, 2000);
-    iframe.onerror = finish;
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    setTimeout(finish, 3500);
+
+    addField('sid', sid);
+    addField('note', note || '');
+    for (let i = 1; i <= 6; i++) {
+      addField('s' + i, numbers.includes(i) ? '1' : '');
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(() => {
+      form.remove();
+      resolve(true);
+    }, 3000);
   });
 }
 
