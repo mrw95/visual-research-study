@@ -2,7 +2,7 @@ const REQUIRED = 3;
 const NOTIFY_EMAIL = 'mr1.widanagamage@gmail.com';
 
 const IMAGES = [
-  { id: 1, url: 'images/1.png', label: 'Smart Study Area / Free Wifi' },
+  { id: 1, url: 'images/1.png', label: 'Smart Study Area with AC / Free Wifi' },
   { id: 2, url: 'images/2.png', label: 'Mobile Accessories' },
   { id: 3, url: 'images/3.png', label: 'Branded Decants Perfumes' },
   { id: 4, url: 'images/4.png', label: 'Bookshop and Stationery' },
@@ -19,8 +19,12 @@ const overlay = document.getElementById('overlay');
 const selectedPicks = document.getElementById('selected-picks');
 const extraNote = document.getElementById('extra-note');
 
-function formatNumbers(nums) {
-  return nums.map(n => String(n)).join(' · ');
+function labelFor(id) {
+  return IMAGES.find(img => img.id === id)?.label || '';
+}
+
+function formatSelected(ids) {
+  return ids.map(id => labelFor(id)).join(' · ');
 }
 
 function updateUI() {
@@ -40,7 +44,7 @@ function updateUI() {
   }
 
   if (count > 0) {
-    selectedPicks.textContent = `තෝරා ඇත: ${formatNumbers(sorted)}`;
+    selectedPicks.innerHTML = `<strong>තෝරා ඇත:</strong><br>${formatSelected(sorted).replace(/ · /g, '<br>')}`;
     selectedPicks.classList.remove('hidden');
   } else {
     selectedPicks.textContent = '';
@@ -65,12 +69,12 @@ function toggle(id) {
 
 function renderImages() {
   grid.innerHTML = IMAGES.map(img => `
-    <div class="image-item" data-id="${img.id}" tabindex="0" role="button" aria-label="Option ${img.id}">
+    <div class="image-item" data-id="${img.id}" tabindex="0" role="button" aria-label="${img.label}">
       <div class="image-wrap">
         <span class="num-badge">${img.id}</span>
-        <img src="${img.url}" alt="Option ${img.id}">
+        <img src="${img.url}" alt="${img.label}">
       </div>
-      <p class="caption"><span class="caption-num">${img.id}</span></p>
+      <p class="caption"><span class="caption-name">${img.label}</span></p>
     </div>
   `).join('');
 

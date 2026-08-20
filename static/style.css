@@ -176,8 +176,21 @@ input[type="password"] {
 
 .caption {
   margin: 0;
-  padding: 10px;
+  padding: 10px 8px 12px;
   text-align: center;
+  min-height: 3.4em;
+}
+
+.caption-name {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.image-item.selected .caption-name {
+  color: var(--selected);
 }
 
 .caption-num {
@@ -204,10 +217,10 @@ input[type="password"] {
   border-radius: 10px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
   text-align: center;
-  font-size: 1.05rem;
-  letter-spacing: 0.04em;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .image-item.selected {
