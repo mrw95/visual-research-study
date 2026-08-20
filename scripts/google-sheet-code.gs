@@ -16,8 +16,8 @@ function formatTime(date) {
 }
 
 function tick(v) {
-  if (!v || v === '') return '';
-  return '✓';
+  if (v === '1' || v === 1 || v === true || v === 'true') return '✓';
+  return '';
 }
 
 function getSheet() {
@@ -39,9 +39,26 @@ function ensureHeaders(sh) {
   sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
+function parseParams(e) {
+  var p = (e && e.parameter) ? e.parameter : {};
+
+  if (p.data) {
+    try {
+      var d = JSON.parse(p.data);
+      p.sid = d.sid || p.sid || '';
+      p.note = d.note || p.note || '';
+      for (var i = 1; i <= 6; i++) {
+        p['s' + i] = String(d['s' + i] != null ? d['s' + i] : '');
+      }
+    } catch (err) {}
+  }
+
+  return p;
+}
+
 function hasSelection(p) {
   for (var i = 1; i <= 6; i++) {
-    if (p['s' + i]) return true;
+    if (tick(p['s' + i])) return true;
   }
   return false;
 }
@@ -57,9 +74,9 @@ function saveResponse(p) {
   ]);
 }
 
-function doGet(e) {
+function handleSubmit(e) {
   try {
-    var p = (e && e.parameter) ? e.parameter : {};
+    var p = parseParams(e);
     var sid = p.sid || '';
 
     if (sid) {
@@ -71,7 +88,7 @@ function doGet(e) {
     }
 
     if (!hasSelection(p)) {
-      return ContentService.createTextOutput('skip');
+      return ContentService.createTextOutput('skip-no-selection');
     }
 
     saveResponse(p);
@@ -81,11 +98,13 @@ function doGet(e) {
   }
 }
 
-function doPost(e) {
-  return doGet(e);
+function doGet(e) {
+  return handleSubmit(e);
 }
 
-// --- Manual tools (Run from Apps Script editor) ---
+function doPost(e) {
+  return handleSubmit(e);
+}
 
 function syncHeaders() {
   var sh = getSheet();
@@ -96,7 +115,7 @@ function syncHeaders() {
 }
 
 function testSave() {
-  saveResponse({ s1: '1', s2: '1', s3: '1', s4: '', s5: '', s6: '', note: 'manual test' });
+  saveResponse({ s1: '1', s2: '1', s3: '1', s4: '0', s5: '0', s6: '0', note: 'manual test' });
 }
 
 function fixTimeFormat() {
