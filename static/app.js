@@ -1,13 +1,15 @@
 const REQUIRED = 3;
 const NOTIFY_EMAIL = 'mr1.widanagamage@gmail.com';
 
+const IMG_V = '8';
+
 const IMAGES = [
-  { id: 1, url: 'images/1.png', label: 'Smart Study Area with AC / Free Wifi' },
-  { id: 2, url: 'images/2.png', label: 'Mobile Accessories' },
-  { id: 3, url: 'images/3.png', label: 'Branded Decants Perfumes' },
-  { id: 4, url: 'images/4.png', label: 'Bookshop and Stationery' },
-  { id: 5, url: 'images/5.png', label: 'Budget Pice Cafe' },
-  { id: 6, url: 'images/6.png', label: 'Smart Cafe' },
+  { id: 1, url: `images/1.png?v=${IMG_V}`, label: 'Smart Study Area with AC / Free Wifi' },
+  { id: 2, url: `images/2.png?v=${IMG_V}`, label: 'Mobile Accessories' },
+  { id: 3, url: `images/3.png?v=${IMG_V}`, label: 'Branded Decants Perfumes' },
+  { id: 4, url: `images/4.png?v=${IMG_V}`, label: 'Bookshop and Stationery' },
+  { id: 5, url: `images/5.png?v=${IMG_V}`, label: 'Budget Pice Cafe' },
+  { id: 6, url: `images/6.png?v=${IMG_V}`, label: 'Smart Cafe' },
 ];
 
 const selected = new Set();
