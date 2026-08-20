@@ -18,6 +18,7 @@ const submitBtn = document.getElementById('submit');
 const overlay = document.getElementById('overlay');
 const selectedPicks = document.getElementById('selected-picks');
 const extraNote = document.getElementById('extra-note');
+let submitting = false;
 
 function labelFor(id) {
   return IMAGES.find(img => img.id === id)?.label || '';
@@ -96,10 +97,7 @@ async function saveToSheet(numbers, note) {
     params.set('s' + i, numbers.includes(i) ? '1' : '');
   }
   const url = `${SHEET_URL.trim()}?${params.toString()}`;
-  // Reliable GET — works with Google Apps Script
   await fetch(url, { mode: 'no-cors', keepalive: true });
-  const img = new Image();
-  img.src = url;
   return true;
 }
 
@@ -118,7 +116,8 @@ async function saveToEmail(numbers, note) {
 }
 
 submitBtn.addEventListener('click', async () => {
-  if (selected.size !== REQUIRED) return;
+  if (selected.size !== REQUIRED || submitting) return;
+  submitting = true;
   submitBtn.disabled = true;
   submitBtn.textContent = 'යවමින්...';
 
@@ -137,6 +136,7 @@ submitBtn.addEventListener('click', async () => {
     overlay.classList.remove('hidden');
   } catch {
     alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');
+    submitting = false;
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit කරන්න';
   }
