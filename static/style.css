@@ -147,68 +147,35 @@ input[type="password"] {
   object-fit: cover;
 }
 
-.image-item .num-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  min-width: 36px;
-  height: 36px;
-  padding: 0 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--text);
-  font-size: 1.15rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 2;
-}
-
-.image-item.selected .num-badge {
-  background: var(--selected);
-  color: #fff;
-  transform: scale(1.08);
-}
-
-.image-item .check { display: none; }
-
 .caption {
   margin: 0;
-  padding: 10px 8px 12px;
+  padding: 12px 10px 14px;
   text-align: center;
-  min-height: 3.4em;
+  min-height: 3.6em;
+  background: #f8fafc;
+  border-top: 1px solid var(--line);
 }
 
 .caption-name {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--text);
+}
+
+.image-item.selected .caption {
+  background: var(--accent-soft);
+  border-top-color: var(--selected);
 }
 
 .image-item.selected .caption-name {
   color: var(--selected);
 }
 
-.caption-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 1.1rem;
+.image-item.selected .caption-name::before {
+  content: '✓ ';
   font-weight: 800;
-}
-
-.image-item.selected .caption-num {
-  background: var(--selected);
-  color: #fff;
 }
 
 .selected-picks {

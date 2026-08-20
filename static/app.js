@@ -56,8 +56,6 @@ function updateUI() {
     const isSelected = selected.has(id);
     el.classList.toggle('selected', isSelected);
     el.classList.toggle('disabled', count >= REQUIRED && !isSelected);
-    const badge = el.querySelector('.num-badge');
-    if (badge) badge.textContent = String(id);
   });
 }
 
@@ -71,7 +69,6 @@ function renderImages() {
   grid.innerHTML = IMAGES.map(img => `
     <div class="image-item" data-id="${img.id}" tabindex="0" role="button" aria-label="${img.label}">
       <div class="image-wrap">
-        <span class="num-badge">${img.id}</span>
         <img src="${img.url}" alt="${img.label}">
       </div>
       <p class="caption"><span class="caption-name">${img.label}</span></p>
