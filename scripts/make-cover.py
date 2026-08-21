@@ -1,4 +1,4 @@
-"""Build WhatsApp/OG cover collage from survey images."""
+"""Build WhatsApp/OG cover from Anuradhapura photos."""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -7,10 +7,15 @@ IMG_DIR = ROOT / "images"
 OUT = IMG_DIR / "cover.png"
 
 W, H = 1200, 630
-HEADER = 96
-GAP = 6
+BANNER_H = 110
+GAP = 4
 BG = (15, 23, 42)
-ACCENT = (14, 165, 233)
+
+COVER_IMAGES = [
+    IMG_DIR / "cover-a1.png",
+    IMG_DIR / "cover-a2.png",
+    IMG_DIR / "cover-a3.png",
+]
 
 
 def load_font(size: int):
@@ -33,41 +38,38 @@ def fit_crop(img: Image.Image, tw: int, th: int) -> Image.Image:
 
 
 def main():
-    paths = [IMG_DIR / f"{i}.png" for i in range(1, 7)]
-    photos = [Image.open(p).convert("RGB") for p in paths]
+    photos = [Image.open(p).convert("RGB") for p in COVER_IMAGES]
 
     canvas = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(canvas)
 
-    for y in range(HEADER):
-        t = y / max(HEADER - 1, 1)
-        r = int(BG[0] + (ACCENT[0] - BG[0]) * t * 0.35)
-        g = int(BG[1] + (ACCENT[1] - BG[1]) * t * 0.35)
-        b = int(BG[2] + (ACCENT[2] - BG[2]) * t * 0.35)
-        draw.line([(0, y), (W, y)], fill=(r, g, b))
+    # Top title banner
+    overlay = Image.new("RGBA", (W, BANNER_H), (15, 23, 42, 210))
+    canvas.paste(overlay, (0, 0), overlay)
 
-    title = "අනුරාධපුර නගරය"
-    subtitle = "විකල්ප 6 න් 3ක් තෝරන්න"
-    title_font = load_font(42)
-    sub_font = load_font(24)
+    title = "✨ අනුරාධපුර නගරය"
+    subtitle = "ඔබේ අදහස අපිට කියන්න · විකල්ප 6 න් 3ක් තෝරන්න"
+    draw.text((40, 22), title, fill=(255, 255, 255), font=load_font(40))
+    draw.text((40, 68), subtitle, fill=(186, 230, 253), font=load_font(22))
 
-    draw.text((48, 18), title, fill=(255, 255, 255), font=title_font)
-    draw.text((48, 58), subtitle, fill=(186, 230, 253), font=sub_font)
-
-    cols, rows = 3, 2
-    grid_w = W - GAP * (cols + 1)
-    grid_h = H - HEADER - GAP * (rows + 1)
-    cell_w = grid_w // cols
-    cell_h = grid_h // rows
+    # 3 photo panels
+    cols = len(photos)
+    grid_h = H - BANNER_H - GAP
+    cell_w = (W - GAP * (cols + 1)) // cols
 
     for idx, photo in enumerate(photos):
-        c = idx % cols
-        r = idx // cols
-        x = GAP + c * (cell_w + GAP)
-        y = HEADER + GAP + r * (cell_h + GAP)
-        tile = fit_crop(photo, cell_w, cell_h)
+        x = GAP + idx * (cell_w + GAP)
+        y = BANNER_H
+        tile = fit_crop(photo, cell_w, grid_h)
         canvas.paste(tile, (x, y))
-        draw.rectangle([(x, y), (x + cell_w - 1, y + cell_h - 1)], outline=(255, 255, 255), width=2)
+
+    # Bottom gradient for polish
+    grad = Image.new("RGBA", (W, 48), (0, 0, 0, 0))
+    gdraw = ImageDraw.Draw(grad)
+    for i in range(48):
+        alpha = int(120 * (i / 47))
+        gdraw.line([(0, i), (W, i)], fill=(15, 23, 42, alpha))
+    canvas.paste(grad, (0, H - 48), grad)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(OUT, "PNG", optimize=True)
