@@ -27,8 +27,8 @@ body::before {
   position: fixed;
   inset: 0;
   background: url("../images/bg-cover.png") center center / cover no-repeat;
-  filter: blur(14px);
-  transform: scale(1.06);
+  filter: blur(8px);
+  transform: scale(1.04);
   z-index: -2;
 }
 
@@ -36,7 +36,7 @@ body::after {
   content: "";
   position: fixed;
   inset: 0;
-  background: rgba(244, 246, 249, 0.78);
+  background: rgba(244, 246, 249, 0.52);
   z-index: -1;
 }
 
