@@ -1,4 +1,8 @@
-"""Build WhatsApp/OG cover from Anuradhapura photos."""
+"""DEPRECATED — use images/share-cover.png (user-designed cover).
+
+Do NOT run this to overwrite the share preview image.
+Legacy script kept for reference only.
+"""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
