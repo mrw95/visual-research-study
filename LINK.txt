@@ -1,13 +1,20 @@
 SURVEY LINK (share karanna):
-https://mrw95.github.io/visual-research-study/
+https://mrw95.github.io/visual-research-study/?v=16
 
-Fresh version (cache clear):
-https://mrw95.github.io/visual-research-study/?v=3
+--- WhatsApp / Group message (copy-paste) ---
+
+📋 ✨ අනුරාධපුර නගරය — ඔබේ අදහස අපිට කියන්න
+
+වේගයෙන් සංවර්ධනය වන අනුරාධපුර නගරයට
+ඔයා වැඩියෙන්ම කැමති අත්දැකීම් 3ක් තෝරන්න 👇
+
+🔗 https://mrw95.github.io/visual-research-study/?v=16
+
+⏱️ 1-2 minutes witharai
+🙏 ඔබගේ අදහස අගය කරනවා!
 
 RESULTS (Google Sheet):
 RESULTS_SHEET link eka config.js eke danna
 
 EMAIL backup:
 mr1.widanagamage@gmail.com
-
-Admin: config.js file eke salli links thiyenawa
