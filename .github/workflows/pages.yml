@@ -21,6 +21,7 @@ jobs:
           cp -r static public/
           mkdir -p public/images
           cp images/*.png public/images/
+          cp images/*.jpg public/images/ 2>/dev/null || true
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
