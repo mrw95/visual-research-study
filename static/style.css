@@ -18,12 +18,33 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("../images/bg-cover.png") center center / cover no-repeat;
+  filter: blur(14px);
+  transform: scale(1.06);
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(244, 246, 249, 0.78);
+  z-index: -1;
 }
 
 .page {
   max-width: 820px;
   margin: 0 auto;
   padding: 24px 16px 48px;
+  position: relative;
 }
 
 .study-header {
@@ -49,6 +70,7 @@ body {
   font-size: clamp(1.35rem, 4vw, 1.85rem);
   font-weight: 700;
   line-height: 1.35;
+  text-shadow: 0 1px 12px rgba(255, 255, 255, 0.9);
 }
 
 .study-intro {
@@ -60,12 +82,13 @@ body {
 }
 
 .card {
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(20, 35, 60, 0.04);
+  box-shadow: 0 2px 12px rgba(20, 35, 60, 0.08);
+  backdrop-filter: blur(6px);
 }
 
 .card h2 {
