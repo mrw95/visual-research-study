@@ -18,6 +18,8 @@ jobs:
         run: |
           mkdir -p public
           cp index.html public/
+          cp wa.html public/
+          cp robots.txt public/
           cp -r static public/
           mkdir -p public/images
           cp images/*.png public/images/
