@@ -5,6 +5,7 @@ const SURVEY_URL = 'https://visual-research-study.vercel.app/';
 
 // Vehicle hotline form (lifetime)
 const HOTLINE_URL = 'https://visual-research-study.vercel.app/hotline';
+const HOTLINE_SHARE_URL = 'https://visual-research-study.vercel.app/share';
 const INBOX_URL = 'https://visual-research-study.vercel.app/inbox';
 
 // Excel save — Google Apps Script Web App (NOT library URL!)

@@ -8,6 +8,12 @@
       ]
     },
     {
+      "source": "/share",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/hotline",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }

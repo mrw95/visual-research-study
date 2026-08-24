@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAR2WiTCH — WhatsApp message</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="static/style.css?v=46">
+</head>
+<body class="hotline-body">
+  <div class="page hotline-page">
+    <header class="study-header">
+      <img class="brand-logo" src="images/car2witch-logo.jpg" alt="CAR2WiTCH">
+      <h1>WhatsApp එකට යවන්න</h1>
+      <p class="study-ready">මේ message එක copy කරලා customer ට යවන්න. Link එක එක්කම ලස්සන preview එකක් පේනවා.</p>
+    </header>
+
+    <section class="card">
+      <p id="wa-text" class="wa-preview">🚘 *CAR2WiTCH*
+Your trust, our promise
+
+ඔයා හොයන වාහනේ මොකක්ද? 🚗
+
+📝 පහළ form එක පුරවන්න — විනාඩි 1යි.
+📞 Submit කළාම අපේ team එක ඔයාට WhatsApp / call කරනවා.
+
+👇 *Form එක open කරන්න*
+https://visual-research-study.vercel.app/share</p>
+    </section>
+
+    <section class="card actions">
+      <a class="sheet-btn" id="wa-send" href="#">WhatsApp එකට යවන්න</a>
+      <button type="button" id="wa-copy">Message එක copy කරන්න</button>
+      <p class="hint ready" id="wa-hint">Customer ට යවන්න ඕනේ මේ page එක නෙවෙයි — උඩ button එක ඔබලා WhatsApp එකෙන් යවන්න.</p>
+    </section>
+  </div>
+  <script>
+    const text = document.getElementById('wa-text').innerText.trim();
+    document.getElementById('wa-send').href = 'https://wa.me/?text=' + encodeURIComponent(text);
+    document.getElementById('wa-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        document.getElementById('wa-hint').textContent = 'Copy උනා. WhatsApp එකේ paste කරලා යවන්න.';
+      } catch {
+        document.getElementById('wa-hint').textContent = 'Copy නොවුණා. Message එක select කරලා copy කරන්න.';
+      }
+    });
+  </script>
+</body>
+</html>

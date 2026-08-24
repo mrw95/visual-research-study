@@ -430,6 +430,13 @@ th { background: #f8fafc; }
   box-shadow: 0 10px 28px rgba(20, 35, 60, 0.16);
 }
 
+.wa-preview {
+  white-space: pre-wrap;
+  line-height: 1.55;
+  margin: 0;
+  font-size: 1.02rem;
+}
+
 .hotline-body .actions button,
 .hotline-body #submit,
 .hotline-body #export-csv,
