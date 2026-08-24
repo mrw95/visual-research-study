@@ -9,6 +9,17 @@ function doPost(e) {
 function save_(e) {
   try {
     var p = (e && e.parameter) ? e.parameter : {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        var extra = JSON.parse(e.postData.contents);
+        for (var k in extra) {
+          if (Object.prototype.hasOwnProperty.call(extra, k) && extra[k] != null && extra[k] !== '') {
+            p[k] = extra[k];
+          }
+        }
+      } catch (ignore) {}
+    }
+
     var name = String(p.name || '').trim();
     var phone = String(p.phone || '').trim();
     var model = String(p.model || '').trim();
@@ -45,7 +56,7 @@ function save_(e) {
       p.city || '',
       "'" + name,
       "'" + phone,
-      p.extranote || ''
+      p.extranote || p.note || ''
     ]);
 
     var row = sh.getLastRow();

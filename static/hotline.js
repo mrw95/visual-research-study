@@ -245,7 +245,7 @@ function inquiryParams(inquiry) {
     year: inquiry.year,
     color: inquiry.color,
     grade: inquiry.grade,
-    budget: inquiry.budgetLabel || inquiry.budget,
+    budget: inquiry.budget,
     intent: inquiry.intent,
     city: inquiry.city,
     name: inquiry.name,
@@ -260,42 +260,48 @@ function inquiryParams(inquiry) {
   return params;
 }
 
+function saveViaFrame(params) {
+  return new Promise((resolve) => {
+    const scriptUrl = typeof SHEET_URL === 'string' ? SHEET_URL : '';
+    const iframe = document.getElementById('sheet-frame');
+    const sheetForm = document.getElementById('sheet-form');
+    if (!scriptUrl || !iframe || !sheetForm) {
+      resolve(false);
+      return;
+    }
+
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+
+    iframe.onload = () => finish(true);
+    setTimeout(() => finish(true), 2500);
+    sheetForm.setAttribute('action', scriptUrl);
+    sheetForm.innerHTML = '';
+    params.forEach((value, key) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      sheetForm.appendChild(input);
+    });
+    sheetForm.submit();
+  });
+}
+
 async function saveToSheet(inquiry) {
   const params = inquiryParams(inquiry);
-  const scriptUrl = typeof SHEET_URL === 'string' ? SHEET_URL : '';
-  if (scriptUrl) {
-    try {
-      await fetch(scriptUrl + '?' + params.toString(), { mode: 'no-cors', cache: 'no-store' });
-    } catch {
-      // Google still saves the row even if the browser hides the response
-    }
-  }
-
   try {
-    const res = await fetch('/api/inquiry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: inquiry.model,
-        year: inquiry.year,
-        color: inquiry.color,
-        grade: inquiry.grade,
-        budget: inquiry.budget,
-        budgetLabel: inquiry.budgetLabel,
-        intent: inquiry.intent,
-        city: inquiry.city,
-        name: inquiry.name,
-        phone: sheetPhone(inquiry.phone),
-        note: inquiry.note,
-        sid: inquiry.sid
-      })
-    });
+    const res = await fetch('/api/inquiry?' + params.toString(), { cache: 'no-store' });
     const data = await res.json();
     if (data && data.ok) return true;
   } catch {
-    // browser request above is the main Vehicle-tab save
+    // fall through to the hidden Google form
   }
-  return !!scriptUrl;
+  return saveViaFrame(params);
 }
 
 modelInput.addEventListener('input', () => {
