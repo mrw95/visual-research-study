@@ -37,6 +37,8 @@ module.exports = async function handler(req, res) {
   }
 
   var params = new URLSearchParams();
+  var name = String(body.name || body.customer || '').trim();
+  if (name) params.set('name', name.slice(0, 120));
   var fields = {
     model: body.model,
     year: body.year,
@@ -45,13 +47,13 @@ module.exports = async function handler(req, res) {
     budget: body.budgetLabel || body.budget,
     intent: body.intent,
     city: body.city,
-    name: body.name,
     phone: sheetPhone(body.phone),
     extranote: body.extranote || body.note,
     sid: body.sid || String(Date.now())
   };
   Object.keys(fields).forEach(function (key) {
-    if (fields[key]) params.set(key, String(fields[key]).slice(0, 80));
+    var max = key === 'extranote' ? 120 : 80;
+    if (fields[key]) params.set(key, String(fields[key]).slice(0, max));
   });
 
   var sheets = [

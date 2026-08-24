@@ -242,6 +242,9 @@ function sheetPhone(raw) {
 }
 
 function inquiryParams(inquiry) {
+  const params = new URLSearchParams();
+  const name = String(inquiry.name || '').trim();
+  if (name) params.set('name', name.slice(0, 120));
   const fields = {
     model: inquiry.model,
     year: inquiry.year,
@@ -250,12 +253,10 @@ function inquiryParams(inquiry) {
     budget: inquiry.budget,
     intent: inquiry.intent,
     city: inquiry.city,
-    name: inquiry.name,
     phone: sheetPhone(inquiry.phone),
     extranote: inquiry.note,
     sid: inquiry.sid
   };
-  const params = new URLSearchParams();
   Object.keys(fields).forEach((key) => {
     if (fields[key]) params.set(key, String(fields[key]).slice(0, 80));
   });
@@ -297,7 +298,10 @@ function saveViaFrame(params) {
 async function saveToSheet(inquiry) {
   const params = inquiryParams(inquiry);
   try {
-    const res = await fetch('/api/inquiry?' + params.toString(), { cache: 'no-store' });
+    const res = await fetch('/api/inquiry?' + params.toString(), {
+      cache: 'no-store',
+      keepalive: true
+    });
     const data = await res.json();
     if (data && data.ok) return true;
   } catch {
@@ -352,9 +356,9 @@ form.addEventListener('submit', async (e) => {
   inquiry.sid = Date.now() + '-' + Math.random().toString(36).slice(2, 9);
 
   try {
+    const saved = saveToSheet(inquiry);
     saveLocal(inquiry);
-    const saved = await saveToSheet(inquiry);
-    if (!saved) {
+    if (!(await saved)) {
       throw new Error('Sheet save failed');
     }
     thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, `Grade ${inquiry.grade}`, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city, inquiry.name, inquiry.phone].join(' · ');

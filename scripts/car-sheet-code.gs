@@ -29,7 +29,7 @@ function save_(e) {
       } catch (ignore) {}
     }
 
-    var name = String(p.name || '').trim();
+    var name = String(p.name || p.customer || '').trim();
     var phone = sheetPhone_(p.phone);
     var model = String(p.model || '').trim();
 
