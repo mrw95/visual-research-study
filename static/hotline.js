@@ -81,7 +81,7 @@ function updateUI() {
   updatePreview();
   const ready = isReady();
   submitBtn.disabled = !ready || state.submitting;
-  hint.textContent = ready ? 'Inquiry Submit කරන්න පුළුවන්.' : 'Model, year, color, full budget, leasing, city, නම, WhatsApp fill කරන්න.';
+  hint.textContent = ready ? 'Inquiry Submit කරන්න පුළුවන්.' : 'Model, year, color, budget, leasing, city, නම, WhatsApp fill කරන්න.';
   hint.classList.toggle('ready', ready);
 }
 
