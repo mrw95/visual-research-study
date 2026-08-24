@@ -232,57 +232,18 @@ function saveLocal(inquiry) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 500)));
 }
 
-function saveToSheet(inquiry) {
-  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return Promise.resolve(false);
-  if (!SHEET_URL.includes('/macros/s/') || !SHEET_URL.endsWith('/exec')) {
-    return Promise.resolve(false);
+async function saveToSheet(inquiry) {
+  try {
+    const res = await fetch('/api/inquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(inquiry)
+    });
+    const data = await res.json();
+    return !!(data && data.ok);
+  } catch {
+    return false;
   }
-
-  const packed = [
-    'VEHICLE',
-    inquiry.name,
-    inquiry.phone,
-    inquiry.model,
-    inquiry.year,
-    inquiry.color,
-    inquiry.grade,
-    inquiry.budgetLabel,
-    inquiry.intent,
-    inquiry.city,
-    inquiry.note
-  ].filter(Boolean).join(' | ');
-
-  const params = new URLSearchParams({
-    type: 'vehicle',
-    model: inquiry.model || '',
-    year: inquiry.year || '',
-    color: inquiry.color || '',
-    grade: inquiry.grade || '',
-    budget: inquiry.budget || '',
-    budgetLabel: inquiry.budgetLabel || '',
-    intent: inquiry.intent || '',
-    city: inquiry.city || '',
-    name: inquiry.name || '',
-    phone: inquiry.phone || '',
-    note: packed,
-    sid: inquiry.sid || '',
-    s1: '1',
-    s2: '1',
-    s3: '1',
-    s4: '0',
-    s5: '0',
-    s6: '0'
-  });
-
-  const url = `${SHEET_URL.trim()}?${params.toString()}`;
-  return new Promise((resolve) => {
-    fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(true);
-    img.src = url;
-    setTimeout(() => resolve(true), 2500);
-  });
 }
 
 modelInput.addEventListener('input', () => {
@@ -324,8 +285,9 @@ form.addEventListener('submit', async (e) => {
 
   try {
     saveLocal(inquiry);
-    if (typeof SHEET_URL === 'string' && SHEET_URL.trim()) {
-      await saveToSheet(inquiry);
+    const saved = await saveToSheet(inquiry);
+    if (!saved) {
+      throw new Error('Sheet save failed');
     }
     thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, `Grade ${inquiry.grade}`, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city, inquiry.name, inquiry.phone].join(' · ');
     overlay.classList.remove('hidden');
