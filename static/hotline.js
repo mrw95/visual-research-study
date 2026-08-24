@@ -241,11 +241,10 @@ function sheetPhone(raw) {
   return d;
 }
 
-function inquiryParams(inquiry) {
-  const params = new URLSearchParams();
-  const name = String(inquiry.name || '').trim();
-  if (name) params.set('name', name.slice(0, 120));
-  const fields = {
+function inquiryPayload(inquiry) {
+  return {
+    name: String(inquiry.name || '').trim(),
+    phone: sheetPhone(inquiry.phone),
     model: inquiry.model,
     year: inquiry.year,
     color: inquiry.color,
@@ -253,22 +252,32 @@ function inquiryParams(inquiry) {
     budget: inquiry.budget,
     intent: inquiry.intent,
     city: inquiry.city,
-    phone: sheetPhone(inquiry.phone),
-    extranote: inquiry.note,
-    sid: inquiry.sid
+    note: inquiry.note
   };
-  Object.keys(fields).forEach((key) => {
-    if (fields[key]) params.set(key, String(fields[key]).slice(0, 80));
-  });
-  return params;
 }
 
 async function saveToSheet(inquiry) {
-  const params = inquiryParams(inquiry);
-  const api = 'https://visual-research-study.vercel.app/api/inquiry?' + params.toString();
+  const payload = inquiryPayload(inquiry);
+  const api = 'https://visual-research-study.vercel.app/api/inquiry';
   for (let i = 0; i < 3; i++) {
     try {
-      const res = await fetch(api, { cache: 'no-store' });
+      const res = await fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        cache: 'no-store'
+      });
+      const data = await res.json();
+      if (data && data.ok) return true;
+    } catch {
+      // retry with GET so every field still goes
+    }
+    try {
+      const params = new URLSearchParams();
+      Object.keys(payload).forEach((key) => {
+        if (payload[key]) params.set(key, String(payload[key]));
+      });
+      const res = await fetch(api + '?' + params.toString(), { cache: 'no-store' });
       const data = await res.json();
       if (data && data.ok) return true;
     } catch {

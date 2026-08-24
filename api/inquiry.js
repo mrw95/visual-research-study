@@ -36,57 +36,39 @@ module.exports = async function handler(req, res) {
     return d;
   }
 
+  var budget = String(body.budget || '').replace(/[^\d]/g, '');
+  if (!budget) budget = String(body.budgetLabel || '').replace(/[^\d]/g, '');
+
   var params = new URLSearchParams();
-  var name = String(body.name || body.customer || '').trim();
-  if (name) params.set('name', name.slice(0, 120));
   var fields = {
+    name: String(body.name || body.customer || '').trim(),
+    phone: sheetPhone(body.phone),
     model: body.model,
     year: body.year,
     color: body.color,
     grade: body.grade,
-    budget: body.budgetLabel || body.budget,
+    budget: budget,
     intent: body.intent,
     city: body.city,
-    phone: sheetPhone(body.phone),
-    extranote: body.extranote || body.note,
-    sid: body.sid || String(Date.now())
+    extranote: body.extranote || body.note
   };
   Object.keys(fields).forEach(function (key) {
-    var max = key === 'extranote' ? 120 : 80;
+    var max = key === 'name' || key === 'extranote' || key === 'city' ? 60 : 40;
     if (fields[key]) params.set(key, String(fields[key]).slice(0, max));
   });
 
-  var sheets = [
-    'https://script.google.com/macros/s/AKfycby4hFm7G6BUQPom7r9nbpFNtNMJpNhVRc4v8Np94CwugW6dak45StG3YYw8DzDlLuGs/exec'
-  ];
+  var sheet = 'https://script.google.com/macros/s/AKfycby4hFm7G6BUQPom7r9nbpFNtNMJpNhVRc4v8Np94CwugW6dak45StG3YYw8DzDlLuGs/exec';
 
-  async function hit(query) {
-    try {
-      var response = await fetch(sheets[0] + '?' + query.toString(), { redirect: 'follow' });
-      var text = await response.text();
-      return { status: response.status, text: String(text).slice(0, 200) };
-    } catch (err) {
-      return { error: String(err && err.message ? err.message : err) };
-    }
+  var result = { status: 0, text: '' };
+  try {
+    var response = await fetch(sheet + '?' + params.toString(), { redirect: 'follow' });
+    result = { status: response.status, text: String(await response.text()).slice(0, 200) };
+  } catch (err) {
+    result = { error: String(err && err.message ? err.message : err) };
   }
 
-  function isOk(item) {
-    var t = String(item && item.text ? item.text : '').toLowerCase().trim();
-    return t === 'ok' || t.indexOf('ok') === 0;
-  }
+  var t = String(result.text || '').toLowerCase().trim();
+  var ok = t === 'ok' || t.indexOf('ok') === 0;
 
-  var results = [];
-  var first = await hit(params);
-  results.push(first);
-  if (!isOk(first)) {
-    var shortParams = new URLSearchParams();
-    if (name) shortParams.set('name', name.slice(0, 120));
-    if (fields.phone) shortParams.set('phone', fields.phone);
-    if (fields.model) shortParams.set('model', String(fields.model).slice(0, 80));
-    results.push(await hit(shortParams));
-  }
-
-  var ok = results.some(isOk);
-
-  return res.status(200).json({ ok: ok, results: results });
+  return res.status(200).json({ ok: ok, results: [result] });
 };
