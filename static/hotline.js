@@ -263,51 +263,20 @@ function inquiryParams(inquiry) {
   return params;
 }
 
-function saveViaFrame(params) {
-  return new Promise((resolve) => {
-    const scriptUrl = typeof SHEET_URL === 'string' ? SHEET_URL : '';
-    const iframe = document.getElementById('sheet-frame');
-    const sheetForm = document.getElementById('sheet-form');
-    if (!scriptUrl || !iframe || !sheetForm) {
-      resolve(false);
-      return;
-    }
-
-    let settled = false;
-    const finish = (ok) => {
-      if (settled) return;
-      settled = true;
-      resolve(ok);
-    };
-
-    iframe.onload = () => finish(true);
-    setTimeout(() => finish(true), 2500);
-    sheetForm.setAttribute('action', scriptUrl);
-    sheetForm.innerHTML = '';
-    params.forEach((value, key) => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = value;
-      sheetForm.appendChild(input);
-    });
-    sheetForm.submit();
-  });
-}
-
 async function saveToSheet(inquiry) {
   const params = inquiryParams(inquiry);
-  try {
-    const res = await fetch('/api/inquiry?' + params.toString(), {
-      cache: 'no-store',
-      keepalive: true
-    });
-    const data = await res.json();
-    if (data && data.ok) return true;
-  } catch {
-    // fall through to the hidden Google form
+  const api = 'https://visual-research-study.vercel.app/api/inquiry?' + params.toString();
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(api, { cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.ok) return true;
+    } catch {
+      // retry
+    }
+    await new Promise((resolve) => setTimeout(resolve, 700));
   }
-  return saveViaFrame(params);
+  return false;
 }
 
 modelInput.addEventListener('input', () => {
@@ -364,7 +333,7 @@ form.addEventListener('submit', async (e) => {
     thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, `Grade ${inquiry.grade}`, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city, inquiry.name, inquiry.phone].join(' · ');
     overlay.classList.remove('hidden');
   } catch {
-    alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');
+    alert('Google Sheet එකට ගිහින් නැහැ. Signal එක හොඳද බලලා නැවත Submit කරන්න.');
     state.submitting = false;
     submitBtn.disabled = false;
     submitBtn.textContent = 'Inquiry යවන්න';

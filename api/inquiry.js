@@ -60,21 +60,33 @@ module.exports = async function handler(req, res) {
     'https://script.google.com/macros/s/AKfycby4hFm7G6BUQPom7r9nbpFNtNMJpNhVRc4v8Np94CwugW6dak45StG3YYw8DzDlLuGs/exec'
   ];
 
-  var results = [];
-  for (var i = 0; i < sheets.length; i++) {
+  async function hit(query) {
     try {
-      var response = await fetch(sheets[i] + '?' + params.toString(), { redirect: 'follow' });
+      var response = await fetch(sheets[0] + '?' + query.toString(), { redirect: 'follow' });
       var text = await response.text();
-      results.push({ status: response.status, text: String(text).slice(0, 200) });
+      return { status: response.status, text: String(text).slice(0, 200) };
     } catch (err) {
-      results.push({ error: String(err && err.message ? err.message : err) });
+      return { error: String(err && err.message ? err.message : err) };
     }
   }
 
-  var ok = results.some(function (item) {
-    var t = String(item.text || '').toLowerCase().trim();
+  function isOk(item) {
+    var t = String(item && item.text ? item.text : '').toLowerCase().trim();
     return t === 'ok' || t.indexOf('ok') === 0;
-  });
+  }
+
+  var results = [];
+  var first = await hit(params);
+  results.push(first);
+  if (!isOk(first)) {
+    var shortParams = new URLSearchParams();
+    if (name) shortParams.set('name', name.slice(0, 120));
+    if (fields.phone) shortParams.set('phone', fields.phone);
+    if (fields.model) shortParams.set('model', String(fields.model).slice(0, 80));
+    results.push(await hit(shortParams));
+  }
+
+  var ok = results.some(isOk);
 
   return res.status(200).json({ ok: ok, results: results });
 };
