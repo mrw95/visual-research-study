@@ -1,15 +1,19 @@
 CUSTOMER FORM (WhatsApp share — any location / mobile data):
-https://visual-research-study.vercel.app/hotline
+https://visual-research-study.vercel.app/share?v=4
 
 STAFF INBOX (office only — WhatsApp ekata denna epa):
 https://visual-research-study.vercel.app/inbox
 
 --- WhatsApp message (copy-paste) ---
 
-🚘 ඔයා හොයන වාහනේ මොකක්ද?
+🚘 *CarSwitch (Pvt) Ltd*
+Your trust, our promise
 
-ඔබ සොයන වාහනය පිළිබඳ විස්තර ලබා ගැනීමට Form එක පුරවන්න 👇
+ඔයා හොයන වාහනේ මොකක්ද? 🚗
 
-🔗 https://visual-research-study.vercel.app/hotline
+📝 පහළ form එක පුරවන්න — විනාඩි 1යි.
 
-Form එක Submit කළ පසු අපගේ Team එකේ සාමාජිකයෙකු ඔබව ඉක්මනින්ම සම්බන්ධ කරගනු ඇත. 📞
+📞 Inquiry Submit කළාම අපේ team එක ඔයාට WhatsApp / call කරනවා.
+
+👇 *Form එක open කරන්න*
+https://visual-research-study.vercel.app/share?v=4
