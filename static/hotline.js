@@ -257,15 +257,8 @@ function inquiryParams(inquiry) {
   params.set('s1', '1');
   params.set('s2', '1');
   params.set('s3', '1');
-  params.set('note', note);
-  params.set('type', 'vehicle');
+  if (note) params.set('note', note);
   if (inquiry.sid) params.set('sid', String(inquiry.sid));
-  if (inquiry.model) params.set('model', String(inquiry.model));
-  if (inquiry.name) params.set('name', String(inquiry.name));
-  if (phone) params.set('phone', phone);
-  if (inquiry.city) params.set('city', String(inquiry.city));
-  if (inquiry.year) params.set('year', String(inquiry.year));
-  if (inquiry.color) params.set('color', String(inquiry.color));
   return params;
 }
 

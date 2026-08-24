@@ -52,15 +52,8 @@ module.exports = async function handler(req, res) {
   params.set('s1', '1');
   params.set('s2', '1');
   params.set('s3', '1');
-  params.set('note', note);
+  if (note) params.set('note', note);
   params.set('sid', String(body.sid || Date.now()).slice(0, 40));
-  if (body.model) params.set('model', String(body.model));
-  if (body.name) params.set('name', String(body.name));
-  if (phone) params.set('phone', phone);
-  if (body.city) params.set('city', String(body.city));
-  if (body.year) params.set('year', String(body.year));
-  if (body.color) params.set('color', String(body.color));
-  params.set('type', 'vehicle');
 
   var sheets = [
     'https://script.google.com/macros/s/AKfycbw2VCI5IKVRVX2bUVGOr9d_EAb3HqY7jkelHTrGwJuQbGGd9KD4G5D3hFMH4rRDAysb/exec'
