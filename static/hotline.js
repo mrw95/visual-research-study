@@ -102,12 +102,12 @@ function getInquiry() {
 
 function isReady() {
   const q = getInquiry();
-  return q.model && q.year && q.color && q.grade && q.budget && q.intent && q.city;
+  return q.model && q.year && q.color && q.grade && q.budget && q.intent && q.city && q.name && q.phone;
 }
 
 function updatePreview() {
   const q = getInquiry();
-  const bits = [q.model, q.year, q.color, q.grade && `Grade ${q.grade}`, q.budgetLabel, q.intentLabel, q.city].filter(Boolean);
+  const bits = [q.model, q.year, q.color, q.grade && `Grade ${q.grade}`, q.budgetLabel, q.intentLabel, q.city, q.name, q.phone].filter(Boolean);
   if (!bits.length) {
     preview.classList.add('hidden');
     preview.textContent = '';
@@ -121,7 +121,7 @@ function updateUI() {
   updatePreview();
   const ready = isReady();
   submitBtn.disabled = !ready || state.submitting;
-  hint.textContent = ready ? 'Inquiry යවන්න පුළුවන්.' : 'Model, year, color, grade, budget, intent, city fill කරන්න.';
+  hint.textContent = ready ? 'Inquiry යවන්න පුළුවන්.' : 'Model, year, color, grade, budget, intent, city, නම, WhatsApp fill කරන්න.';
   hint.classList.toggle('ready', ready);
 }
 
@@ -271,7 +271,7 @@ budgetInput.addEventListener('input', () => {
 });
 
 ['name', 'phone', 'note'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updatePreview);
+  document.getElementById(id).addEventListener('input', updateUI);
 });
 
 form.addEventListener('submit', async (e) => {
@@ -289,7 +289,7 @@ form.addEventListener('submit', async (e) => {
     if (typeof SHEET_URL === 'string' && SHEET_URL.trim()) {
       await saveToSheet(inquiry);
     }
-    thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, `Grade ${inquiry.grade}`, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city].join(' · ');
+    thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, `Grade ${inquiry.grade}`, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city, inquiry.name, inquiry.phone].join(' · ');
     overlay.classList.remove('hidden');
   } catch {
     alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');

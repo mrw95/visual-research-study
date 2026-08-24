@@ -64,7 +64,10 @@ function getVehicleSheet() {
 
 function ensureVehicleHeaders(sh) {
   var headers = getVehicleHeaders();
-  if (sh.getLastRow() > 0 && String(sh.getRange(1, 1).getValue()) === 'Time') return;
+  if (sh.getLastRow() > 0 && String(sh.getRange(1, 1).getValue()) === 'Time') {
+    sh.getRange('I:J').setNumberFormat('@');
+    return;
+  }
   if (sh.getLastRow() === 0) {
     sh.appendRow(headers);
   } else {
@@ -72,6 +75,13 @@ function ensureVehicleHeaders(sh) {
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  sh.getRange('I:J').setNumberFormat('@');
+}
+
+function asText(v) {
+  v = String(v == null ? '' : v).trim();
+  if (!v) return '';
+  return "'" + v;
 }
 
 function saveVehicle(p) {
@@ -86,10 +96,12 @@ function saveVehicle(p) {
     p.budgetLabel || p.budget || '',
     p.intentLabel || p.intent || '',
     p.city || '',
-    p.name || '',
-    p.phone || '',
+    asText(p.name),
+    asText(p.phone),
     p.note || ''
   ]);
+  var row = sh.getLastRow();
+  sh.getRange(row, 9, 1, 2).setNumberFormat('@');
 }
 
 function parseParams(e) {
@@ -143,7 +155,7 @@ function handleSubmit(e) {
       cache.put(sid, '1', 120);
     }
 
-    if (p.type === 'vehicle') {
+    if (p.type === 'vehicle' || p.model) {
       saveVehicle(p);
       return ContentService.createTextOutput('ok');
     }
@@ -217,9 +229,9 @@ function testVehicleSave() {
     budgetLabel: 'Rs. 8,000,000',
     intentLabel: 'අද / හෙට ගන්නවා',
     city: 'Colombo',
-    name: 'Test',
-    phone: '0700000000',
-    note: 'manual test'
+    name: 'Customer Name',
+    phone: '0771234567',
+    note: 'TEST ROW — delete this'
   });
 }
 
