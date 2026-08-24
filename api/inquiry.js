@@ -34,29 +34,26 @@ module.exports = async function handler(req, res) {
     return p.replace(/^\+/, '');
   }
 
-  var phone = sheetPhone(body.phone);
-  var note = [
-    body.name,
-    phone,
-    body.model,
-    body.year,
-    body.color,
-    body.grade,
-    body.budgetLabel || body.budget,
-    body.intent,
-    body.city,
-    body.extranote || body.note
-  ].filter(Boolean).join(' | ').slice(0, 400);
-
   var params = new URLSearchParams();
-  params.set('s1', '1');
-  params.set('s2', '1');
-  params.set('s3', '1');
-  if (note) params.set('note', note);
-  params.set('sid', String(body.sid || Date.now()).slice(0, 40));
+  var fields = {
+    model: body.model,
+    year: body.year,
+    color: body.color,
+    grade: body.grade,
+    budget: body.budgetLabel || body.budget,
+    intent: body.intent,
+    city: body.city,
+    name: body.name,
+    phone: sheetPhone(body.phone),
+    extranote: body.extranote || body.note,
+    sid: body.sid || String(Date.now())
+  };
+  Object.keys(fields).forEach(function (key) {
+    if (fields[key]) params.set(key, String(fields[key]).slice(0, 80));
+  });
 
   var sheets = [
-    'https://script.google.com/macros/s/AKfycbw2VCI5IKVRVX2bUVGOr9d_EAb3HqY7jkelHTrGwJuQbGGd9KD4G5D3hFMH4rRDAysb/exec'
+    'https://script.google.com/macros/s/AKfycby4hFm7G6BUQPom7r9nbpFNtNMJpNhVRc4v8Np94CwugW6dak45StG3YYw8DzDlLuGs/exec'
   ];
 
   var results = [];

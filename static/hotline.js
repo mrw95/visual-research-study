@@ -240,58 +240,62 @@ function sheetPhone(raw) {
 }
 
 function inquiryParams(inquiry) {
-  const phone = sheetPhone(inquiry.phone);
-  const note = [
-    inquiry.name,
-    phone,
-    inquiry.model,
-    inquiry.year,
-    inquiry.color,
-    inquiry.grade,
-    inquiry.budgetLabel,
-    inquiry.intent,
-    inquiry.city,
-    inquiry.note
-  ].filter(Boolean).join(' | ').slice(0, 400);
+  const fields = {
+    model: inquiry.model,
+    year: inquiry.year,
+    color: inquiry.color,
+    grade: inquiry.grade,
+    budget: inquiry.budgetLabel || inquiry.budget,
+    intent: inquiry.intent,
+    city: inquiry.city,
+    name: inquiry.name,
+    phone: sheetPhone(inquiry.phone),
+    extranote: inquiry.note,
+    sid: inquiry.sid
+  };
   const params = new URLSearchParams();
-  params.set('s1', '1');
-  params.set('s2', '1');
-  params.set('s3', '1');
-  if (note) params.set('note', note);
-  if (inquiry.sid) params.set('sid', String(inquiry.sid));
+  Object.keys(fields).forEach((key) => {
+    if (fields[key]) params.set(key, String(fields[key]).slice(0, 80));
+  });
   return params;
 }
 
 async function saveToSheet(inquiry) {
   const params = inquiryParams(inquiry);
-  let apiOk = false;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10000);
-  try {
-    const res = await fetch('/api/inquiry?' + params.toString(), {
-      cache: 'no-store',
-      signal: ctrl.signal
-    });
-    const data = await res.json();
-    apiOk = !!(data && data.ok);
-  } catch {
-    apiOk = false;
-  } finally {
-    clearTimeout(timer);
-  }
-
   const scriptUrl = typeof SHEET_URL === 'string' ? SHEET_URL : '';
   if (scriptUrl) {
-    await new Promise((resolve) => {
-      const img = new Image();
-      const done = () => resolve(true);
-      img.onload = done;
-      img.onerror = done;
-      img.src = scriptUrl + '?' + params.toString();
-      setTimeout(done, 1800);
-    });
+    try {
+      await fetch(scriptUrl + '?' + params.toString(), { mode: 'no-cors', cache: 'no-store' });
+    } catch {
+      // Google still saves the row even if the browser hides the response
+    }
   }
-  return apiOk || !!scriptUrl;
+
+  try {
+    const res = await fetch('/api/inquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: inquiry.model,
+        year: inquiry.year,
+        color: inquiry.color,
+        grade: inquiry.grade,
+        budget: inquiry.budget,
+        budgetLabel: inquiry.budgetLabel,
+        intent: inquiry.intent,
+        city: inquiry.city,
+        name: inquiry.name,
+        phone: sheetPhone(inquiry.phone),
+        note: inquiry.note,
+        sid: inquiry.sid
+      })
+    });
+    const data = await res.json();
+    if (data && data.ok) return true;
+  } catch {
+    // browser request above is the main Vehicle-tab save
+  }
+  return !!scriptUrl;
 }
 
 modelInput.addEventListener('input', () => {
