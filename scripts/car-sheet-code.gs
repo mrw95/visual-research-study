@@ -43,11 +43,17 @@ function save_(e) {
 
     if (sh.getLastRow() === 0 || String(sh.getRange(1, 1).getValue()) !== 'Time') {
       sh.clear();
-      sh.appendRow(['Time', 'Model', 'Year', 'Color', 'Grade', 'Budget', 'Intent', 'City', 'Name', 'Phone', 'Note']);
-      sh.getRange(1, 1, 1, 11).setFontWeight('bold');
+      sh.appendRow(['Time', 'Model', 'Year', 'Color', 'Budget', 'Intent', 'City', 'Name', 'Phone', 'Note']);
+      sh.getRange(1, 1, 1, 10).setFontWeight('bold');
     }
 
-    sh.getRange('I:J').setNumberFormat('@');
+    if (String(sh.getRange(1, 5).getValue()) === 'Grade') {
+      sh.deleteColumn(5);
+      sh.getRange(1, 1, 1, 10).setValues([['Time', 'Model', 'Year', 'Color', 'Budget', 'Intent', 'City', 'Name', 'Phone', 'Note']]);
+      sh.getRange(1, 1, 1, 10).setFontWeight('bold');
+    }
+
+    sh.getRange('H:I').setNumberFormat('@');
 
     var intent = String(p.intent || p.intentLabel || '');
     if (intent === 'yes') intent = 'Leasing ඔව්';
@@ -60,7 +66,6 @@ function save_(e) {
       model,
       p.year || '',
       p.color || '',
-      p.grade || '',
       p.budgetLabel || p.budget || '',
       intent,
       p.city || '',
@@ -70,7 +75,7 @@ function save_(e) {
     ]);
 
     var row = sh.getLastRow();
-    sh.getRange(row, 9, 1, 2).setNumberFormat('@');
+    sh.getRange(row, 8, 1, 2).setNumberFormat('@');
     return ContentService.createTextOutput('ok');
   } catch (err) {
     return ContentService.createTextOutput('error: ' + err.message);

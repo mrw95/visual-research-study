@@ -45,7 +45,6 @@ function getVehicleHeaders() {
     'Model',
     'Year',
     'Color',
-    'Grade',
     'Budget',
     'Intent',
     'City',
@@ -65,7 +64,7 @@ function getVehicleSheet() {
 function ensureVehicleHeaders(sh) {
   var headers = getVehicleHeaders();
   if (sh.getLastRow() > 0 && String(sh.getRange(1, 1).getValue()) === 'Time') {
-    sh.getRange('I:J').setNumberFormat('@');
+    sh.getRange('H:I').setNumberFormat('@');
     return;
   }
   if (sh.getLastRow() === 0) {
@@ -75,7 +74,7 @@ function ensureVehicleHeaders(sh) {
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-  sh.getRange('I:J').setNumberFormat('@');
+  sh.getRange('H:I').setNumberFormat('@');
 }
 
 function asText(v) {
@@ -92,7 +91,6 @@ function saveVehicle(p) {
     p.model || '',
     p.year || '',
     p.color || '',
-    p.grade || '',
     p.budgetLabel || p.budget || '',
     p.intentLabel || p.intent || '',
     p.city || '',
@@ -101,7 +99,7 @@ function saveVehicle(p) {
     p.note || ''
   ]);
   var row = sh.getLastRow();
-  sh.getRange(row, 9, 1, 2).setNumberFormat('@');
+  sh.getRange(row, 8, 1, 2).setNumberFormat('@');
 }
 
 function parseParams(e) {
@@ -227,7 +225,6 @@ function testVehicleSave() {
     model: 'Toyota Aqua',
     year: '2018',
     color: 'White',
-    grade: '4.5',
     budgetLabel: 'Rs. 8,000,000',
     intentLabel: 'අද / හෙට ගන්නවා',
     city: 'Colombo',

@@ -46,7 +46,6 @@ module.exports = async function handler(req, res) {
     model: body.model,
     year: body.year,
     color: body.color,
-    grade: body.grade,
     budget: budget,
     intent: body.intent || body.intentLabel,
     city: body.city,
