@@ -240,56 +240,65 @@ function sheetPhone(raw) {
 }
 
 function inquiryParams(inquiry) {
-  const fields = {
-    type: 'vehicle',
-    model: inquiry.model || '',
-    year: inquiry.year || '',
-    color: inquiry.color || '',
-    grade: inquiry.grade || '',
-    budget: inquiry.budget || '',
-    budgetLabel: inquiry.budgetLabel || '',
-    intent: inquiry.intent || '',
-    city: inquiry.city || '',
-    name: inquiry.name || '',
-    phone: sheetPhone(inquiry.phone),
-    extranote: inquiry.note || '',
-    sid: inquiry.sid || ''
-  };
+  const phone = sheetPhone(inquiry.phone);
+  const note = [
+    inquiry.name,
+    phone,
+    inquiry.model,
+    inquiry.year,
+    inquiry.color,
+    inquiry.grade,
+    inquiry.budgetLabel,
+    inquiry.intent,
+    inquiry.city,
+    inquiry.note
+  ].filter(Boolean).join(' | ').slice(0, 400);
   const params = new URLSearchParams();
-  Object.keys(fields).forEach((key) => {
-    if (fields[key]) params.set(key, String(fields[key]));
-  });
+  params.set('s1', '1');
+  params.set('s2', '1');
+  params.set('s3', '1');
+  params.set('note', note);
+  params.set('type', 'vehicle');
+  if (inquiry.sid) params.set('sid', String(inquiry.sid));
+  if (inquiry.model) params.set('model', String(inquiry.model));
+  if (inquiry.name) params.set('name', String(inquiry.name));
+  if (phone) params.set('phone', phone);
+  if (inquiry.city) params.set('city', String(inquiry.city));
+  if (inquiry.year) params.set('year', String(inquiry.year));
+  if (inquiry.color) params.set('color', String(inquiry.color));
   return params;
 }
 
 async function saveToSheet(inquiry) {
   const params = inquiryParams(inquiry);
+  let apiOk = false;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
+  const timer = setTimeout(() => ctrl.abort(), 10000);
   try {
     const res = await fetch('/api/inquiry?' + params.toString(), {
       cache: 'no-store',
       signal: ctrl.signal
     });
     const data = await res.json();
-    if (data && data.ok) return true;
+    apiOk = !!(data && data.ok);
   } catch {
-    // fall through to direct sheet save
+    apiOk = false;
   } finally {
     clearTimeout(timer);
   }
 
   const scriptUrl = typeof SHEET_URL === 'string' ? SHEET_URL : '';
-  if (!scriptUrl) return false;
-  await new Promise((resolve) => {
-    const img = new Image();
-    const done = () => resolve(true);
-    img.onload = done;
-    img.onerror = done;
-    img.src = scriptUrl + '?' + params.toString();
-    setTimeout(done, 2000);
-  });
-  return true;
+  if (scriptUrl) {
+    await new Promise((resolve) => {
+      const img = new Image();
+      const done = () => resolve(true);
+      img.onload = done;
+      img.onerror = done;
+      img.src = scriptUrl + '?' + params.toString();
+      setTimeout(done, 1800);
+    });
+  }
+  return apiOk || !!scriptUrl;
 }
 
 modelInput.addEventListener('input', () => {

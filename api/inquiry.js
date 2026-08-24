@@ -34,42 +34,50 @@ module.exports = async function handler(req, res) {
     return p.replace(/^\+/, '');
   }
 
-  const fields = {
-    type: 'vehicle',
-    model: body.model || '',
-    year: body.year || '',
-    color: body.color || '',
-    grade: body.grade || '',
-    budget: body.budget || '',
-    budgetLabel: body.budgetLabel || '',
-    intent: body.intent || '',
-    city: body.city || '',
-    name: body.name || '',
-    phone: sheetPhone(body.phone),
-    extranote: body.extranote || body.note || '',
-    sid: body.sid || String(Date.now())
-  };
+  var phone = sheetPhone(body.phone);
+  var note = [
+    body.name,
+    phone,
+    body.model,
+    body.year,
+    body.color,
+    body.grade,
+    body.budgetLabel || body.budget,
+    body.intent,
+    body.city,
+    body.extranote || body.note
+  ].filter(Boolean).join(' | ').slice(0, 400);
 
-  const params = new URLSearchParams();
-  Object.keys(fields).forEach(function (key) {
-    if (fields[key]) params.set(key, String(fields[key]));
-  });
+  var params = new URLSearchParams();
+  params.set('s1', '1');
+  params.set('s2', '1');
+  params.set('s3', '1');
+  params.set('note', note);
+  params.set('sid', String(body.sid || Date.now()).slice(0, 40));
+  if (body.model) params.set('model', String(body.model));
+  if (body.name) params.set('name', String(body.name));
+  if (phone) params.set('phone', phone);
+  if (body.city) params.set('city', String(body.city));
+  if (body.year) params.set('year', String(body.year));
+  if (body.color) params.set('color', String(body.color));
+  params.set('type', 'vehicle');
 
-  const sheets = [
+  var sheets = [
     'https://script.google.com/macros/s/AKfycbw2VCI5IKVRVX2bUVGOr9d_EAb3HqY7jkelHTrGwJuQbGGd9KD4G5D3hFMH4rRDAysb/exec'
   ];
 
-  const results = await Promise.all(sheets.map(async function (base) {
+  var results = [];
+  for (var i = 0; i < sheets.length; i++) {
     try {
-      const response = await fetch(base + '?' + params.toString(), { redirect: 'follow' });
-      const text = await response.text();
-      return { status: response.status, text: String(text).slice(0, 200) };
+      var response = await fetch(sheets[i] + '?' + params.toString(), { redirect: 'follow' });
+      var text = await response.text();
+      results.push({ status: response.status, text: String(text).slice(0, 200) });
     } catch (err) {
-      return { error: String(err && err.message ? err.message : err) };
+      results.push({ error: String(err && err.message ? err.message : err) });
     }
-  }));
+  }
 
-  const ok = results.some(function (item) {
+  var ok = results.some(function (item) {
     var t = String(item.text || '').toLowerCase().trim();
     return t === 'ok' || t.indexOf('ok') === 0;
   });
