@@ -1,5 +1,4 @@
 const REQUIRED = 3;
-const NOTIFY_EMAIL = 'mr1.widanagamage@gmail.com';
 
 const IMG_V = '14';
 
@@ -146,12 +145,22 @@ submitBtn.addEventListener('click', async () => {
       // Sheet save unoth email fail unath OK
     }
     overlay.classList.remove('hidden');
+    document.getElementById('close-page')?.focus();
   } catch {
     alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');
     submitting = false;
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit කරන්න';
   }
+});
+
+document.getElementById('close-page')?.addEventListener('click', () => {
+  window.close();
+  setTimeout(() => {
+    if (!window.closed) {
+      window.history.length > 1 ? window.history.back() : window.location.replace('about:blank');
+    }
+  }, 200);
 });
 
 renderImages();

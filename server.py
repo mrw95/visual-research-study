@@ -98,6 +98,16 @@ def admin_page():
     return send_from_directory(ROOT, "admin.html")
 
 
+@app.get("/hotline")
+def hotline_page():
+    return send_from_directory(ROOT, "hotline.html")
+
+
+@app.get("/inbox")
+def inbox_page():
+    return send_from_directory(ROOT, "inbox.html")
+
+
 @app.get("/static/<path:name>")
 def static_files(name):
     return send_from_directory(ROOT / "static", name)

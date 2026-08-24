@@ -68,17 +68,63 @@ body::after {
 .study-header h1 {
   margin: 0 0 16px;
   font-size: clamp(1.35rem, 4vw, 1.85rem);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.35;
-  text-shadow: 0 1px 12px rgba(255, 255, 255, 0.9);
+  color: #0a0a0a;
 }
 
 .study-intro {
   margin: 0;
   font-size: 1.05rem;
-  color: var(--text);
+  font-weight: 700;
+  color: #0a0a0a;
   max-width: 640px;
   margin-inline: auto;
+}
+
+.welcome-copy {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  max-width: 640px;
+  margin: 0 auto;
+  box-shadow: 0 8px 24px rgba(20, 35, 60, 0.08);
+}
+
+.welcome-copy p {
+  margin: 0 0 12px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.55;
+  color: #1a2332;
+}
+
+.welcome-copy p:last-child {
+  margin-bottom: 0;
+}
+
+.welcome-copy .study-ready,
+.welcome-copy .study-promise {
+  margin-top: 0;
+}
+
+.study-promise {
+  display: block;
+  margin-top: 10px;
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.55;
+  color: var(--brand-blue, #005ead);
+}
+
+.study-ready {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #1a2332;
 }
 
 .card {
@@ -115,13 +161,17 @@ body::after {
 }
 
 input[type="text"],
-input[type="password"] {
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 1rem;
   font-family: Arial, Helvetica, sans-serif;
+  background: #fff;
 }
 
 .grid-head {
@@ -254,10 +304,25 @@ button:disabled {
 
 .study-footer {
   text-align: center;
-  color: var(--muted);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.82rem;
+  color: #0a0a0a;
+  font-family: "Segoe UI", "Noto Sans Sinhala", Arial, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
   margin-top: 8px;
+}
+
+.study-footer p {
+  margin: 6px 0;
+}
+
+.study-footer .small {
+  color: #0a0a0a;
+  font-weight: 700;
+}
+
+.study-footer a,
+.study-header a {
+  color: var(--accent);
 }
 
 .overlay {
@@ -282,10 +347,19 @@ button:disabled {
 
 .thankyou h2 { margin-top: 0; }
 
+.thankyou p {
+  margin: 10px 0;
+  line-height: 1.55;
+}
+
 .thankyou .small {
   color: var(--muted);
   font-family: Arial, Helvetica, sans-serif;
   font-size: 0.9rem;
+}
+
+.thankyou button {
+  margin-top: 16px;
 }
 
 .hidden { display: none !important; }
@@ -322,4 +396,225 @@ th { background: #f8fafc; }
 
 @media (max-width: 520px) {
   .admin-row { flex-direction: column; }
+}
+
+.hotline-body {
+  --accent: #005ead;
+  --accent-soft: #e7f2fb;
+  --selected: #e87500;
+  --ok: #e87500;
+  --brand-orange: #e87500;
+  --brand-blue: #005ead;
+}
+
+.hotline-body::before {
+  background: url("../images/car2witch-showroom.webp") center 45% / cover no-repeat;
+  filter: none;
+  transform: none;
+}
+
+.hotline-body::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.28) 45%, rgba(244, 246, 249, 0.48) 100%);
+}
+
+.brand-logo {
+  display: block;
+  width: min(220px, 70vw);
+  max-height: 170px;
+  object-fit: contain;
+  height: auto;
+  margin: 0 auto 18px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 10px 28px rgba(20, 35, 60, 0.16);
+}
+
+.hotline-body .actions button,
+.hotline-body #submit,
+.hotline-body #export-csv,
+.hotline-body #close-page {
+  background: var(--brand-orange);
+}
+
+.hotline-body button:disabled {
+  background: #f0b37a;
+}
+
+.hotline-page {
+  padding-bottom: 88px;
+}
+
+.filter-preview {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--brand-blue, #005ead);
+  color: #fff;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(20, 35, 60, 0.18);
+}
+
+.filter-preview strong {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip.selected {
+  border-color: var(--selected);
+  background: #fff4ea;
+  color: var(--selected);
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.budget-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.budget-prefix {
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.intent-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.intent-card {
+  text-align: left;
+  background: #fff;
+  color: var(--text);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.intent-card span {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.intent-card.selected {
+  border-color: var(--brand-orange, #e87500);
+  background: #fff4ea;
+  box-shadow: 0 0 0 3px rgba(232, 117, 0, 0.16);
+}
+
+.intent-card[data-value="asking"].selected {
+  border-color: var(--brand-blue, #005ead);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px rgba(0, 94, 173, 0.14);
+}
+
+.extra-gap { margin-top: 16px; }
+.extra-gap-top { margin-top: 14px; }
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.inquiry-card h2 {
+  margin: 8px 0 6px;
+  font-size: 1.2rem;
+}
+
+.year-tag {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.inquiry-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.inquiry-time {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.intent-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.intent-badge.ready {
+  background: #fff4ea;
+  color: var(--brand-orange, #e87500);
+}
+
+.intent-badge.asking {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.inquiry-meta,
+.inquiry-contact,
+.inquiry-note {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+}
+
+.inquiry-note {
+  color: var(--muted);
+}
+
+@media (max-width: 520px) {
+  .intent-grid,
+  .filter-row {
+    grid-template-columns: 1fr;
+  }
 }

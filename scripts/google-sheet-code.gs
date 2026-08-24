@@ -39,16 +39,72 @@ function ensureHeaders(sh) {
   sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
+function getVehicleHeaders() {
+  return [
+    'Time',
+    'Model',
+    'Year',
+    'Color',
+    'Grade',
+    'Budget',
+    'Intent',
+    'City',
+    'Name',
+    'Phone',
+    'Note'
+  ];
+}
+
+function getVehicleSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Vehicle');
+  if (!sh) sh = ss.insertSheet('Vehicle');
+  return sh;
+}
+
+function ensureVehicleHeaders(sh) {
+  var headers = getVehicleHeaders();
+  if (sh.getLastRow() > 0 && String(sh.getRange(1, 1).getValue()) === 'Time') return;
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(headers);
+  } else {
+    sh.insertRowBefore(1);
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+}
+
+function saveVehicle(p) {
+  var sh = getVehicleSheet();
+  ensureVehicleHeaders(sh);
+  sh.appendRow([
+    formatTime(new Date()),
+    p.model || '',
+    p.year || '',
+    p.color || '',
+    p.grade || '',
+    p.budgetLabel || p.budget || '',
+    p.intentLabel || p.intent || '',
+    p.city || '',
+    p.name || '',
+    p.phone || '',
+    p.note || ''
+  ]);
+}
+
 function parseParams(e) {
   var p = (e && e.parameter) ? e.parameter : {};
 
   if (p.data) {
     try {
       var d = JSON.parse(p.data);
+      for (var k in d) {
+        if (Object.prototype.hasOwnProperty.call(d, k)) p[k] = d[k];
+      }
       p.sid = d.sid || p.sid || '';
       p.note = d.note || p.note || '';
       for (var i = 1; i <= 6; i++) {
-        p['s' + i] = String(d['s' + i] != null ? d['s' + i] : '');
+        p['s' + i] = String(d['s' + i] != null ? d['s' + i] : p['s' + i] || '');
       }
     } catch (err) {}
   }
@@ -85,6 +141,11 @@ function handleSubmit(e) {
         return ContentService.createTextOutput('ok');
       }
       cache.put(sid, '1', 120);
+    }
+
+    if (p.type === 'vehicle') {
+      saveVehicle(p);
+      return ContentService.createTextOutput('ok');
     }
 
     if (!hasSelection(p)) {
@@ -146,10 +207,27 @@ function removeDuplicates() {
   toDelete.sort(function(a, b) { return b - a; }).forEach(function(r) { sh.deleteRow(r); });
 }
 
+function testVehicleSave() {
+  saveVehicle({
+    type: 'vehicle',
+    model: 'Toyota Aqua',
+    year: '2018',
+    color: 'White',
+    grade: '4.5',
+    budgetLabel: 'Rs. 8,000,000',
+    intentLabel: 'අද / හෙට ගන්නවා',
+    city: 'Colombo',
+    name: 'Test',
+    phone: '0700000000',
+    note: 'manual test'
+  });
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Survey')
     .addItem('Test save (1 row)', 'testSave')
+    .addItem('Test vehicle save', 'testVehicleSave')
     .addItem('Update column names', 'syncHeaders')
     .addItem('Fix time format', 'fixTimeFormat')
     .addItem('Remove duplicate rows', 'removeDuplicates')

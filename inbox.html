@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="static/style.css?v=45">
+</head>
+<body class="hotline-body">
+  <div class="page hotline-page">
+    <header class="study-header">
+      <img class="brand-logo" src="images/car2witch-logo.jpg" alt="CAR2WiTCH — Your trust, our promise">
+      <h1>Inquiries filter කරන්න</h1>
+      <p class="study-intro">එක පාරටම බලන්න — මොකක්ද හොයන්නේ, ready ද, just asking ද.</p>
+    </header>
+
+    <section class="card">
+      <label class="field-label" for="search">Search</label>
+      <input id="search" type="text" placeholder="Model, city, name, phone...">
+      <div class="chips extra-gap-top" id="intent-filters">
+        <button type="button" class="chip selected" data-intent="">All</button>
+        <button type="button" class="chip" data-intent="buy_now">අද / හෙට ගන්නවා</button>
+        <button type="button" class="chip" data-intent="asking">Just asking</button>
+      </div>
+      <div class="filter-row">
+        <select id="year-filter" aria-label="Year">
+          <option value="">All years</option>
+        </select>
+        <select id="color-filter" aria-label="Color">
+          <option value="">All colors</option>
+        </select>
+        <select id="grade-filter" aria-label="Grade">
+          <option value="">All grades</option>
+        </select>
+        <select id="city-filter" aria-label="City">
+          <option value="">All cities</option>
+        </select>
+      </div>
+    </section>
+
+    <p class="summary" id="summary">0 inquiries</p>
+    <div id="list"></div>
+
+    <section class="card actions">
+      <button type="button" id="export-csv">Excel / CSV download</button>
+      <p class="hint">Google Sheet eke වගේ lifetime list එක තියෙනවා. මේ page එකේ පේන්නේ මේ phone/computer එකෙන් submit උන ඒවා.</p>
+    </section>
+  </div>
+  <script src="static/inbox.js?v=46"></script>
+</body>
+</html>

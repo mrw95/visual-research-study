@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAR2WiTCH — වාහන Inquiry</title>
+  <meta name="description" content="ඔබ සොයන වාහනය පිළිබඳ විස්තර ලබා ගැනීමට Form එක පුරවන්න. CarSwitch (Pvt) Ltd කණ්ඩායම ඔබට සහය වීමට සූදානම්.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://visual-research-study.vercel.app/hotline">
+  <meta property="og:title" content="CAR2WiTCH — ඔයා හොයන වාහනේ මොකක්ද?">
+  <meta property="og:description" content="Form එක Submit කළ පසු, අපගේ Team එකේ සාමාජිකයෙකු ඔබව ඉක්මනින්ම සම්බන්ධ කරගනු ඇත.">
+  <meta property="og:image" content="https://visual-research-study.vercel.app/images/car2witch-showroom.webp">
+  <link rel="stylesheet" href="static/style.css?v=45">
+</head>
+<body class="hotline-body">
+  <div class="page hotline-page">
+    <header class="study-header">
+      <img class="brand-logo" src="images/car2witch-logo.jpg" alt="CAR2WiTCH — Your trust, our promise">
+      <h1>🚘 ඔයා හොයන වාහනේ මොකක්ද?</h1>
+      <div class="welcome-copy">
+        <p>ඔබ සොයන වාහනය පිළිබඳ විස්තර ලබා ගැනීමට පහත Form එක පුරවන්න. 📝</p>
+        <p class="study-ready">ඔබගේ අවශ්‍යතාවයට ගැළපෙන හොඳම වාහනය සොයා ගැනීමට CarSwitch (Pvt) Ltd කණ්ඩායම ඔබට සහය වීමට සූදානම්. ❤️</p>
+        <p class="study-promise">Form එක Submit කළ පසු, අපගේ Team එකේ සාමාජිකයෙකු ඔබව ඉක්මනින්ම සම්බන්ධ කරගනු ඇත. 📞</p>
+      </div>
+    </header>
+
+    <div class="filter-preview hidden" id="preview" aria-live="polite"></div>
+
+    <form id="hotline-form" novalidate>
+      <section class="card">
+        <label class="field-label" for="model">Vehicle model</label>
+        <input id="model" name="model" type="text" list="model-list" maxlength="80" placeholder="Type කරන්න හෝ පහළින් තෝරන්න" autocomplete="off" required>
+        <datalist id="model-list"></datalist>
+        <div class="chips" id="model-chips"></div>
+      </section>
+
+      <section class="card">
+        <p class="field-label">Year</p>
+        <div class="chips" id="year-chips"></div>
+      </section>
+
+      <section class="card">
+        <p class="field-label">Color</p>
+        <div class="chips color-chips" id="color-chips"></div>
+      </section>
+
+      <section class="card">
+        <p class="field-label">Auction grade</p>
+        <div class="chips" id="grade-chips"></div>
+      </section>
+
+      <section class="card">
+        <label class="field-label" for="budget">අතින් කීයක් දාන්න පුළුවන්?</label>
+        <div class="budget-row">
+          <span class="budget-prefix">Rs.</span>
+          <input id="budget" name="budget" type="text" inputmode="numeric" maxlength="16" placeholder="8,000,000" required>
+        </div>
+        <div class="chips" id="budget-chips"></div>
+      </section>
+
+      <section class="card">
+        <p class="field-label">අද / හෙට ගන්නවද, නැත්නම් just asking ද?</p>
+        <div class="intent-grid" id="intent-grid"></div>
+      </section>
+
+      <section class="card">
+        <label class="field-label" for="city">City / නගරය</label>
+        <input id="city" name="city" type="text" list="city-list" maxlength="80" placeholder="Type කරන්න හෝ පහළින් තෝරන්න" autocomplete="address-level2" required>
+        <datalist id="city-list"></datalist>
+        <div class="chips" id="city-chips"></div>
+      </section>
+
+      <section class="card">
+        <label class="field-label" for="name">නම <span class="optional">(optional)</span></label>
+        <input id="name" name="name" type="text" maxlength="80" placeholder="Customer name" autocomplete="name">
+        <label class="field-label extra-gap" for="phone">WhatsApp / phone <span class="optional">(optional)</span></label>
+        <input id="phone" name="phone" type="tel" maxlength="20" placeholder="07X XXX XXXX" autocomplete="tel">
+        <label class="field-label extra-gap" for="note">වෙනත් note <span class="optional">(optional)</span></label>
+        <input id="note" name="note" type="text" maxlength="200" placeholder="mileage, option...">
+      </section>
+
+      <section class="card actions">
+        <p class="hint" id="hint">අවශ්‍ය fields fill කරන්න.</p>
+        <button type="submit" id="submit" disabled>Inquiry යවන්න</button>
+      </section>
+    </form>
+
+    <footer class="study-footer">
+      <p>🚗 ඔබගේ අවශ්‍යතාවය අපට කියන්න — හොඳම වාහනය සොයාගන්න අපි උදව් කරන්නම්!</p>
+    </footer>
+  </div>
+
+  <div class="overlay hidden" id="overlay">
+    <div class="thankyou">
+      <h2>ස්තුතියි! ❤️</h2>
+      <p>Form එක Submit කළ පසු, අපගේ Team එකේ සාමාජිකයෙකු ඔබව ඉක්මනින්ම සම්බන්ධ කරගනු ඇත. 📞</p>
+      <p>ඔබගේ අවශ්‍යතාවයට ගැළපෙන හොඳම වාහනය සොයා ගැනීමට CarSwitch (Pvt) Ltd කණ්ඩායම ඔබට සහය වීමට සූදානම්.</p>
+      <p class="small" id="thankyou-summary"></p>
+      <button type="button" id="close-page">page එක close කරන්න</button>
+    </div>
+  </div>
+
+  <script src="static/config.js?v=41"></script>
+  <script src="static/hotline.js?v=50"></script>
+</body>
+</html>
