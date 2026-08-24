@@ -237,8 +237,27 @@ function saveToSheet(inquiry) {
   if (!SHEET_URL.includes('/macros/s/') || !SHEET_URL.endsWith('/exec')) {
     return Promise.resolve(false);
   }
-  const url = `${SHEET_URL.trim()}?data=${encodeURIComponent(JSON.stringify(inquiry))}`;
+
+  const params = new URLSearchParams();
+  params.set('type', 'vehicle');
+  params.set('model', inquiry.model || '');
+  params.set('year', inquiry.year || '');
+  params.set('color', inquiry.color || '');
+  params.set('grade', inquiry.grade || '');
+  params.set('budget', inquiry.budget || '');
+  params.set('budgetLabel', inquiry.budgetLabel || '');
+  params.set('intent', inquiry.intent || '');
+  params.set('intentLabel', inquiry.intentLabel || '');
+  params.set('city', inquiry.city || '');
+  params.set('name', inquiry.name || '');
+  params.set('phone', inquiry.phone || '');
+  params.set('note', inquiry.note || '');
+  params.set('sid', inquiry.sid || '');
+  params.set('data', JSON.stringify(inquiry));
+
+  const url = `${SHEET_URL.trim()}?${params.toString()}`;
   return new Promise((resolve) => {
+    fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
     const img = new Image();
     img.onload = () => resolve(true);
     img.onerror = () => resolve(true);
