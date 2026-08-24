@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
     color: body.color,
     grade: body.grade,
     budget: budget,
-    intent: body.intent,
+    intent: body.intent || body.intentLabel,
     city: body.city,
     extranote: body.extranote || body.note
   };

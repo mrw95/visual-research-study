@@ -49,10 +49,11 @@ function save_(e) {
 
     sh.getRange('I:J').setNumberFormat('@');
 
-    var intent = String(p.intent || '');
-    var intentLabel = String(p.intentLabel || '');
-    if (!intentLabel && intent === 'buy_now') intentLabel = 'අද / හෙට ගන්නවා';
-    if (!intentLabel && intent === 'asking') intentLabel = 'Just asking';
+    var intent = String(p.intent || p.intentLabel || '');
+    if (intent === 'yes') intent = 'Leasing ඔව්';
+    if (intent === 'no') intent = 'Leasing නැහැ';
+    if (intent === 'buy_now') intent = 'අද / හෙට ගන්නවා';
+    if (intent === 'asking') intent = 'Just asking';
 
     sh.appendRow([
       Utilities.formatDate(new Date(), 'Asia/Colombo', 'dd/MM/yyyy HH:mm:ss'),
@@ -61,7 +62,7 @@ function save_(e) {
       p.color || '',
       p.grade || '',
       p.budgetLabel || p.budget || '',
-      intentLabel || intent,
+      intent,
       p.city || '',
       "'" + name,
       "'" + phone,

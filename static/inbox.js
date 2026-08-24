@@ -37,13 +37,12 @@ function formatTime(iso) {
 
 function matches(item) {
   const q = search.value.trim().toLowerCase();
-  if (intent && item.intent !== intent) return false;
+  if (intent && item.leasing !== intent && item.intent !== intent) return false;
   if (yearFilter.value && item.year !== yearFilter.value) return false;
   if (colorFilter.value && item.color !== colorFilter.value) return false;
-  if (gradeFilter.value && item.grade !== gradeFilter.value) return false;
   if (cityFilter.value && item.city !== cityFilter.value) return false;
   if (!q) return true;
-  const blob = [item.model, item.year, item.color, item.grade, item.budgetLabel, item.intentLabel, item.city, item.name, item.phone, item.note].join(' ').toLowerCase();
+  const blob = [item.model, item.year, item.color, item.budgetLabel, item.intentLabel, item.city, item.name, item.phone, item.note].join(' ').toLowerCase();
   return blob.includes(q);
 }
 
@@ -51,7 +50,6 @@ function render() {
   const items = loadItems();
   fillSelect(yearFilter, unique(items, 'year'), 'All years');
   fillSelect(colorFilter, unique(items, 'color'), 'All colors');
-  fillSelect(gradeFilter, unique(items, 'grade'), 'All grades');
   fillSelect(cityFilter, unique(items, 'city'), 'All cities');
 
   const shown = items.filter(matches);
@@ -64,11 +62,11 @@ function render() {
   list.innerHTML = shown.map(item => `
     <article class="card inquiry-card">
       <div class="inquiry-top">
-        <span class="intent-badge ${item.intent === 'buy_now' ? 'ready' : 'asking'}">${item.intentLabel || item.intent}</span>
+        <span class="intent-badge ${item.leasing === 'yes' || item.intent === 'yes' ? 'ready' : 'asking'}">${item.intentLabel || item.intent || ''}</span>
         <span class="inquiry-time">${formatTime(item.time)}</span>
       </div>
       <h2>${item.model || '—'} <span class="year-tag">${item.year || ''}</span></h2>
-      <p class="inquiry-meta">${[item.city, item.color, item.grade && `Grade ${item.grade}`, item.budgetLabel].filter(Boolean).join(' · ')}</p>
+      <p class="inquiry-meta">${[item.city, item.color, item.budgetLabel].filter(Boolean).join(' · ')}</p>
       ${item.name || item.phone ? `<p class="inquiry-contact">${[item.name, item.phone].filter(Boolean).join(' · ')}</p>` : ''}
       ${item.note ? `<p class="inquiry-note">${item.note}</p>` : ''}
     </article>
@@ -83,8 +81,8 @@ function csvEscape(v) {
 
 document.getElementById('export-csv').addEventListener('click', () => {
   const items = loadItems().filter(matches);
-  const headers = ['Time', 'Model', 'Year', 'Color', 'Grade', 'Budget', 'Intent', 'City', 'Name', 'Phone', 'Note'];
-  const rows = items.map(i => [formatTime(i.time), i.model, i.year, i.color, i.grade, i.budgetLabel || i.budget, i.intentLabel || i.intent, i.city, i.name, i.phone, i.note].map(csvEscape).join(','));
+  const headers = ['Time', 'Model', 'Year', 'Color', 'Budget', 'Leasing', 'City', 'Name', 'Phone', 'Note'];
+  const rows = items.map(i => [formatTime(i.time), i.model, i.year, i.color, i.budgetLabel || i.budget, i.intentLabel || i.intent, i.city, i.name, i.phone, i.note].map(csvEscape).join(','));
   const csv = [headers.join(','), ...rows].join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
@@ -102,7 +100,7 @@ intentFilters.querySelectorAll('.chip').forEach(btn => {
   });
 });
 
-[search, yearFilter, colorFilter, gradeFilter, cityFilter].forEach(el => {
+[search, yearFilter, colorFilter, cityFilter].forEach(el => {
   el.addEventListener('input', render);
   el.addEventListener('change', render);
 });

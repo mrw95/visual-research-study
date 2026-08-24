@@ -37,45 +37,37 @@
     <form id="hotline-form" novalidate>
       <section class="card">
         <label class="field-label" for="model">Vehicle model</label>
-        <input id="model" name="model" type="text" list="model-list" maxlength="80" placeholder="Type කරන්න හෝ පහළින් තෝරන්න" autocomplete="off" required>
-        <datalist id="model-list"></datalist>
-        <div class="chips" id="model-chips"></div>
+        <input id="model" name="model" type="text" maxlength="80" placeholder="Type කරන්න — උදා: Toyota Axio" autocomplete="off" required>
       </section>
 
       <section class="card">
-        <p class="field-label">Year</p>
+        <label class="field-label" for="year">Year</label>
         <div class="chips" id="year-chips"></div>
+        <input id="year" name="year" type="text" inputmode="numeric" maxlength="4" placeholder="වෙනත් year type කරන්න" class="extra-gap" autocomplete="off">
       </section>
 
       <section class="card">
-        <p class="field-label">Color</p>
+        <label class="field-label" for="color">Color</label>
         <div class="chips color-chips" id="color-chips"></div>
+        <input id="color" name="color" type="text" maxlength="40" placeholder="වෙනත් color type කරන්න" class="extra-gap" autocomplete="off">
       </section>
 
       <section class="card">
-        <p class="field-label">Auction grade</p>
-        <div class="chips" id="grade-chips"></div>
-      </section>
-
-      <section class="card">
-        <label class="field-label" for="budget">අතින් කීයක් දාන්න පුළුවන්?</label>
+        <label class="field-label" for="budget">Full Budget</label>
         <div class="budget-row">
           <span class="budget-prefix">Rs.</span>
           <input id="budget" name="budget" type="text" inputmode="numeric" maxlength="16" placeholder="8,000,000" required>
         </div>
-        <div class="chips" id="budget-chips"></div>
       </section>
 
       <section class="card">
-        <p class="field-label">අද / හෙට ගන්නවද, නැත්නම් just asking ද?</p>
-        <div class="intent-grid" id="intent-grid"></div>
+        <p class="field-label">Leasing එකක් දානවද?</p>
+        <div class="chips" id="leasing-chips"></div>
       </section>
 
       <section class="card">
         <label class="field-label" for="city">City / නගරය</label>
-        <input id="city" name="city" type="text" list="city-list" maxlength="80" placeholder="Type කරන්න හෝ පහළින් තෝරන්න" autocomplete="address-level2" required>
-        <datalist id="city-list"></datalist>
-        <div class="chips" id="city-chips"></div>
+        <input id="city" name="city" type="text" maxlength="80" placeholder="Type කරන්න — උදා: Colombo" autocomplete="address-level2" required>
       </section>
 
       <section class="card">
@@ -113,6 +105,6 @@
   <form id="sheet-form" method="GET" target="sheet-frame" hidden></form>
 
   <script src="static/config.js?v=63"></script>
-  <script src="static/hotline.js?v=65"></script>
+  <script src="static/hotline.js?v=66"></script>
 </body>
 </html>

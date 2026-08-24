@@ -12,7 +12,7 @@
     <header class="study-header">
       <img class="brand-logo" src="images/car2witch-logo.jpg" alt="CarSwitch (Pvt) Ltd — Your trust, our promise">
       <h1>Inquiries filter කරන්න</h1>
-      <p class="study-intro">එක පාරටම බලන්න — මොකක්ද හොයන්නේ, ready ද, just asking ද.</p>
+      <p class="study-intro">එක පාරටම බලන්න — model, year, city, leasing.</p>
     </header>
 
     <section class="card">
@@ -20,8 +20,8 @@
       <input id="search" type="text" placeholder="Model, city, name, phone...">
       <div class="chips extra-gap-top" id="intent-filters">
         <button type="button" class="chip selected" data-intent="">All</button>
-        <button type="button" class="chip" data-intent="buy_now">අද / හෙට ගන්නවා</button>
-        <button type="button" class="chip" data-intent="asking">Just asking</button>
+        <button type="button" class="chip" data-intent="yes">Leasing ඔව්</button>
+        <button type="button" class="chip" data-intent="no">Leasing නැහැ</button>
       </div>
       <div class="filter-row">
         <select id="year-filter" aria-label="Year">
@@ -29,9 +29,6 @@
         </select>
         <select id="color-filter" aria-label="Color">
           <option value="">All colors</option>
-        </select>
-        <select id="grade-filter" aria-label="Grade">
-          <option value="">All grades</option>
         </select>
         <select id="city-filter" aria-label="City">
           <option value="">All cities</option>
@@ -48,6 +45,6 @@
       <p class="hint">WhatsApp එකෙන් fill උන හැම inquiry එකක්ම Google Sheet එකේ Vehicle tab එකට යනවා. මේ page එකේ පේන්නේ මේ computer එකෙන් submit උන ඒවා විතරයි.</p>
     </section>
   </div>
-  <script src="static/inbox.js?v=46"></script>
+  <script src="static/inbox.js?v=47"></script>
 </body>
 </html>

@@ -1,54 +1,19 @@
-const MODELS = [
-  'Toyota Aqua', 'Toyota Axio', 'Toyota Premio', 'Toyota Allion', 'Toyota Prius',
-  'Toyota CHR', 'Toyota Raize', 'Toyota Fielder', 'Honda Vezel', 'Honda Fit',
-  'Honda Grace', 'Honda Civic', 'Nissan Note', 'Nissan X-Trail', 'Suzuki Wagon R',
-  'Suzuki Alto', 'Suzuki Swift', 'Daihatsu Mira', 'Other'
-];
-
-const YEARS = ['Any', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016', '2015', 'Older'];
-
+const YEARS = ['2026', '2025', '2024'];
 const COLORS = [
-  { id: 'White', label: 'White / සුදු', swatch: '#f4f4f4' },
-  { id: 'Pearl', label: 'Pearl', swatch: '#f7f1e3' },
   { id: 'Black', label: 'Black / කළු', swatch: '#1a1a1a' },
-  { id: 'Silver', label: 'Silver', swatch: '#c5c9ce' },
-  { id: 'Grey', label: 'Grey / අළු', swatch: '#7b838c' },
-  { id: 'Red', label: 'Red / රතු', swatch: '#c0392b' },
-  { id: 'Blue', label: 'Blue / නිල්', swatch: '#2f5d9e' },
-  { id: 'Any', label: 'Any color', swatch: 'linear-gradient(135deg,#e8f0fb,#f4f4f4,#1a1a1a)' },
-  { id: 'Other', label: 'Other', swatch: '#d4a017' }
+  { id: 'White', label: 'White / සුදු', swatch: '#f4f4f4' }
 ];
-
-const GRADES = ['5', '4.5', '4', '3.5', '3', 'R', 'Any', 'Not sure'];
-
-const BUDGETS = [
-  { label: '50 Lakh', value: 5000000 },
-  { label: '70 Lakh', value: 7000000 },
-  { label: '80 Lakh', value: 8000000 }
-];
-
-const CITIES = [
-  'Colombo', 'Gampaha', 'Negombo', 'Kandy', 'Kurunegala', 'Anuradhapura',
-  'Galle', 'Matara', 'Ratnapura', 'Jaffna', 'Trincomalee', 'Batticaloa', 'Other'
-];
-
-const INTENTS = [
-  {
-    id: 'buy_now',
-    title: 'අද / හෙට ගන්නවා',
-    sub: 'Ready to take it'
-  },
-  {
-    id: 'asking',
-    title: 'Just asking',
-    sub: 'විස්තර විතරක් අහනවා'
-  }
+const LEASING = [
+  { id: 'yes', label: 'ඔව්' },
+  { id: 'no', label: 'නැහැ' }
 ];
 
 const STORAGE_KEY = 'vrs-vehicle-inquiries';
 
 const form = document.getElementById('hotline-form');
 const modelInput = document.getElementById('model');
+const yearInput = document.getElementById('year');
+const colorInput = document.getElementById('color');
 const cityInput = document.getElementById('city');
 const budgetInput = document.getElementById('budget');
 const submitBtn = document.getElementById('submit');
@@ -58,13 +23,7 @@ const overlay = document.getElementById('overlay');
 const thankyouSummary = document.getElementById('thankyou-summary');
 
 const state = {
-  model: '',
-  year: '',
-  color: '',
-  grade: '',
-  budget: '',
-  intent: '',
-  city: '',
+  leasing: '',
   submitting: false
 };
 
@@ -78,22 +37,23 @@ function parseBudget(raw) {
   return String(raw || '').replace(/[^\d]/g, '');
 }
 
-function intentLabel(id) {
-  return INTENTS.find(x => x.id === id)?.title || id;
+function leasingLabel(id) {
+  return LEASING.find(x => x.id === id)?.label || '';
 }
 
 function getInquiry() {
+  const leasing = state.leasing;
   return {
     type: 'vehicle',
-    model: state.model.trim(),
-    year: state.year,
-    color: state.color,
-    grade: state.grade,
-    budget: parseBudget(state.budget),
-    budgetLabel: state.budget ? `Rs. ${formatRs(state.budget)}` : '',
-    intent: state.intent,
-    intentLabel: intentLabel(state.intent),
-    city: state.city.trim(),
+    model: modelInput.value.trim(),
+    year: yearInput.value.trim(),
+    color: colorInput.value.trim(),
+    budget: parseBudget(budgetInput.value),
+    budgetLabel: parseBudget(budgetInput.value) ? `Rs. ${formatRs(parseBudget(budgetInput.value))}` : '',
+    leasing,
+    intent: leasing,
+    intentLabel: leasing ? `Leasing ${leasingLabel(leasing)}` : '',
+    city: cityInput.value.trim(),
     name: document.getElementById('name').value.trim(),
     phone: document.getElementById('phone').value.trim(),
     note: document.getElementById('note').value.trim()
@@ -102,12 +62,12 @@ function getInquiry() {
 
 function isReady() {
   const q = getInquiry();
-  return q.model && q.year && q.color && q.grade && q.budget && q.intent && q.city && q.name && q.phone;
+  return q.model && q.year && q.color && q.budget && q.leasing && q.city && q.name && q.phone;
 }
 
 function updatePreview() {
   const q = getInquiry();
-  const bits = [q.model, q.year, q.color, q.grade && `Grade ${q.grade}`, q.budgetLabel, q.intentLabel, q.city, q.name, q.phone].filter(Boolean);
+  const bits = [q.model, q.year, q.color, q.budgetLabel, q.intentLabel, q.city, q.name, q.phone].filter(Boolean);
   if (!bits.length) {
     preview.classList.add('hidden');
     preview.textContent = '';
@@ -121,12 +81,12 @@ function updateUI() {
   updatePreview();
   const ready = isReady();
   submitBtn.disabled = !ready || state.submitting;
-  hint.textContent = ready ? 'Inquiry යවන්න පුළුවන්.' : 'Model, year, color, grade, budget, intent, city, නම, WhatsApp fill කරන්න.';
+  hint.textContent = ready ? 'Inquiry යවන්න පුළුවන්.' : 'Model, year, color, full budget, leasing, city, නම, WhatsApp fill කරන්න.';
   hint.classList.toggle('ready', ready);
 }
 
 function selectChip(container, value) {
-  container.querySelectorAll('.chip, .intent-card').forEach(el => {
+  container.querySelectorAll('.chip').forEach(el => {
     el.classList.toggle('selected', el.dataset.value === value);
   });
 }
@@ -145,76 +105,28 @@ function renderChips(el, items, onPick, selected) {
   });
 }
 
-function renderModels() {
-  document.getElementById('model-list').innerHTML = MODELS.map(m => `<option value="${m}">`).join('');
-  renderChips(document.getElementById('model-chips'), MODELS, value => {
-    modelInput.value = value === 'Other' ? '' : value;
-    state.model = modelInput.value;
-    if (value === 'Other') modelInput.focus();
-    selectChip(document.getElementById('model-chips'), value);
-    updateUI();
-  }, state.model);
-}
-
 function renderYears() {
   renderChips(document.getElementById('year-chips'), YEARS, value => {
-    state.year = value;
+    yearInput.value = value;
     selectChip(document.getElementById('year-chips'), value);
     updateUI();
-  }, state.year);
+  }, yearInput.value);
 }
 
 function renderColors() {
   renderChips(document.getElementById('color-chips'), COLORS, value => {
-    state.color = value;
+    colorInput.value = value;
     selectChip(document.getElementById('color-chips'), value);
     updateUI();
-  }, state.color);
+  }, colorInput.value);
 }
 
-function renderGrades() {
-  renderChips(document.getElementById('grade-chips'), GRADES, value => {
-    state.grade = value;
-    selectChip(document.getElementById('grade-chips'), value);
+function renderLeasing() {
+  renderChips(document.getElementById('leasing-chips'), LEASING, value => {
+    state.leasing = value;
+    selectChip(document.getElementById('leasing-chips'), value);
     updateUI();
-  }, state.grade);
-}
-
-function renderBudgets() {
-  renderChips(document.getElementById('budget-chips'), BUDGETS.map(b => ({ id: String(b.value), label: b.label })), value => {
-    state.budget = value;
-    budgetInput.value = formatRs(value);
-    selectChip(document.getElementById('budget-chips'), value);
-    updateUI();
-  }, state.budget);
-}
-
-function renderIntents() {
-  const el = document.getElementById('intent-grid');
-  el.innerHTML = INTENTS.map(item => `
-    <button type="button" class="intent-card${state.intent === item.id ? ' selected' : ''}" data-value="${item.id}">
-      <strong>${item.title}</strong>
-      <span>${item.sub}</span>
-    </button>
-  `).join('');
-  el.querySelectorAll('.intent-card').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.intent = btn.dataset.value;
-      selectChip(el, state.intent);
-      updateUI();
-    });
-  });
-}
-
-function renderCities() {
-  document.getElementById('city-list').innerHTML = CITIES.map(c => `<option value="${c}">`).join('');
-  renderChips(document.getElementById('city-chips'), CITIES, value => {
-    cityInput.value = value === 'Other' ? '' : value;
-    state.city = cityInput.value;
-    if (value === 'Other') cityInput.focus();
-    selectChip(document.getElementById('city-chips'), value);
-    updateUI();
-  }, state.city);
+  }, state.leasing);
 }
 
 function saveLocal(inquiry) {
@@ -248,9 +160,8 @@ function inquiryPayload(inquiry) {
     model: inquiry.model,
     year: inquiry.year,
     color: inquiry.color,
-    grade: inquiry.grade,
     budget: inquiry.budget,
-    intent: inquiry.intent,
+    intent: inquiry.intentLabel,
     city: inquiry.city,
     note: inquiry.note
   };
@@ -270,7 +181,7 @@ async function saveToSheet(inquiry) {
       const data = await res.json();
       if (data && data.ok) return true;
     } catch {
-      // retry with GET so every field still goes
+      // retry with GET
     }
     try {
       const params = new URLSearchParams();
@@ -288,26 +199,26 @@ async function saveToSheet(inquiry) {
   return false;
 }
 
-modelInput.addEventListener('input', () => {
-  state.model = modelInput.value;
-  const match = MODELS.find(m => m.toLowerCase() === modelInput.value.trim().toLowerCase());
-  selectChip(document.getElementById('model-chips'), match || (modelInput.value ? 'Other' : ''));
+modelInput.addEventListener('input', updateUI);
+cityInput.addEventListener('input', updateUI);
+
+yearInput.addEventListener('input', () => {
+  const year = yearInput.value.replace(/[^\d]/g, '').slice(0, 4);
+  yearInput.value = year;
+  selectChip(document.getElementById('year-chips'), YEARS.includes(year) ? year : '');
   updateUI();
 });
 
-cityInput.addEventListener('input', () => {
-  state.city = cityInput.value;
-  const match = CITIES.find(c => c.toLowerCase() === cityInput.value.trim().toLowerCase());
-  selectChip(document.getElementById('city-chips'), match || (cityInput.value ? 'Other' : ''));
+colorInput.addEventListener('input', () => {
+  const color = colorInput.value.trim();
+  const match = COLORS.find(c => c.id.toLowerCase() === color.toLowerCase());
+  selectChip(document.getElementById('color-chips'), match ? match.id : '');
   updateUI();
 });
 
 budgetInput.addEventListener('input', () => {
   const digits = parseBudget(budgetInput.value);
-  state.budget = digits;
   budgetInput.value = formatRs(digits);
-  const match = BUDGETS.find(b => String(b.value) === digits);
-  selectChip(document.getElementById('budget-chips'), match ? String(match.value) : '');
   updateUI();
 });
 
@@ -339,7 +250,7 @@ form.addEventListener('submit', async (e) => {
     if (!(await saved)) {
       throw new Error('Sheet save failed');
     }
-    thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, `Grade ${inquiry.grade}`, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city, inquiry.name, inquiry.phone].join(' · ');
+    thankyouSummary.textContent = [inquiry.model, inquiry.year, inquiry.color, inquiry.budgetLabel, inquiry.intentLabel, inquiry.city, inquiry.name, inquiry.phone].join(' · ');
     overlay.classList.remove('hidden');
   } catch {
     alert('Google Sheet එකට ගිහින් නැහැ. Signal එක හොඳද බලලා නැවත Submit කරන්න.');
@@ -356,11 +267,7 @@ document.getElementById('close-page')?.addEventListener('click', () => {
   }, 150);
 });
 
-renderModels();
 renderYears();
 renderColors();
-renderGrades();
-renderBudgets();
-renderIntents();
-renderCities();
+renderLeasing();
 updateUI();
