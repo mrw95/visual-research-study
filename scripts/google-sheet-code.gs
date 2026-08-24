@@ -156,6 +156,8 @@ function handleSubmit(e) {
     }
 
     if (p.type === 'vehicle' || p.model) {
+      if (p.intent === 'buy_now' && !p.intentLabel) p.intentLabel = 'අද / හෙට ගන්නවා';
+      if (p.intent === 'asking' && !p.intentLabel) p.intentLabel = 'Just asking';
       saveVehicle(p);
       return ContentService.createTextOutput('ok');
     }
