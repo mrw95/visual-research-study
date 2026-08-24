@@ -18,14 +18,11 @@
     <section class="card">
       <p id="wa-text" class="wa-preview">🚘 *CarSwitch (Pvt) Ltd*
 Your trust, our promise
-
 ඔයා හොයන වාහනේ මොකක්ද? 🚗
-
 📝 පහළ form එක පුරවන්න — විනාඩි 1යි.
 📞 Submit කළාම අපේ team එක ඔයාට WhatsApp / call කරනවා.
-
 👇 *Form එක open කරන්න*
-https://visual-research-study.vercel.app/share?v=2</p>
+https://visual-research-study.vercel.app/share?v=3</p>
     </section>
 
     <section class="card actions">
@@ -36,7 +33,19 @@ https://visual-research-study.vercel.app/share?v=2</p>
   </div>
   <script>
     const text = document.getElementById('wa-text').innerText.trim();
-    document.getElementById('wa-send').href = 'https://wa.me/?text=' + encodeURIComponent(text);
+    const send = document.getElementById('wa-send');
+    send.href = 'https://wa.me/?text=' + encodeURIComponent(text);
+    send.addEventListener('click', async (e) => {
+      if (navigator.share) {
+        e.preventDefault();
+        try {
+          await navigator.share({ text });
+          return;
+        } catch {
+          location.href = send.href;
+        }
+      }
+    });
     document.getElementById('wa-copy').addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(text);
