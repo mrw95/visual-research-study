@@ -36,7 +36,7 @@
 
     <form id="hotline-form" novalidate>
       <section class="card">
-        <label class="field-label" for="model">Vehicle model</label>
+        <label class="field-label" for="model">Vehicle Model</label>
         <input id="model" name="model" type="text" maxlength="80" placeholder="Type කරන්න — උදා: Toyota Axio" autocomplete="off" required>
       </section>
 
@@ -53,7 +53,7 @@
       </section>
 
       <section class="card">
-        <label class="field-label" for="budget">Full Budget</label>
+        <label class="field-label" for="budget">Full Budget එක කීයක් දානවද?</label>
         <div class="budget-row">
           <span class="budget-prefix">Rs.</span>
           <input id="budget" name="budget" type="text" inputmode="numeric" maxlength="16" placeholder="8,000,000" required>
@@ -75,13 +75,13 @@
         <input id="name" name="customer" type="text" maxlength="120" placeholder="Customer ගේ නම" autocomplete="name" required>
         <label class="field-label extra-gap" for="phone">ඔබගේ WhatsApp number</label>
         <input id="phone" name="phone" type="tel" maxlength="20" placeholder="0711430208" inputmode="tel" autocomplete="tel" required>
-        <label class="field-label extra-gap" for="note">වෙනත් note <span class="optional">(optional)</span></label>
+        <label class="field-label extra-gap" for="note">Note</label>
         <input id="note" name="note" type="text" maxlength="200" placeholder="mileage, option...">
       </section>
 
       <section class="card actions">
         <p class="hint" id="hint">අවශ්‍ය fields fill කරන්න.</p>
-        <button type="submit" id="submit" disabled>Inquiry යවන්න</button>
+        <button type="submit" id="submit" disabled>Inquiry Submit</button>
       </section>
     </form>
 
@@ -105,6 +105,6 @@
   <form id="sheet-form" method="GET" target="sheet-frame" hidden></form>
 
   <script src="static/config.js?v=63"></script>
-  <script src="static/hotline.js?v=66"></script>
+  <script src="static/hotline.js?v=67"></script>
 </body>
 </html>

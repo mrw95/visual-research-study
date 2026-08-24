@@ -81,7 +81,7 @@ function updateUI() {
   updatePreview();
   const ready = isReady();
   submitBtn.disabled = !ready || state.submitting;
-  hint.textContent = ready ? 'Inquiry යවන්න පුළුවන්.' : 'Model, year, color, full budget, leasing, city, නම, WhatsApp fill කරන්න.';
+  hint.textContent = ready ? 'Inquiry Submit කරන්න පුළුවන්.' : 'Model, year, color, full budget, leasing, city, නම, WhatsApp fill කරන්න.';
   hint.classList.toggle('ready', ready);
 }
 
@@ -256,7 +256,7 @@ form.addEventListener('submit', async (e) => {
     alert('Google Sheet එකට ගිහින් නැහැ. Signal එක හොඳද බලලා නැවත Submit කරන්න.');
     state.submitting = false;
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Inquiry යවන්න';
+    submitBtn.textContent = 'Inquiry Submit';
   }
 });
 
