@@ -233,10 +233,12 @@ function saveLocal(inquiry) {
 }
 
 function sheetPhone(raw) {
-  const p = String(raw || '').replace(/\s+/g, '');
-  if (p.startsWith('+94')) return '0' + p.slice(3);
-  if (p.startsWith('94') && p.length >= 11) return '0' + p.slice(2);
-  return p.replace(/^\+/, '');
+  let d = String(raw || '').replace(/[^\d+]/g, '');
+  if (d.startsWith('+')) d = d.slice(1);
+  if (d.startsWith('0094')) d = d.slice(4);
+  else if (d.startsWith('94') && d.length >= 11) d = d.slice(2);
+  if (d && d[0] !== '0' && d.length === 9) d = '0' + d;
+  return d;
 }
 
 function inquiryParams(inquiry) {
@@ -327,8 +329,14 @@ budgetInput.addEventListener('input', () => {
   updateUI();
 });
 
-['name', 'phone', 'note'].forEach(id => {
+['name', 'note'].forEach(id => {
   document.getElementById(id).addEventListener('input', updateUI);
+});
+document.getElementById('phone').addEventListener('input', updateUI);
+document.getElementById('phone').addEventListener('blur', () => {
+  const phone = document.getElementById('phone');
+  phone.value = sheetPhone(phone.value);
+  updateUI();
 });
 
 form.addEventListener('submit', async (e) => {
@@ -339,6 +347,8 @@ form.addEventListener('submit', async (e) => {
   submitBtn.textContent = 'යවමින්...';
 
   const inquiry = getInquiry();
+  inquiry.phone = sheetPhone(inquiry.phone);
+  document.getElementById('phone').value = inquiry.phone;
   inquiry.sid = Date.now() + '-' + Math.random().toString(36).slice(2, 9);
 
   try {

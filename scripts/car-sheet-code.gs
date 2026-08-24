@@ -1,3 +1,12 @@
+function sheetPhone_(raw) {
+  var d = String(raw || '').replace(/[^\d+]/g, '');
+  if (d.indexOf('+') === 0) d = d.slice(1);
+  if (d.indexOf('0094') === 0) d = d.slice(4);
+  else if (d.indexOf('94') === 0 && d.length >= 11) d = d.slice(2);
+  if (d && d.charAt(0) !== '0' && d.length === 9) d = '0' + d;
+  return d;
+}
+
 function doGet(e) {
   return save_(e);
 }
@@ -21,7 +30,7 @@ function save_(e) {
     }
 
     var name = String(p.name || '').trim();
-    var phone = String(p.phone || '').trim();
+    var phone = sheetPhone_(p.phone);
     var model = String(p.model || '').trim();
 
     if (!model && !name && !phone) {

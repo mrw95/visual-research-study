@@ -28,10 +28,12 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') body = Object.assign({}, body, req.query || {});
 
   function sheetPhone(raw) {
-    var p = String(raw || '').replace(/\s+/g, '');
-    if (p.indexOf('+94') === 0) return '0' + p.slice(3);
-    if (p.indexOf('94') === 0 && p.length >= 11) return '0' + p.slice(2);
-    return p.replace(/^\+/, '');
+    var d = String(raw || '').replace(/[^\d+]/g, '');
+    if (d.indexOf('+') === 0) d = d.slice(1);
+    if (d.indexOf('0094') === 0) d = d.slice(4);
+    else if (d.indexOf('94') === 0 && d.length >= 11) d = d.slice(2);
+    if (d && d.charAt(0) !== '0' && d.length === 9) d = '0' + d;
+    return d;
   }
 
   var params = new URLSearchParams();
