@@ -12,29 +12,29 @@ module.exports = async function handler(req, res) {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
-  if (!body || typeof body !== 'object') body = {};
+  if (!body || typeof body !== 'object' || Array.isArray(body)) body = {};
+  if (!Object.keys(body).length && req.method !== 'GET') {
+    try {
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const raw = Buffer.concat(chunks).toString('utf8');
+      if (raw) body = JSON.parse(raw);
+    } catch {
+      body = {};
+    }
+  }
   if (req.method === 'GET') body = Object.assign({}, body, req.query || {});
 
-  const sheets = [
-    'https://script.google.com/macros/s/AKfycbw2VCI5IKVRVX2bUVGOr9d_EAb3HqY7jkelHTrGwJuQbGGd9KD4G5D3hFMH4rRDAysb/exec',
-    'https://script.google.com/macros/s/AKfycby4hFm7G6BUQPom7r9nbpFNtNMJpNhVRc4v8Np94CwugW6dak45StG3YYw8DzDlLuGs/exec'
-  ];
+  function sheetPhone(raw) {
+    var p = String(raw || '').replace(/\s+/g, '');
+    if (p.indexOf('+94') === 0) return '0' + p.slice(3);
+    if (p.indexOf('94') === 0 && p.length >= 11) return '0' + p.slice(2);
+    return p.replace(/^\+/, '');
+  }
 
-  const packed = [
-    'VEHICLE',
-    body.name,
-    body.phone,
-    body.model,
-    body.year,
-    body.color,
-    body.grade,
-    body.budgetLabel,
-    body.intent,
-    body.city,
-    body.note
-  ].filter(Boolean).join(' | ');
-
-  const params = new URLSearchParams({
+  const fields = {
     type: 'vehicle',
     model: body.model || '',
     year: body.year || '',
@@ -45,31 +45,33 @@ module.exports = async function handler(req, res) {
     intent: body.intent || '',
     city: body.city || '',
     name: body.name || '',
-    phone: body.phone || '',
-    extranote: body.note || '',
-    note: packed,
-    sid: body.sid || String(Date.now()),
-    s1: '1',
-    s2: '1',
-    s3: '1',
-    s4: '0',
-    s5: '0',
-    s6: '0'
+    phone: sheetPhone(body.phone),
+    extranote: body.extranote || body.note || '',
+    sid: body.sid || String(Date.now())
+  };
+
+  const params = new URLSearchParams();
+  Object.keys(fields).forEach(function (key) {
+    if (fields[key]) params.set(key, String(fields[key]));
   });
 
-  const results = [];
-  for (const base of sheets) {
+  const sheets = [
+    'https://script.google.com/macros/s/AKfycbw2VCI5IKVRVX2bUVGOr9d_EAb3HqY7jkelHTrGwJuQbGGd9KD4G5D3hFMH4rRDAysb/exec'
+  ];
+
+  const results = await Promise.all(sheets.map(async function (base) {
     try {
       const response = await fetch(base + '?' + params.toString(), { redirect: 'follow' });
       const text = await response.text();
-      results.push({ status: response.status, text: String(text).slice(0, 200) });
+      return { status: response.status, text: String(text).slice(0, 200) };
     } catch (err) {
-      results.push({ error: String(err && err.message ? err.message : err) });
+      return { error: String(err && err.message ? err.message : err) };
     }
-  }
+  }));
 
   const ok = results.some(function (item) {
-    return String(item.text || '').toLowerCase().indexOf('ok') !== -1;
+    var t = String(item.text || '').toLowerCase().trim();
+    return t === 'ok' || t.indexOf('ok') === 0;
   });
 
   return res.status(200).json({ ok: ok, results: results });

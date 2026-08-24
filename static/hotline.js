@@ -232,18 +232,64 @@ function saveLocal(inquiry) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 500)));
 }
 
+function sheetPhone(raw) {
+  const p = String(raw || '').replace(/\s+/g, '');
+  if (p.startsWith('+94')) return '0' + p.slice(3);
+  if (p.startsWith('94') && p.length >= 11) return '0' + p.slice(2);
+  return p.replace(/^\+/, '');
+}
+
+function inquiryParams(inquiry) {
+  const fields = {
+    type: 'vehicle',
+    model: inquiry.model || '',
+    year: inquiry.year || '',
+    color: inquiry.color || '',
+    grade: inquiry.grade || '',
+    budget: inquiry.budget || '',
+    budgetLabel: inquiry.budgetLabel || '',
+    intent: inquiry.intent || '',
+    city: inquiry.city || '',
+    name: inquiry.name || '',
+    phone: sheetPhone(inquiry.phone),
+    extranote: inquiry.note || '',
+    sid: inquiry.sid || ''
+  };
+  const params = new URLSearchParams();
+  Object.keys(fields).forEach((key) => {
+    if (fields[key]) params.set(key, String(fields[key]));
+  });
+  return params;
+}
+
 async function saveToSheet(inquiry) {
+  const params = inquiryParams(inquiry);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const res = await fetch('/api/inquiry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(inquiry)
+    const res = await fetch('/api/inquiry?' + params.toString(), {
+      cache: 'no-store',
+      signal: ctrl.signal
     });
     const data = await res.json();
-    return !!(data && data.ok);
+    if (data && data.ok) return true;
   } catch {
-    return false;
+    // fall through to direct sheet save
+  } finally {
+    clearTimeout(timer);
   }
+
+  const scriptUrl = typeof SHEET_URL === 'string' ? SHEET_URL : '';
+  if (!scriptUrl) return false;
+  await new Promise((resolve) => {
+    const img = new Image();
+    const done = () => resolve(true);
+    img.onload = done;
+    img.onerror = done;
+    img.src = scriptUrl + '?' + params.toString();
+    setTimeout(done, 2000);
+  });
+  return true;
 }
 
 modelInput.addEventListener('input', () => {
