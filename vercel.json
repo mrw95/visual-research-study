@@ -26,6 +26,18 @@
       ]
     },
     {
+      "source": "/quotation",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/quotations",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/static/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }

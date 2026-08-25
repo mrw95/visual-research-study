@@ -8,6 +8,8 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
+import quotation_store
+
 app = Flask(__name__)
 ROOT = Path(__file__).resolve().parent
 IMAGES_DIR = ROOT / "images"
@@ -108,6 +110,62 @@ def inbox_page():
     return send_from_directory(ROOT, "inbox.html")
 
 
+@app.get("/quotation")
+@app.get("/quotation.html")
+def quotation_page():
+    return send_from_directory(ROOT, "quotation.html")
+
+
+@app.get("/quotations")
+@app.get("/quotations.html")
+def quotations_page():
+    return send_from_directory(ROOT, "quotations.html")
+
+
+def quotes_dir():
+    root = quotation_store.quotation_root(ROOT)
+    quotation_store.ensure_layout(root, IMAGES_DIR)
+    return root
+
+
+@app.get("/api/quotations")
+def api_quotations():
+    root = quotes_dir()
+    person = request.args.get("person", "")
+    return jsonify({
+        "ok": True,
+        "root": str(root),
+        "staff": quotation_store.STAFF,
+        "items": quotation_store.list_quotes(root, person),
+    })
+
+
+@app.route("/api/quotation", methods=["GET", "POST", "DELETE"])
+def api_quotation():
+    root = quotes_dir()
+    if request.method == "GET":
+        qid = request.args.get("id") or request.args.get("ref") or ""
+        item = quotation_store.find_quote(root, qid)
+        if not item:
+            return jsonify({"ok": False, "error": "Not found"}), 404
+        return jsonify({"ok": True, "root": str(root), "item": item})
+
+    if request.method == "DELETE":
+        qid = request.args.get("id") or (request.get_json(silent=True) or {}).get("id") or ""
+        if not quotation_store.delete_quote(root, qid):
+            return jsonify({"ok": False, "error": "Not found"}), 404
+        return jsonify({"ok": True})
+
+    data = request.get_json(silent=True) or {}
+    try:
+        saved = quotation_store.save_quote(root, data)
+    except ValueError as err:
+        return jsonify({"ok": False, "error": str(err)}), 400
+    except OSError as err:
+        return jsonify({"ok": False, "error": f"Folder save failed: {err}"}), 500
+    return jsonify({"ok": True, "root": str(root), "item": saved})
+
+
 @app.get("/static/<path:name>")
 def static_files(name):
     return send_from_directory(ROOT / "static", name)
@@ -162,6 +220,7 @@ def api_submit():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    print(f"Visual Research Study → http://localhost:{port}")
-    print(f"Admin results → http://localhost:{port}/admin")
+    print(f"Visual Research Study -> http://localhost:{port}")
+    print(f"Quotations -> http://localhost:{port}/quotation")
+    print(f"Quotation folders -> {quotes_dir()}")
     app.run(host="0.0.0.0", port=port)

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GENX Importers — Pre-Order Vehicle Quotation</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="static/quotation.css?v=3">
+</head>
+<body class="quote-body">
+  <div class="quote-toolbar no-print">
+    <a class="quote-tool-link" href="quotations.html">Saved quotations</a>
+    <a class="quote-tool-link" href="quotation.html">New quotation</a>
+    <span class="quote-tool-ref" id="toolbar-ref">New</span>
+    <span class="quote-tool-status" id="save-status"></span>
+    <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
+    <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
+  </div>
+
+  <main class="quote-sheet" id="quote-sheet">
+    <img class="quote-head-img" src="images/genx-header.jpg" alt="GENX Importers">
+    <div class="quote-inner">
+    <header class="quote-dochead">
+      <h2>PRE-ORDER VEHICLE QUOTATION</h2>
+      <div class="quote-meta">
+        <label>
+          <span>Quotation No:</span>
+          <input id="quotationNo" type="text" readonly placeholder="Assigned on save">
+        </label>
+        <label>
+          <span>Date:</span>
+          <input id="quoteDate" type="date">
+        </label>
+      </div>
+    </header>
+
+    <section class="quote-block">
+      <h3>Customer Details</h3>
+      <div class="quote-grid three">
+        <label>
+          <span>Customer Name</span>
+          <input id="customerName" type="text" maxlength="120" autocomplete="name">
+        </label>
+        <label>
+          <span>Contact No</span>
+          <input id="contactNo" type="tel" maxlength="20" inputmode="tel" autocomplete="tel">
+        </label>
+        <label>
+          <span>Email</span>
+          <input id="email" type="email" maxlength="120" autocomplete="email">
+        </label>
+      </div>
+    </section>
+
+    <section class="quote-block">
+      <h3>Vehicle Details</h3>
+      <table class="quote-table">
+        <tbody>
+          <tr>
+            <th>Make</th>
+            <td><input id="make" type="text" list="make-list" maxlength="40"></td>
+          </tr>
+          <tr>
+            <th>Model</th>
+            <td><input id="model" type="text" maxlength="80"></td>
+          </tr>
+          <tr>
+            <th>Year</th>
+            <td><input id="year" type="text" inputmode="numeric" maxlength="4"></td>
+          </tr>
+          <tr>
+            <th>Grade</th>
+            <td><input id="grade" type="text" maxlength="60"></td>
+          </tr>
+          <tr>
+            <th>Chassis No.</th>
+            <td><input id="chassisNo" type="text" maxlength="40"></td>
+          </tr>
+          <tr>
+            <th>Engine Capacity</th>
+            <td><input id="engineCapacity" type="text" maxlength="30" placeholder="e.g. 1500cc"></td>
+          </tr>
+          <tr>
+            <th>Fuel Type</th>
+            <td><input id="fuelType" type="text" list="fuel-list" maxlength="30"></td>
+          </tr>
+          <tr>
+            <th>Transmission</th>
+            <td><input id="transmission" type="text" list="gear-list" maxlength="30"></td>
+          </tr>
+          <tr>
+            <th>Mileage</th>
+            <td><input id="mileage" type="text" maxlength="40" placeholder="e.g. 45,000 km"></td>
+          </tr>
+          <tr>
+            <th>Colour</th>
+            <td><input id="colour" type="text" list="colour-list" maxlength="40"></td>
+          </tr>
+          <tr>
+            <th>Origin</th>
+            <td><input id="origin" type="text" maxlength="40" value="Japan"></td>
+          </tr>
+          <tr>
+            <th>Estimated Arrival</th>
+            <td><input id="estimatedArrival" type="text" maxlength="60"></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="quote-block">
+      <h3>Price Details</h3>
+      <table class="quote-table price-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="amount">Amount (LKR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Vehicle Cost</td>
+            <td class="amount"><input id="vehicleCost" class="money" type="text" inputmode="numeric"></td>
+          </tr>
+          <tr>
+            <td>Import Charges</td>
+            <td class="amount"><input id="importCharges" class="money" type="text" inputmode="numeric"></td>
+          </tr>
+          <tr>
+            <td>Registration Charges</td>
+            <td class="amount"><input id="registrationCharges" class="money" type="text" inputmode="numeric"></td>
+          </tr>
+          <tr>
+            <td>Other Charges</td>
+            <td class="amount"><input id="otherCharges" class="money" type="text" inputmode="numeric"></td>
+          </tr>
+          <tr class="total-row">
+            <td>Total Estimated Price</td>
+            <td class="amount"><input id="totalEstimatedPrice" class="money" type="text" readonly></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="quote-block">
+      <h3>Payment Terms</h3>
+      <p class="quote-line">
+        <strong>Booking Advance:</strong> LKR
+        <input id="bookingAdvance" class="money inline-money" type="text" inputmode="numeric">
+      </p>
+      <p class="quote-line"><strong>Balance Payment:</strong> Before vehicle release.</p>
+      <p class="quote-line">
+        <strong>Estimated Delivery:</strong>
+        <input id="estimatedDeliveryWeeks" type="text" class="weeks" maxlength="10">
+        weeks (subject to shipping &amp; customs clearance).
+      </p>
+    </section>
+
+    <section class="quote-block">
+      <h3>Terms &amp; Conditions</h3>
+      <ol class="quote-terms">
+        <li>This quotation is valid for 07 days from the quotation date.</li>
+        <li>Final price may vary due to exchange rate, shipping cost, taxes, and government regulations.</li>
+        <li>Booking advance is required to confirm the order.</li>
+        <li>Delivery time depends on shipping schedules and customs clearance.</li>
+        <li>Any additional government taxes or levies imposed after booking will be borne by the customer.</li>
+      </ol>
+    </section>
+
+    <section class="quote-sign">
+      <h3>Prepared By</h3>
+      <div class="quote-grid three">
+        <label>
+          <span>Name</span>
+          <select id="preparedByName" required>
+            <option value="">Select name</option>
+            <option value="Nipun">Nipun</option>
+            <option value="Isuru">Isuru</option>
+            <option value="Malki">Malki</option>
+            <option value="Harshani">Harshani</option>
+            <option value="Rakitha">Rakitha</option>
+          </select>
+        </label>
+        <label>
+          <span>Designation</span>
+          <input id="designation" type="text" maxlength="60" value="Sales Executive">
+        </label>
+        <label class="sign-line">
+          <span>Signature</span>
+          <span class="sign-space"></span>
+        </label>
+      </div>
+    </section>
+    </div>
+    <img class="quote-foot-img" src="images/genx-footer.jpg" alt="">
+  </main>
+
+  <datalist id="make-list">
+    <option value="Toyota"></option>
+    <option value="Honda"></option>
+    <option value="Nissan"></option>
+    <option value="Mazda"></option>
+    <option value="Suzuki"></option>
+    <option value="Mitsubishi"></option>
+    <option value="Subaru"></option>
+    <option value="Daihatsu"></option>
+    <option value="BMW"></option>
+    <option value="Mercedes-Benz"></option>
+  </datalist>
+  <datalist id="fuel-list">
+    <option value="Petrol"></option>
+    <option value="Diesel"></option>
+    <option value="Hybrid"></option>
+    <option value="PHEV"></option>
+    <option value="Electric"></option>
+  </datalist>
+  <datalist id="gear-list">
+    <option value="Automatic"></option>
+    <option value="Manual"></option>
+    <option value="CVT"></option>
+  </datalist>
+  <datalist id="colour-list">
+    <option value="Pearl White"></option>
+    <option value="White"></option>
+    <option value="Black"></option>
+    <option value="Silver"></option>
+    <option value="Grey"></option>
+    <option value="Red"></option>
+    <option value="Blue"></option>
+  </datalist>
+
+  <script src="static/quotation.js?v=3"></script>
+</body>
+</html>
