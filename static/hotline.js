@@ -17,7 +17,6 @@ const colorInput = document.getElementById('color');
 const cityInput = document.getElementById('city');
 const budgetInput = document.getElementById('budget');
 const submitBtn = document.getElementById('submit');
-const hint = document.getElementById('hint');
 const preview = document.getElementById('preview');
 const overlay = document.getElementById('overlay');
 const thankyouSummary = document.getElementById('thankyou-summary');
@@ -81,8 +80,6 @@ function updateUI() {
   updatePreview();
   const ready = isReady();
   submitBtn.disabled = !ready || state.submitting;
-  hint.textContent = ready ? 'Inquiry Submit කරන්න පුළුවන්.' : 'Model, year, color, budget, leasing, city, නම, WhatsApp fill කරන්න.';
-  hint.classList.toggle('ready', ready);
 }
 
 function selectChip(container, value) {
