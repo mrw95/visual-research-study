@@ -4,8 +4,8 @@ const COLORS = [
   { id: 'White', label: 'White / සුදු', swatch: '#f4f4f4' }
 ];
 const LEASING = [
-  { id: 'yes', label: 'ඔව්' },
-  { id: 'no', label: 'නැහැ' }
+  { id: 'yes', label: 'ඔව් / Yes' },
+  { id: 'no', label: 'නැහැ / No' }
 ];
 
 const STORAGE_KEY = 'vrs-vehicle-inquiries';
@@ -37,7 +37,9 @@ function parseBudget(raw) {
 }
 
 function leasingLabel(id) {
-  return LEASING.find(x => x.id === id)?.label || '';
+  if (id === 'yes') return 'ඔව්';
+  if (id === 'no') return 'නැහැ';
+  return '';
 }
 
 function getInquiry() {
