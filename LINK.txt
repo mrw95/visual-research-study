@@ -1,5 +1,5 @@
 CUSTOMER FORM (WhatsApp share — any location / mobile data):
-https://visual-research-study.vercel.app/share?v=4
+https://visual-research-study.vercel.app/share?v=6
 
 STAFF INBOX (office only — WhatsApp ekata denna epa):
 https://visual-research-study.vercel.app/inbox
@@ -15,4 +15,4 @@ https://visual-research-study.vercel.app/inbox
 📞 vehicle එකක් Import කරගන්න අවශ්‍ය සියලු විස්තර දැනගන්න
 👇 *Form එක open කරන්න*
 
-https://visual-research-study.vercel.app/share?v=4
+https://visual-research-study.vercel.app/share?v=6
