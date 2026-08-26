@@ -1,23 +1,481 @@
 const STORAGE_KEY = 'genx-quotations';
+const STORAGE_RESET = 'cs-start-1';
 const PREP_KEY = 'genx-prepared-by';
-const STAFF = ['Nipun', 'Isuru', 'Malki', 'Harshani', 'Rakitha'];
+const SIG_KEY = 'genx-signature-';
+const SIG_SCALE_KEY = 'genx-signature-scale-';
+const SIG_X_KEY = 'genx-signature-x-';
+const SIGN_MIN = 28;
+const SIGN_MAX = 96;
+const SIGN_DEFAULT = 48;
+const STAFF_ROLES = {
+  Nipun: 'Sales Executive',
+  Isuru: 'Sales Executive',
+  Malki: 'Admin & Marketing',
+  Harshani: 'Director',
+  Rakitha: 'CEO'
+};
+const STAFF = Object.keys(STAFF_ROLES);
+
+const MODELS_BY_MAKE = {
+  Toyota: ['Aqua', 'Prius', 'Prius Alpha', 'Axio', 'Allion', 'Premio', 'Corolla', 'Corolla Fielder', 'Corolla Cross', 'Camry', 'Vitz', 'Yaris', 'Passo', 'Raize', 'Rush', 'CHR', 'Harrier', 'RAV4', 'Land Cruiser', 'Prado', 'Hilux', 'Hiace', 'Sienta', 'Noah', 'Voxy', 'Esquire', 'Alphard', 'Vellfire', 'Fortuner', 'Crown', 'Mark X', 'Wish', 'Tank', 'Roomy', 'Probox'],
+  Honda: ['Fit', 'Vezel', 'Grace', 'Civic', 'Accord', 'Freed', 'Shuttle', 'Jade', 'CR-V', 'HR-V', 'Stepwgn', 'Odyssey', 'N-Box', 'N-WGN', 'Insight', 'City', 'WR-V'],
+  Nissan: ['Note', 'Note e-Power', 'Leaf', 'Tiida', 'Sylphy', 'Sunny', 'X-Trail', 'Dualis', 'Juke', 'March', 'Dayz', 'Serena', 'NV200', 'Skyline', 'Teana', 'Qashqai'],
+  Mazda: ['Axela', 'Atenza', 'Demio', 'CX-3', 'CX-5', 'CX-8', 'CX-30', 'Premacy', 'Flair', 'Roadster'],
+  Suzuki: ['Swift', 'Wagon R', 'Alto', 'Spacia', 'Hustler', 'Jimny', 'Vitara', 'Baleno', 'Celerio', 'Every', 'Carry', 'Ignis', 'Solio'],
+  Mitsubishi: ['Outlander', 'Outlander PHEV', 'Eclipse Cross', 'ASX', 'RVR', 'Delica', 'Pajero', 'Pajero Mini', 'eK Wagon', 'Mirage', 'Lancer', 'Triton'],
+  Subaru: ['Impreza', 'Forester', 'XV', 'Crosstrek', 'Legacy', 'Levorg', 'Outback', 'WRX', 'BRZ'],
+  Daihatsu: ['Mira', 'Move', 'Tanto', 'Cast', 'Rocky', 'Thor', 'Hijet', 'Atrai', 'Copen', 'Wake'],
+  Lexus: ['CT', 'IS', 'ES', 'NX', 'RX', 'UX', 'LS', 'LX'],
+  BMW: ['1 Series', '2 Series', '3 Series', '5 Series', '7 Series', 'X1', 'X3', 'X5', 'X7', 'iX'],
+  'Mercedes-Benz': ['A-Class', 'C-Class', 'E-Class', 'S-Class', 'GLA', 'GLC', 'GLE', 'GLS', 'V-Class']
+};
+
+function fillDatalist(id, values) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = values.map((value) => `<option value="${value}"></option>`).join('');
+}
+
+function matchedMake(raw) {
+  const key = String(raw || '').trim().toLowerCase();
+  if (!key) return '';
+  return Object.keys(MODELS_BY_MAKE).find((name) => name.toLowerCase() === key) || '';
+}
+
+function fillModelSuggestions() {
+  const make = matchedMake(val('make') ? val('make').value : '');
+  fillDatalist('model-list', make ? MODELS_BY_MAKE[make] : []);
+}
+
+function setDesignation() {
+  const name = val('preparedByName') ? val('preparedByName').value : '';
+  if (val('designation')) val('designation').value = STAFF_ROLES[name] || '';
+}
+
+function clampSign(n) {
+  const size = Number(n);
+  if (!Number.isFinite(size)) return SIGN_DEFAULT;
+  return Math.max(SIGN_MIN, Math.min(SIGN_MAX, Math.round(size)));
+}
+
+function currentSignScale() {
+  const stage = val('sign-stage');
+  const raw = stage && stage.style.getPropertyValue('--sign-h');
+  return clampSign(parseInt(raw, 10) || SIGN_DEFAULT);
+}
+
+function applySignScale(size) {
+  const stage = val('sign-stage');
+  if (!stage) return;
+  stage.style.setProperty('--sign-h', clampSign(size) + 'px');
+}
+
+function currentSignX() {
+  const stage = val('sign-stage');
+  return parseInt(stage && stage.style.left, 10) || 0;
+}
+
+function applySignX(x) {
+  const pad = val('sign-pad');
+  const stage = val('sign-stage');
+  if (!pad || !stage) return;
+  const max = Math.max(0, pad.clientWidth - (stage.offsetWidth || 0));
+  const next = Math.max(0, Math.min(max, Math.round(Number(x) || 0)));
+  stage.style.left = next + 'px';
+}
+
+function persistSignLayout() {
+  const name = val('preparedByName') && val('preparedByName').value;
+  if (!name) return;
+  localStorage.setItem(SIG_SCALE_KEY + name, String(currentSignScale()));
+  localStorage.setItem(SIG_X_KEY + name, String(currentSignX()));
+}
+
+function signatureValue() {
+  const img = val('signaturePreview');
+  const src = img && img.getAttribute('src');
+  return src && src.indexOf('data:image/') === 0 ? src : '';
+}
+
+function vehiclePhotoValue() {
+  const img = val('vehiclePhotoPreview');
+  const src = img && img.getAttribute('src');
+  return src && src.indexOf('data:image/') === 0 ? src : '';
+}
+
+function setVehiclePhoto(dataUrl) {
+  const img = val('vehiclePhotoPreview');
+  const box = val('vehicle-photo');
+  if (!img || !box) return;
+  if (dataUrl && dataUrl.indexOf('data:image/') === 0) {
+    img.src = dataUrl;
+    box.classList.add('has-photo');
+  } else {
+    img.removeAttribute('src');
+    box.classList.remove('has-photo');
+  }
+}
+
+function compressVehiclePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, 720 / img.width, 540 / img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Vehicle photo read failed'));
+    };
+    img.src = url;
+  });
+}
+
+function initVehiclePhoto() {
+  const box = val('vehicle-photo');
+  const file = val('vehiclePhotoFile');
+  const upload = val('vehicle-photo-upload');
+  if (!box || !file || !upload) return;
+
+  function pick() {
+    file.click();
+  }
+
+  upload.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pick();
+  });
+  box.addEventListener('click', () => pick());
+  box.addEventListener('dblclick', pick);
+
+  file.addEventListener('change', async () => {
+    const picked = file.files && file.files[0];
+    file.value = '';
+    if (!picked) return;
+    try {
+      setVehiclePhoto(await compressVehiclePhoto(picked));
+    } catch {
+      showToast('Vehicle photo upload failed. Image එකක් select කරන්න.', 'error');
+    }
+  });
+}
+
+function setSignature(dataUrl, scale, x) {
+  const img = val('signaturePreview');
+  const pad = val('sign-pad');
+  if (!img || !pad) return;
+  if (dataUrl) {
+    img.src = dataUrl;
+    pad.classList.add('has-sign');
+    pad.classList.remove('is-editing');
+    applySignScale(scale != null ? scale : currentSignScale());
+    const place = () => applySignX(x != null ? x : currentSignX());
+    if (img.complete) place();
+    else img.onload = place;
+  } else {
+    img.removeAttribute('src');
+    pad.classList.remove('has-sign', 'is-editing');
+  }
+}
+
+function loadPersonSignature() {
+  const name = val('preparedByName').value;
+  if (!name) {
+    setSignature('');
+    return;
+  }
+  setSignature(
+    localStorage.getItem(SIG_KEY + name) || '',
+    localStorage.getItem(SIG_SCALE_KEY + name) || SIGN_DEFAULT,
+    localStorage.getItem(SIG_X_KEY + name) || 0
+  );
+}
+
+function compressSignature(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, 520 / img.width, 180 / img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(knockOutSignatureBackground(canvas).toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Signature image read failed'));
+    };
+    img.src = url;
+  });
+}
+
+function knockOutSignatureBackground(canvas) {
+  const ctx = canvas.getContext('2d');
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = image.data;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  function sample(x, y) {
+    const i = (Math.max(0, Math.min(h - 1, y)) * w + Math.max(0, Math.min(w - 1, x))) * 4;
+    return [d[i], d[i + 1], d[i + 2]];
+  }
+
+  const corners = [
+    ...sample(2, 2), ...sample(w - 3, 2), ...sample(2, h - 3), ...sample(w - 3, h - 3),
+    ...sample(Math.floor(w / 2), 2), ...sample(Math.floor(w / 2), h - 3)
+  ];
+  const bg = [
+    (corners[0] + corners[3] + corners[6] + corners[9] + corners[12] + corners[15]) / 6,
+    (corners[1] + corners[4] + corners[7] + corners[10] + corners[13] + corners[16]) / 6,
+    (corners[2] + corners[5] + corners[8] + corners[11] + corners[14] + corners[17]) / 6
+  ];
+
+  let minX = w;
+  let minY = h;
+  let maxX = 0;
+  let maxY = 0;
+  const paperCut = 40;
+  const inkFull = 88;
+  const bgLuma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2];
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    const a = d[i + 3];
+    const dist = Math.sqrt((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2);
+    const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    const paperLike = a < 16
+      || dist < paperCut
+      || (luma > 188 && chroma < 24)
+      || (Math.abs(luma - bgLuma) < 20 && chroma < 30);
+
+    if (paperLike) {
+      d[i + 3] = 0;
+      continue;
+    }
+
+    let t = (dist - paperCut) / (inkFull - paperCut);
+    t = Math.max(0, Math.min(1, t));
+    t = t * t * (3 - 2 * t);
+    const alpha = Math.round(Math.max(t, chroma / 90) * (a / 255) * 255);
+    if (alpha < 18) {
+      d[i + 3] = 0;
+      continue;
+    }
+
+    d[i] = r;
+    d[i + 1] = g;
+    d[i + 2] = b;
+    d[i + 3] = alpha;
+
+    const px = (i / 4) % w;
+    const py = Math.floor(i / 4 / w);
+    if (px < minX) minX = px;
+    if (py < minY) minY = py;
+    if (px > maxX) maxX = px;
+    if (py > maxY) maxY = py;
+  }
+
+  ctx.putImageData(image, 0, 0);
+  if (maxX < minX || maxY < minY) return canvas;
+
+  const pad = 8;
+  const x = Math.max(0, minX - pad);
+  const y = Math.max(0, minY - pad);
+  const cw = Math.min(w - x, maxX - minX + 1 + pad * 2);
+  const ch = Math.min(h - y, maxY - minY + 1 + pad * 2);
+  const cropped = document.createElement('canvas');
+  cropped.width = cw;
+  cropped.height = ch;
+  cropped.getContext('2d').drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
+  return cropped;
+}
+
+function initSignatureUpload() {
+  const pad = val('sign-pad');
+  const file = val('signatureFile');
+  const upload = val('sign-upload');
+  if (!pad || !file || !upload) return;
+
+  function pickFile() {
+    file.click();
+  }
+
+  upload.addEventListener('click', pickFile);
+  val('sign-stage').addEventListener('dblclick', pickFile);
+  pad.addEventListener('click', (e) => {
+    if (!pad.classList.contains('has-sign') && !e.target.closest('.sign-handle')) pickFile();
+  });
+
+  file.addEventListener('change', async () => {
+    const picked = file.files && file.files[0];
+    file.value = '';
+    if (!picked) return;
+    try {
+      const dataUrl = await compressSignature(picked);
+      setSignature(dataUrl, currentSignScale(), currentSignX());
+      persistSignLayout();
+      const name = val('preparedByName').value;
+      if (name) localStorage.setItem(SIG_KEY + name, dataUrl);
+    } catch {
+      setStatus('Signature upload failed. Image එකක් select කරන්න.');
+    }
+  });
+
+  let drag = null;
+  const stage = val('sign-stage');
+
+  function setSignEditing(on) {
+    pad.classList.toggle('is-editing', !!on);
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!pad.contains(e.target)) setSignEditing(false);
+  });
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.sign-handle')) return;
+    e.preventDefault();
+    setSignEditing(true);
+    drag = { type: 'move', startX: e.clientX, left: currentSignX() };
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!drag || drag.type !== 'move') return;
+    applySignX(drag.left + (e.clientX - drag.startX));
+  });
+  stage.addEventListener('pointerup', () => {
+    if (!drag) return;
+    persistSignLayout();
+    drag = null;
+  });
+
+  pad.querySelectorAll('.sign-handle').forEach((handle) => {
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setSignEditing(true);
+      drag = {
+        type: 'scale',
+        startY: e.clientY,
+        startH: currentSignScale(),
+        corner: handle.getAttribute('data-handle')
+      };
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (!drag || drag.type !== 'scale') return;
+      const goingUp = drag.corner.indexOf('n') === 0;
+      const delta = goingUp ? drag.startY - e.clientY : e.clientY - drag.startY;
+      applySignScale(drag.startH + delta);
+    });
+    handle.addEventListener('pointerup', () => {
+      if (!drag) return;
+      persistSignLayout();
+      drag = null;
+    });
+  });
+}
 
 const TEXT_FIELDS = [
   'customerName', 'contactNo', 'email',
-  'make', 'model', 'year', 'grade', 'chassisNo', 'engineCapacity',
+  'make', 'model', 'year', 'grade', 'engineCapacity',
   'fuelType', 'transmission', 'mileage', 'colour', 'origin', 'estimatedArrival',
-  'estimatedDeliveryWeeks', 'preparedByName', 'designation'
+  'preparedByName', 'designation'
 ];
 
 const MONEY_FIELDS = [
-  'vehicleCost', 'importCharges', 'registrationCharges', 'otherCharges', 'bookingAdvance'
+  'vehicleCost', 'importCharges', 'registrationCharges', 'otherCharges'
 ];
 
 let apiItems = [];
 let apiRoot = '';
+let apiBase = '';
+let saving = false;
+let toastTimer = 0;
+
+function showToast(text, kind) {
+  const el = document.getElementById('save-toast');
+  setStatus(text);
+  if (!el) return;
+  el.hidden = false;
+  el.textContent = text;
+  el.className = 'save-toast no-print' + (kind ? ' is-' + kind : '');
+  clearTimeout(toastTimer);
+  if (kind !== 'wait') {
+    toastTimer = setTimeout(() => {
+      el.hidden = true;
+    }, 4000);
+  }
+}
+
+function setSaveBusy(on) {
+  saving = on;
+  const btn = document.getElementById('save-btn');
+  const printBtn = document.getElementById('print-btn');
+  if (btn) {
+    btn.disabled = on;
+    btn.textContent = on ? 'Saving...' : 'Save';
+  }
+  if (printBtn) printBtn.disabled = on;
+}
+
+function apiCandidates() {
+  const host = location.hostname;
+  const local = host === 'localhost' || host === '127.0.0.1';
+  const list = [];
+  if (apiBase) list.push(apiBase);
+  list.push('');
+  if (local) {
+    ['http://127.0.0.1:8090', 'http://localhost:8090'].forEach((base) => {
+      if (base !== location.origin && !list.includes(base)) list.push(base);
+    });
+  }
+  return list;
+}
+
+async function apiFetch(path, options) {
+  let lastErr = null;
+  for (const base of apiCandidates()) {
+    try {
+      const res = await fetch(base + path, options);
+      if (res.status === 401) {
+        location.href = '/quote-login?next=' + encodeURIComponent(location.pathname + location.search);
+        throw new Error('Login required');
+      }
+      const type = (res.headers.get('content-type') || '').toLowerCase();
+      if (type.indexOf('application/json') !== -1) {
+        apiBase = base;
+        return res;
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරන්න.');
+}
 
 function loadLocal() {
   try {
+    if (localStorage.getItem('genx-quotations-reset') !== STORAGE_RESET) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem('genx-quotations-reset', STORAGE_RESET);
+      return [];
+    }
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   } catch {
     return [];
@@ -46,13 +504,14 @@ function todayIso() {
 
 function nextRef(items) {
   const year = new Date().getFullYear();
-  const prefix = `GENX-${year}-`;
-  let max = 0;
+  const used = new Set();
   items.forEach((item) => {
-    const match = String(item.id || '').match(new RegExp(`^GENX-${year}-(\\d+)$`));
-    if (match) max = Math.max(max, Number(match[1]));
+    const match = String(item.id || '').match(new RegExp(`^(?:CS|GENX)-${year}-(\\d+)$`));
+    if (match) used.add(Number(match[1]));
   });
-  return prefix + String(max + 1).padStart(4, '0');
+  let n = 1;
+  while (used.has(n)) n += 1;
+  return `CS-${year}-` + String(n).padStart(4, '0');
 }
 
 function param(name) {
@@ -68,15 +527,13 @@ function readForm() {
   MONEY_FIELDS.forEach((id) => {
     money[id] = digits(val(id).value);
   });
-  const total = MONEY_FIELDS
-    .filter((id) => id !== 'bookingAdvance')
-    .reduce((sum, id) => sum + Number(money[id] || 0), 0);
+  const total = MONEY_FIELDS.reduce((sum, id) => sum + Number(money[id] || 0), 0);
 
   const data = {
     id: val('quotationNo').value.trim(),
     quoteDate: val('quoteDate').value || todayIso(),
     origin: val('origin').value.trim() || 'Japan',
-    designation: val('designation').value.trim() || 'Sales Executive',
+    designation: STAFF_ROLES[val('preparedByName').value] || '',
     totalEstimatedPrice: String(total || ''),
     updatedAt: new Date().toISOString()
   };
@@ -85,27 +542,100 @@ function readForm() {
     data[id] = val(id).value.trim();
   });
   Object.assign(data, money);
+  data.signatureImage = signatureValue();
+  data.signatureScale = currentSignScale();
+  data.signatureX = currentSignX();
+  data.vehiclePhoto = vehiclePhotoValue();
   return data;
 }
 
+function setQuoteNo(id) {
+  val('quotationNo').value = id || '';
+  const toolbar = document.getElementById('toolbar-ref');
+  if (toolbar) toolbar.textContent = id || 'New';
+  const del = document.getElementById('delete-btn');
+  if (del) del.disabled = !id;
+}
+
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function saveLocalQuote(data) {
+  if (!data.id) data.id = nextRef(allKnown());
+  data.updatedAt = new Date().toISOString();
+  data.createdAt = data.createdAt || data.updatedAt;
+  data.person = data.preparedByName;
+  data.designation = STAFF_ROLES[data.preparedByName] || data.designation || '';
+  saveLocalCopy(data);
+  setQuoteNo(data.id);
+  history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(data.id)}`);
+  return data;
+}
+
+async function downloadQuotePdf(saved) {
+  if (!saved || !saved.id) return false;
+  const filename = saved.id + '.pdf';
+  try {
+    const res = await fetch((apiBase || '') + '/api/quotation/pdf?id=' + encodeURIComponent(saved.id), { cache: 'no-store' });
+    const type = (res.headers.get('content-type') || '').toLowerCase();
+    if (res.ok && type.indexOf('pdf') !== -1) {
+      triggerBlobDownload(await res.blob(), filename);
+      return true;
+    }
+  } catch {
+    /* try cloud PDF next */
+  }
+  try {
+    const res = await fetch('/api/quote-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(saved)
+    });
+    const type = (res.headers.get('content-type') || '').toLowerCase();
+    if (res.ok && type.indexOf('pdf') !== -1) {
+      triggerBlobDownload(await res.blob(), filename);
+      return true;
+    }
+  } catch {
+    /* print fallback */
+  }
+  showToast('Print window එකේ Destination: Save as PDF තෝරන්න', 'wait');
+  window.print();
+  return true;
+}
+
 function fillForm(data) {
-  val('quotationNo').value = data.id || '';
+  setQuoteNo(data.id || '');
   val('quoteDate').value = data.quoteDate || todayIso();
   TEXT_FIELDS.forEach((id) => {
-    if (val(id)) val(id).value = data[id] || (id === 'origin' ? 'Japan' : id === 'designation' ? 'Sales Executive' : '');
+    if (val(id)) val(id).value = data[id] || (id === 'origin' ? 'Japan' : '');
   });
+  setDesignation();
   MONEY_FIELDS.forEach((id) => {
     val(id).value = formatLkr(data[id]);
   });
   updateTotal();
-  const toolbar = document.getElementById('toolbar-ref');
-  if (toolbar) toolbar.textContent = data.id || 'New';
+  fillModelSuggestions();
+  setSignature(
+    data.id
+      ? (data.signatureImage || localStorage.getItem(SIG_KEY + (data.preparedByName || '')) || '')
+      : (data.signatureImage || ''),
+    data.signatureScale || localStorage.getItem(SIG_SCALE_KEY + (data.preparedByName || '')) || SIGN_DEFAULT,
+    data.signatureX != null ? data.signatureX : localStorage.getItem(SIG_X_KEY + (data.preparedByName || '')) || 0
+  );
+  setVehiclePhoto(data.vehiclePhoto || '');
 }
 
 function updateTotal() {
-  const total = MONEY_FIELDS
-    .filter((id) => id !== 'bookingAdvance')
-    .reduce((sum, id) => sum + Number(digits(val(id).value) || 0), 0);
+  const total = MONEY_FIELDS.reduce((sum, id) => sum + Number(digits(val(id).value) || 0), 0);
   val('totalEstimatedPrice').value = formatLkr(total);
 }
 
@@ -115,7 +645,7 @@ function setStatus(text) {
 }
 
 async function apiList() {
-  const res = await fetch('/api/quotations', { cache: 'no-store' });
+  const res = await apiFetch('/api/quotations', { cache: 'no-store' });
   if (!res.ok) throw new Error('API unavailable');
   const data = await res.json();
   apiRoot = data.root || '';
@@ -124,14 +654,14 @@ async function apiList() {
 }
 
 async function apiGet(id) {
-  const res = await fetch('/api/quotation?id=' + encodeURIComponent(id), { cache: 'no-store' });
+  const res = await apiFetch('/api/quotation?id=' + encodeURIComponent(id), { cache: 'no-store' });
   if (!res.ok) return null;
   const data = await res.json();
   return data.item || null;
 }
 
 async function apiSave(payload) {
-  const res = await fetch('/api/quotation', {
+  const res = await apiFetch('/api/quotation', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -143,7 +673,7 @@ async function apiSave(payload) {
 }
 
 async function apiDelete(id) {
-  const res = await fetch('/api/quotation?id=' + encodeURIComponent(id), { method: 'DELETE' });
+  const res = await apiFetch('/api/quotation?id=' + encodeURIComponent(id), { method: 'DELETE' });
   return res.ok;
 }
 
@@ -158,17 +688,26 @@ function allKnown() {
 function saveLocalCopy(data) {
   const next = loadLocal().filter((x) => x.id !== data.id);
   next.unshift(data);
-  writeLocal(next.slice(0, 500));
+  writeLocal(next.slice(0, 80));
   localStorage.setItem(PREP_KEY, data.preparedByName || '');
+  if (data.preparedByName && data.signatureImage) {
+    localStorage.setItem(SIG_KEY + data.preparedByName, data.signatureImage);
+    localStorage.setItem(SIG_SCALE_KEY + data.preparedByName, String(data.signatureScale || SIGN_DEFAULT));
+    localStorage.setItem(SIG_X_KEY + data.preparedByName, String(data.signatureX || 0));
+  }
 }
 
 async function saveQuote() {
+  if (saving) return null;
   const data = readForm();
   if (!STAFF.includes(data.preparedByName)) {
-    setStatus('Prepared By name select කරන්න');
+    showToast('Prepared By name select කරන්න', 'error');
     val('preparedByName').focus();
     return null;
   }
+
+  setSaveBusy(true);
+  showToast('Saving...', 'wait');
 
   let items = allKnown();
   try {
@@ -179,26 +718,48 @@ async function saveQuote() {
   }
 
   const existing = items.find((x) => x.id === data.id);
-  if (!data.id || (!existing && items.some((x) => x.id === data.id))) {
-    data.id = nextRef(items);
+  if (!existing) {
+    data.id = '';
   }
   data.createdAt = existing ? existing.createdAt : new Date().toISOString();
 
   try {
     const saved = await apiSave(data);
     saveLocalCopy(saved);
-    val('quotationNo').value = saved.id;
-    document.getElementById('toolbar-ref').textContent = saved.id;
+    setQuoteNo(saved.id);
     history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(saved.id)}`);
-    setStatus('Saved ' + saved.id + ' → ' + saved.person + ' folder');
+    showToast('Saved successfully', '');
     return saved;
   } catch (err) {
-    setStatus(err.message || 'Folder save failed. START-QUOTATION.bat run කරන්න.');
-    return null;
+    const saved = saveLocalQuote(data);
+    showToast('Saved. PDF download කරලා customer ට යවන්න පුළුවන්.', '');
+    return saved;
+  } finally {
+    setSaveBusy(false);
   }
 }
 
 function initEditor() {
+  const saveBtn = document.getElementById('save-btn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      saveQuote();
+    });
+  }
+
+  fillDatalist('make-list', Object.keys(MODELS_BY_MAKE));
+  fillModelSuggestions();
+
+  val('make').addEventListener('input', fillModelSuggestions);
+  val('make').addEventListener('change', fillModelSuggestions);
+  val('preparedByName').addEventListener('change', () => {
+    setDesignation();
+    loadPersonSignature();
+  });
+  initSignatureUpload();
+  initVehiclePhoto();
+
   MONEY_FIELDS.forEach((id) => {
     val(id).addEventListener('input', () => {
       val(id).value = formatLkr(val(id).value);
@@ -206,14 +767,31 @@ function initEditor() {
     });
   });
 
-  document.getElementById('save-btn').addEventListener('click', () => {
-    saveQuote();
-  });
-
   document.getElementById('print-btn').addEventListener('click', async () => {
     const saved = await saveQuote();
     if (saved) window.print();
   });
+
+  const pdfBtn = document.getElementById('pdf-btn');
+  if (pdfBtn) {
+    pdfBtn.addEventListener('click', async () => {
+      const saved = await saveQuote();
+      if (!saved) return;
+      await downloadQuotePdf(saved);
+    });
+  }
+
+  const deleteBtn = document.getElementById('delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      const id = val('quotationNo').value.trim() || param('ref');
+      if (!id) return;
+      if (!confirm(id + ' delete කරනවද? Number එක ඊළඟ quotation එකට ආයෙත් යනවා.')) return;
+      await apiDelete(id);
+      writeLocal(loadLocal().filter((x) => x.id !== id));
+      location.href = 'quotation.html';
+    });
+  }
 
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -224,7 +802,6 @@ function initEditor() {
 
   (async () => {
     const ref = param('ref');
-    const lastName = STAFF.includes(localStorage.getItem(PREP_KEY) || '') ? localStorage.getItem(PREP_KEY) : '';
     let saved = null;
     try {
       await apiList();
@@ -241,8 +818,10 @@ function initEditor() {
         id: '',
         quoteDate: todayIso(),
         origin: 'Japan',
-        designation: 'Sales Executive',
-        preparedByName: lastName
+        preparedByName: '',
+        designation: '',
+        signatureImage: '',
+        vehiclePhoto: ''
       });
       if (ref) setStatus('That reference was not found. New quotation opened.');
     }
@@ -279,7 +858,7 @@ function initList() {
       if (hint && data.root) hint.textContent = 'Save වෙන්නේ: ' + data.root;
     } catch {
       apiItems = loadLocal();
-      if (hint) hint.textContent = 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා localhost:8080/quotations open කරන්න.';
+      if (hint) hint.textContent = 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා localhost:8090/quotations open කරන්න.';
     }
     render();
   }
@@ -290,7 +869,7 @@ function initList() {
     const items = source.filter((item) => {
       if (person && item.person !== person && item.preparedByName !== person) return false;
       if (!q) return true;
-      return [item.id, item.customerName, item.contactNo, item.email, item.make, item.model, item.year, item.chassisNo, item.preparedByName, item.person]
+      return [item.id, item.customerName, item.contactNo, item.email, item.make, item.model, item.year, item.preparedByName, item.person]
         .join(' ')
         .toLowerCase()
         .includes(q);
@@ -315,16 +894,30 @@ function initList() {
         <p>Updated ${formatWhen(item.updatedAt)}</p>
         <div class="quote-card-actions">
           <a class="quote-btn quote-btn-save" href="quotation.html?ref=${encodeURIComponent(item.id)}">Open</a>
+          <button type="button" class="quote-btn quote-btn-ghost" data-pdf="${item.id}">Download PDF</button>
           <a class="quote-btn quote-btn-ghost" href="quotation.html?ref=${encodeURIComponent(item.id)}&print=1">Print</a>
           <button type="button" class="quote-btn quote-btn-danger" data-del="${item.id}">Delete</button>
         </div>
       </article>
     `).join('');
 
+    list.querySelectorAll('[data-pdf]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-pdf');
+        const source = apiItems.length ? apiItems : loadLocal();
+        const item = source.find((x) => x.id === id) || loadLocal().find((x) => x.id === id);
+        if (!item) {
+          showToast('Quotation එක හොයා ගන්න බැරි වුණා', 'error');
+          return;
+        }
+        await downloadQuotePdf(item);
+      });
+    });
+
     list.querySelectorAll('[data-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-del');
-        if (!confirm(id + ' delete කරනවද?')) return;
+        if (!confirm(id + ' delete කරනවද? Number එක ඊළඟ quotation එකට ආයෙත් යනවා.')) return;
         await apiDelete(id);
         writeLocal(loadLocal().filter((x) => x.id !== id));
         await refresh();

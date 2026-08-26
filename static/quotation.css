@@ -56,9 +56,34 @@ html, body {
 }
 
 .quote-tool-status {
-  font-size: 0.82rem;
-  opacity: 0.85;
+  font-size: 0.9rem;
+  font-weight: 700;
+  opacity: 1;
 }
+
+.quote-btn-save:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.save-toast {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  min-width: 280px;
+  text-align: center;
+  padding: 14px 22px;
+  border-radius: 10px;
+  color: #fff;
+  font: 800 1.05rem/1.35 "Segoe UI", Arial, sans-serif;
+  box-shadow: 0 12px 32px rgba(11, 37, 69, 0.28);
+  background: #0f7b3a;
+}
+
+.save-toast.is-wait { background: #1d5aaa; }
+.save-toast.is-error { background: #9b1c1c; }
 
 .quote-btn-save { background: var(--gold); color: #fff; }
 .quote-btn-print { background: #fff; color: var(--navy); }
@@ -103,8 +128,9 @@ html, body {
 
 .quote-dochead h2 {
   margin: 0;
-  font-size: 1.02rem;
-  letter-spacing: 0.08em;
+  font-size: 1.42rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   color: var(--navy);
 }
 
@@ -148,6 +174,10 @@ html, body {
   text-transform: uppercase;
 }
 
+.quote-sign h3 {
+  margin-bottom: 14px;
+}
+
 .quote-grid {
   display: grid;
   gap: 12px;
@@ -157,7 +187,7 @@ html, body {
   grid-template-columns: 1.2fr 1fr 1.2fr;
 }
 
-.quote-grid span {
+.quote-grid > label > span:first-child {
   display: block;
   margin-bottom: 4px;
   font-size: 0.78rem;
@@ -190,6 +220,59 @@ input[readonly] {
   width: 100%;
   border-collapse: collapse;
 }
+
+.vehicle-layout {
+  display: grid;
+  grid-template-columns: 1fr 40%;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.vehicle-layout .quote-table {
+  height: 100%;
+}
+
+.vehicle-photo {
+  position: relative;
+  border: 1px dashed #9aa8b8;
+  background: #f7fafc;
+  min-height: 220px;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vehicle-photo-hint {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vehicle-photo img {
+  display: none;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+.vehicle-photo.has-photo {
+  border-style: solid;
+  border-color: var(--line);
+  background: #fff;
+}
+
+.vehicle-photo.has-photo img { display: block; }
+.vehicle-photo.has-photo .vehicle-photo-hint { display: none; }
 
 .quote-table th,
 .quote-table td {
@@ -226,24 +309,6 @@ input[readonly] {
   font-weight: 800;
 }
 
-.quote-line {
-  margin: 8px 0;
-  font-size: 0.98rem;
-}
-
-.inline-money {
-  width: 180px;
-  display: inline-block;
-  margin: 0 6px;
-}
-
-.weeks {
-  width: 70px;
-  display: inline-block;
-  text-align: center;
-  margin: 0 6px;
-}
-
 .quote-terms {
   margin: 0;
   padding-left: 18px;
@@ -255,13 +320,113 @@ input[readonly] {
 }
 
 .quote-sign {
-  margin-top: 20px;
+  margin-top: 36px;
+  overflow: visible;
+  max-width: 68%;
 }
 
-.sign-space {
+.quote-sign .quote-grid.three {
+  align-items: end;
+  overflow: visible;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+}
+
+.quote-sign .quote-grid > label {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 72px;
+}
+
+.quote-sign .quote-grid > label > span:first-child {
+  margin-bottom: 16px;
+}
+
+.quote-sign input,
+.quote-sign select {
+  height: 36px;
+}
+
+.sign-pad {
+  position: relative;
+  height: 36px;
+  min-height: 36px;
+  border-bottom: 1px solid #c5d0dc;
+  overflow: visible;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sign-hint {
+  width: 100%;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sign-stage {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  line-height: 0;
+  cursor: move;
+}
+
+.sign-pad.has-sign .sign-stage {
+  display: inline-block;
+}
+
+.sign-pad.has-sign .sign-hint {
+  display: none;
+}
+
+.sign-stage img {
   display: block;
-  height: 42px;
-  border-bottom: 1px solid #9aa8b8;
+  height: var(--sign-h, 48px);
+  width: auto;
+  max-width: none;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sign-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #2b7de9;
+  border: 1px solid #fff;
+  box-shadow: 0 0 0 1px #2b7de9;
+  z-index: 2;
+  visibility: hidden;
+}
+
+.sign-handle[data-handle="nw"] { top: -5px; left: -5px; cursor: nwse-resize; }
+.sign-handle[data-handle="ne"] { top: -5px; right: -5px; cursor: nesw-resize; }
+.sign-handle[data-handle="sw"] { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.sign-handle[data-handle="se"] { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+.sign-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px dashed #2b7de9;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.sign-pad.is-editing .sign-handle,
+.sign-pad.is-editing .sign-stage::after {
+  visibility: visible;
 }
 
 .quote-list-page {
@@ -391,6 +556,13 @@ input[readonly] {
   .quote-meta input { width: 55%; }
   .quote-inner { padding: 12px 14px 16px; }
   .quote-table th { width: 120px; }
+  .vehicle-layout {
+    display: block;
+  }
+  .vehicle-photo {
+    min-height: 180px;
+    margin-top: 10px;
+  }
 }
 
 @media print {
@@ -419,7 +591,14 @@ input[readonly] {
     width: 100%;
   }
   .quote-inner {
-    padding: 28mm 12mm 36mm;
+    padding: 26mm 12mm 24mm;
+  }
+  .quote-block {
+    margin-top: 10px;
+  }
+  .quote-sign {
+    margin-top: 20px;
+    max-width: 68%;
   }
   input, select {
     border: none !important;
@@ -428,6 +607,64 @@ input[readonly] {
     appearance: none;
     background: transparent;
   }
-  .sign-space { height: 48px; }
+  .sign-pad {
+    border-bottom: 1px solid #000;
+    height: 36px;
+    min-height: 36px;
+  }
+  .sign-stage::after,
+  .sign-handle {
+    display: none !important;
+  }
+  .sign-hint { display: none !important; }
+  .vehicle-photo {
+    border: 1px solid #c5d0dc;
+    min-height: 0;
+    height: 100%;
+  }
+  .vehicle-photo-hint { display: none !important; }
   @page { size: A4; margin: 0; }
+}
+
+.login-body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login-card {
+  width: min(420px, 100%);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(11, 37, 69, 0.14);
+  padding: 28px 24px;
+  display: grid;
+  gap: 10px;
+}
+.login-card h1 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 1.35rem;
+}
+.login-card p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.login-card label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.login-card input[type="password"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+}
+.login-error {
+  color: #9b1c1c !important;
+  font-weight: 600;
 }

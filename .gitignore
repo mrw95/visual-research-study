@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 .vercel/
 .vercel
+tools/cloudflared.exe
+quotation-home-link.txt

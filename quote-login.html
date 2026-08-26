@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarSwitch — Quotations login</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="static/quotation.css?v=26">
+</head>
+<body class="quote-body login-body">
+  <form class="login-card" method="post" action="/quote-unlock">
+    <img class="list-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
+    <h1>Quotations</h1>
+    <p>ගෙදර / laptop එකෙන් open කරනවා නම් staff PIN එක දාන්න.</p>
+    <input type="hidden" name="next" id="next" value="/quotation">
+    <label for="pin">Staff PIN</label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" autofocus>
+    <p class="login-error" id="login-error" hidden>PIN එක වැරදියි.</p>
+    <button class="quote-btn quote-btn-save" type="submit">Open</button>
+  </form>
+  <script>
+    const params = new URLSearchParams(location.search);
+    document.getElementById('next').value = params.get('next') || '/quotation';
+    if (params.get('err') === '1') document.getElementById('login-error').hidden = false;
+  </script>
+</body>
+</html>

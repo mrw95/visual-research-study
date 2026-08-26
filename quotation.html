@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GENX Importers — Pre-Order Vehicle Quotation</title>
+  <title>CarSwitch — Pre-Order Vehicle Quotation</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="static/quotation.css?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=26">
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
@@ -15,10 +15,13 @@
     <span class="quote-tool-status" id="save-status"></span>
     <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
     <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
+    <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
+    <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
   </div>
+  <div id="save-toast" class="save-toast no-print" hidden></div>
 
   <main class="quote-sheet" id="quote-sheet">
-    <img class="quote-head-img" src="images/genx-header.jpg" alt="GENX Importers">
+    <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
     <div class="quote-inner">
     <header class="quote-dochead">
       <h2>PRE-ORDER VEHICLE QUOTATION</h2>
@@ -54,15 +57,16 @@
 
     <section class="quote-block">
       <h3>Vehicle Details</h3>
+      <div class="vehicle-layout">
       <table class="quote-table">
         <tbody>
           <tr>
             <th>Make</th>
-            <td><input id="make" type="text" list="make-list" maxlength="40"></td>
+            <td><input id="make" type="text" list="make-list" maxlength="40" autocomplete="off"></td>
           </tr>
           <tr>
             <th>Model</th>
-            <td><input id="model" type="text" maxlength="80"></td>
+            <td><input id="model" type="text" list="model-list" maxlength="80" autocomplete="off"></td>
           </tr>
           <tr>
             <th>Year</th>
@@ -71,10 +75,6 @@
           <tr>
             <th>Grade</th>
             <td><input id="grade" type="text" maxlength="60"></td>
-          </tr>
-          <tr>
-            <th>Chassis No.</th>
-            <td><input id="chassisNo" type="text" maxlength="40"></td>
           </tr>
           <tr>
             <th>Engine Capacity</th>
@@ -106,6 +106,12 @@
           </tr>
         </tbody>
       </table>
+      <div class="vehicle-photo" id="vehicle-photo">
+        <button type="button" class="vehicle-photo-hint no-print" id="vehicle-photo-upload">Add vehicle photo</button>
+        <img id="vehiclePhotoPreview" alt="Vehicle">
+        <input id="vehiclePhotoFile" type="file" accept="image/*" hidden>
+      </div>
+      </div>
     </section>
 
     <section class="quote-block">
@@ -143,23 +149,10 @@
     </section>
 
     <section class="quote-block">
-      <h3>Payment Terms</h3>
-      <p class="quote-line">
-        <strong>Booking Advance:</strong> LKR
-        <input id="bookingAdvance" class="money inline-money" type="text" inputmode="numeric">
-      </p>
-      <p class="quote-line"><strong>Balance Payment:</strong> Before vehicle release.</p>
-      <p class="quote-line">
-        <strong>Estimated Delivery:</strong>
-        <input id="estimatedDeliveryWeeks" type="text" class="weeks" maxlength="10">
-        weeks (subject to shipping &amp; customs clearance).
-      </p>
-    </section>
-
-    <section class="quote-block">
       <h3>Terms &amp; Conditions</h3>
       <ol class="quote-terms">
         <li>This quotation is valid for 07 days from the quotation date.</li>
+        <li>The Letter of Credit (LC) must be opened within 07 days of signing the Proforma Invoice.</li>
         <li>Final price may vary due to exchange rate, shipping cost, taxes, and government regulations.</li>
         <li>Booking advance is required to confirm the order.</li>
         <li>Delivery time depends on shipping schedules and customs clearance.</li>
@@ -183,30 +176,30 @@
         </label>
         <label>
           <span>Designation</span>
-          <input id="designation" type="text" maxlength="60" value="Sales Executive">
+          <input id="designation" type="text" maxlength="60" readonly>
         </label>
-        <label class="sign-line">
+        <label class="sign-field">
           <span>Signature</span>
-          <span class="sign-space"></span>
+          <div class="sign-pad" id="sign-pad">
+            <button type="button" class="sign-hint no-print" id="sign-upload">Upload signature</button>
+            <div class="sign-stage" id="sign-stage">
+              <img id="signaturePreview" alt="Signature" draggable="false">
+              <span class="sign-handle no-print" data-handle="nw"></span>
+              <span class="sign-handle no-print" data-handle="ne"></span>
+              <span class="sign-handle no-print" data-handle="sw"></span>
+              <span class="sign-handle no-print" data-handle="se"></span>
+            </div>
+          </div>
+          <input id="signatureFile" type="file" accept="image/*" hidden>
         </label>
       </div>
     </section>
     </div>
-    <img class="quote-foot-img" src="images/genx-footer.jpg" alt="">
+    <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
   </main>
 
-  <datalist id="make-list">
-    <option value="Toyota"></option>
-    <option value="Honda"></option>
-    <option value="Nissan"></option>
-    <option value="Mazda"></option>
-    <option value="Suzuki"></option>
-    <option value="Mitsubishi"></option>
-    <option value="Subaru"></option>
-    <option value="Daihatsu"></option>
-    <option value="BMW"></option>
-    <option value="Mercedes-Benz"></option>
-  </datalist>
+  <datalist id="make-list"></datalist>
+  <datalist id="model-list"></datalist>
   <datalist id="fuel-list">
     <option value="Petrol"></option>
     <option value="Diesel"></option>
@@ -229,6 +222,6 @@
     <option value="Blue"></option>
   </datalist>
 
-  <script src="static/quotation.js?v=3"></script>
+  <script src="static/quotation.js?v=23"></script>
 </body>
 </html>
