@@ -1,19 +1,18 @@
 CUSTOMER FORM (WhatsApp share — any location / mobile data):
-https://visual-research-study.vercel.app/share?v=5
+https://visual-research-study.vercel.app/share?v=4
 
 STAFF INBOX (office only — WhatsApp ekata denna epa):
 https://visual-research-study.vercel.app/inbox
 
 --- WhatsApp message (copy-paste) ---
 
-🚘 *CarSwitch (Pvt) Ltd*
-Your trust, our promise
+🎉 CarSwitch (Pvt) Ltd තෝරාගත්තාට ස්තූතියි!
+❤️
 
-ඔබ සොයන වාහනය මොකක්ද? 🚗
-
+ඔබ සොයන වාහනය කුමක්ද? 🚗
 📝 පහළ form එක පුරවන්න — විනාඩි 1යි.
 
-📞 Inquiry Submit කළාම අපේ team එක ඔයාට WhatsApp / call කරනවා.
-
+📞 vehicle එකක් Import කරගන්න අවශ්‍ය සියලු විස්තර දැනගන්න
 👇 *Form එක open කරන්න*
-https://visual-research-study.vercel.app/share?v=5
+
+https://visual-research-study.vercel.app/share?v=4
