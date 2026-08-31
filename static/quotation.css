@@ -337,6 +337,12 @@ input[readonly] {
   font-weight: 800;
 }
 
+#lcLkr,
+#japanCostLkr {
+  color: var(--navy);
+  font-weight: 800;
+}
+
 .total-row td {
   background: #fff4ea;
   font-weight: 800;

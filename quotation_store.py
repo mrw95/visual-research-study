@@ -298,7 +298,7 @@ def price_breakdown(data):
     lc_rate = _num(data, "lcRate")
     bal_rate = _num(data, "balRate")
     lc_lkr = _num(data, "lcLkr") if _has_num(data, "lcLkr") else lc_jpy * lc_rate
-    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else (cif_jpy - lc_jpy)
+    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else 0.0
     bal_lkr = _num(data, "balLkr") if _has_num(data, "balLkr") else bal_jpy * bal_rate
     japan = _num(data, "japanCostLkr") if _has_num(data, "japanCostLkr") else lc_lkr + bal_lkr
     duty = _num(data, "customsDuty")
@@ -630,8 +630,13 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
         c.setFillColor(ink)
         c.setFont(font_bold, 7)
         c.drawString(left + 6, y + 1, row[0])
-        c.setFont(font_regular, 7)
         for i in range(1, 4):
+            if r == 1 and i == 3:
+                c.setFillColor(navy)
+                c.setFont(font_bold, 8)
+            else:
+                c.setFillColor(ink)
+                c.setFont(font_regular, 7)
             c.drawRightString(col_x[i] + col_w[i] - 6, y + 1, row[i])
         y -= row_h
     y -= 8
@@ -648,7 +653,7 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
         c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
         c.setStrokeColor(line)
         c.rect(left, y - 4, right - left, row_h, fill=0, stroke=1)
-        c.setFillColor(HexColor("#c41e3a") if hand else ink)
+        c.setFillColor(HexColor("#c41e3a") if hand else (navy if i == 0 else ink))
         c.setFont(font_bold, 8 if hand else 7)
         c.drawString(left + 6, y + 1, label)
         c.drawRightString(right - 6, y + 1, value)

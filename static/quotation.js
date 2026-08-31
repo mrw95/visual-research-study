@@ -678,17 +678,10 @@ function calcPrice() {
   const lcJpy = parseNum(val('lcJpy').value);
   const lcRate = parseNum(val('lcRate').value);
   const balRate = parseNum(val('balRate').value);
-  const balJpyEl = val('balJpy');
-  const balLkrEl = val('balLkr');
-  const autoJpy = cifJpy - lcJpy;
-  const balJpy = (balJpyEl && balJpyEl.dataset.manual === '1' && balJpyEl.value.trim())
-    ? parseNum(balJpyEl.value)
-    : autoJpy;
+  const balJpy = parseNum(val('balJpy').value);
   const lcLkr = lcJpy * lcRate;
-  const autoLkr = balJpy * balRate;
-  const balLkr = (balLkrEl && balLkrEl.dataset.manual === '1' && balLkrEl.value.trim())
-    ? parseNum(balLkrEl.value)
-    : autoLkr;
+  const typedBalLkr = val('balLkr') && val('balLkr').value.trim();
+  const balLkr = typedBalLkr ? parseNum(typedBalLkr) : (balJpy && balRate ? balJpy * balRate : 0);
   const japanCostLkr = lcLkr + balLkr;
   const customsDuty = parseNum(val('customsDuty').value);
   const clearingCharges = parseNum(val('clearingCharges').value);
@@ -804,6 +797,18 @@ async function postQuotePdf(saved) {
   return null;
 }
 
+function priceText(saved, key) {
+  const raw = saved ? saved[key] : '';
+  if (raw === '' || raw == null) return '';
+  return formatMoneyValue(parseNum(raw));
+}
+
+function rateText(saved, key) {
+  const raw = saved ? saved[key] : '';
+  if (raw === '' || raw == null) return '';
+  return formatRate(raw);
+}
+
 async function downloadClientPdf(saved) {
   await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
   const jsPDF = window.jspdf && window.jspdf.jsPDF;
@@ -815,57 +820,83 @@ async function downloadClientPdf(saved) {
     const header = await imageDataUrl('images/cs-header.jpg');
     if (header) {
       doc.addImage(header, 'JPEG', 0, 0, pageW, 28);
-      y = 34;
+      y = 36;
     }
   } catch {
-    y = 16;
+    y = 18;
   }
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.setTextColor(29, 90, 170);
   doc.text('PRE-ORDER VEHICLE QUOTATION', 14, y);
-  doc.setFontSize(10);
-  doc.text(saved.id || '', pageW - 14, y, { align: 'right' });
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(20, 32, 46);
   doc.setFontSize(9);
-  const lines = [
-    ['Date', saved.quoteDate || ''],
-    ['Customer', saved.customerName || ''],
-    ['Contact', saved.contactNo || ''],
-    ['Email', saved.email || ''],
-    ['Vehicle', [saved.make, saved.model, saved.year, saved.colour].filter(Boolean).join(' ')],
-    ['Grade', saved.grade || ''],
-    ['Engine', saved.engineCapacity || ''],
-    ['Fuel / Gear', [saved.fuelType, saved.transmission].filter(Boolean).join(' / ')],
-    ['CIF JPY', saved.cifJpy || ''],
-    ['LC Rate / JPY / LKR', [saved.lcRate, saved.lcJpy, saved.lcLkr].filter(Boolean).join('  |  ')],
-    ['CIF Balance Rate / JPY / LKR', [saved.balRate, saved.balJpy, saved.balLkr].filter(Boolean).join('  |  ')],
-    ['Japan Cost LKR', saved.japanCostLkr || ''],
-    ['Customs Duty', saved.customsDuty || ''],
-    ['Clearing', saved.clearingCharges || ''],
-    ['Agency Fee', saved.agencyFee || ''],
-    ['Total Upto Hand', saved.totalEstimatedPrice || ''],
-    ['Prepared By', [saved.preparedByName, saved.designation].filter(Boolean).join(' · ')]
-  ];
-  lines.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label, 14, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(value || '—'), 58, y);
-    y += 6;
-  });
-  if (saved.vehiclePhoto && dataUrlKind(saved.vehiclePhoto)) {
-    try {
-      doc.addImage(saved.vehiclePhoto, dataUrlKind(saved.vehiclePhoto), 140, 42, 54, 36);
-    } catch {
-      /* skip photo */
+  doc.setTextColor(20, 32, 46);
+  doc.text('Quotation No: ' + (saved.id || ''), pageW - 14, y - 4, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.text('Date: ' + (saved.quoteDate || ''), pageW - 14, y + 2, { align: 'right' });
+  y += 10;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(29, 90, 170);
+  doc.text('PRICE DETAILS', 14, y);
+  y += 3;
+  doc.setDrawColor(255, 101, 5);
+  doc.setLineWidth(0.4);
+  doc.line(14, y, pageW - 14, y);
+  y += 5;
+
+  const left = 14;
+  const width = pageW - 28;
+  const cols = [70, 28, 42, 42];
+  const rowH = 7;
+  const navy = [29, 90, 170];
+  const red = [196, 30, 58];
+  const ink = [20, 32, 46];
+
+  function drawRow(cells, opts) {
+    const { header, blue, total } = opts || {};
+    if (header) {
+      doc.setFillColor(...navy);
+      doc.rect(left, y, width, rowH, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+    } else {
+      doc.setDrawColor(213, 222, 234);
+      doc.rect(left, y, width, rowH, 'S');
+      doc.setFont('helvetica', total || blue ? 'bold' : 'normal');
+      doc.setTextColor(total ? red[0] : blue ? navy[0] : ink[0], total ? red[1] : blue ? navy[1] : ink[1], total ? red[2] : blue ? navy[2] : ink[2]);
     }
+    doc.setFontSize(8);
+    let x = left;
+    cells.forEach((cell, i) => {
+      const text = String(cell || '');
+      if (i === 0) doc.text(text, x + 2, y + 5);
+      else doc.text(text, x + cols[i] - 2, y + 5, { align: 'right' });
+      x += cols[i];
+    });
+    y += rowH;
   }
+
+  drawRow(['', 'Ex. Rate', 'AMOUNT JPY', 'AMOUNT LKR'], { header: true });
+  drawRow(['Total Cost CIF JPY', '', priceText(saved, 'cifJpy'), '']);
+  drawRow(['LC Amount', rateText(saved, 'lcRate'), priceText(saved, 'lcJpy'), priceText(saved, 'lcLkr')], { blue: true });
+  drawRow(['CIF Balance Amount - JPY', rateText(saved, 'balRate'), priceText(saved, 'balJpy'), priceText(saved, 'balLkr')]);
+  y += 3;
+  drawRow(['Total Japan Cost - LKR', '', '', priceText(saved, 'japanCostLkr')], { blue: true });
+  drawRow(['Customs Duty - LKR', '', '', priceText(saved, 'customsDuty')]);
+  drawRow(['Customs Clearing & Other Charges - LKR', '', '', priceText(saved, 'clearingCharges')]);
+  drawRow(['Agency Fee', '', '', priceText(saved, 'agencyFee')]);
+  drawRow(['Total Upto Hand - LKR', '', '', priceText(saved, 'totalEstimatedPrice')], { total: true });
+
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(29, 90, 170);
+  doc.text('Prepared By: ' + [saved.preparedByName, saved.designation].filter(Boolean).join(' · '), 14, y);
   if (saved.signatureImage && dataUrlKind(saved.signatureImage)) {
     try {
-      doc.addImage(saved.signatureImage, dataUrlKind(saved.signatureImage), 14, y + 4, 42, 16);
+      doc.addImage(saved.signatureImage, dataUrlKind(saved.signatureImage), 14, y + 3, 42, 16);
     } catch {
       /* skip signature */
     }
@@ -885,35 +916,7 @@ async function downloadQuotePdf(saved) {
     const live = readForm();
     saved = Object.assign({}, saved, live, { id: saved.id || live.id });
   }
-  const filename = saved.id + '.pdf';
   showToast('PDF හදනවා...', 'wait');
-  const slim = Object.assign({}, saved, {
-    vehiclePhoto: '',
-    signatureImage: String(saved.signatureImage || '').length > 180000 ? '' : (saved.signatureImage || '')
-  });
-  const attempts = [];
-  if (!isHomeCloud()) {
-    attempts.push(async () => {
-      const res = await fetch((apiBase || '') + '/api/quotation/pdf?id=' + encodeURIComponent(saved.id), { cache: 'no-store' });
-      const type = (res.headers.get('content-type') || '').toLowerCase();
-      if (res.ok && type.indexOf('pdf') !== -1) return res.blob();
-      return null;
-    });
-  }
-  attempts.push(() => postQuotePdf(saved));
-  attempts.push(() => postQuotePdf(slim));
-  for (const attempt of attempts) {
-    try {
-      const blob = await attempt();
-      if (blob && blob.size > 800) {
-        triggerBlobDownload(blob, filename);
-        showToast('PDF downloaded', '');
-        return true;
-      }
-    } catch {
-      /* next attempt */
-    }
-  }
   try {
     await downloadClientPdf(saved);
     showToast('PDF downloaded', '');
@@ -949,12 +952,6 @@ function fillForm(data) {
   RATE_FIELDS.forEach((id) => {
     if (val(id)) val(id).value = formatRate(data[id]);
   });
-  ['balJpy', 'balLkr'].forEach((id) => {
-    const el = val(id);
-    if (!el) return;
-    if (el.value.trim()) el.dataset.manual = '1';
-    else delete el.dataset.manual;
-  });
   updateTotal();
   fillModelSuggestions();
   setSignature(
@@ -970,14 +967,9 @@ function fillForm(data) {
 function updateTotal() {
   if (!val('cifJpy')) return;
   const price = calcPrice();
-  const balJpyEl = val('balJpy');
-  const balLkrEl = val('balLkr');
-  if (balJpyEl && balJpyEl.dataset.manual !== '1') {
-    balJpyEl.value = formatMoneyValue(price.balJpy);
-  }
   val('lcLkr').value = formatMoneyValue(price.lcLkr);
-  if (balLkrEl && balLkrEl.dataset.manual !== '1') {
-    balLkrEl.value = formatMoneyValue(price.balLkr);
+  if (val('balLkr') && !val('balLkr').value.trim() && val('balJpy').value.trim()) {
+    val('balLkr').value = formatMoneyValue(price.balLkr);
   }
   val('japanCostLkr').value = formatMoneyValue(price.japanCostLkr);
   val('totalEstimatedPrice').value = formatMoneyValue(price.totalEstimatedPrice);
@@ -1107,14 +1099,7 @@ function initEditor() {
   PRICE_INPUTS.forEach((id) => {
     const el = val(id);
     if (!el) return;
-    el.addEventListener('input', () => {
-      if (id === 'balJpy' || id === 'balLkr') el.dataset.manual = '1';
-      if (id === 'cifJpy' || id === 'lcJpy') {
-        if (val('balJpy')) delete val('balJpy').dataset.manual;
-        if (val('balLkr')) delete val('balLkr').dataset.manual;
-      }
-      updateTotal();
-    });
+    el.addEventListener('input', updateTotal);
     el.addEventListener('blur', () => {
       if (el.value.trim()) el.value = formatMoney(el.value);
       updateTotal();
