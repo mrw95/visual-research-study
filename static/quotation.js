@@ -626,7 +626,10 @@ function parseNum(raw) {
 
 function formatMoneyValue(n) {
   if (!Number.isFinite(n)) return '';
-  return n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const neg = n < 0;
+  const [intPart, frac] = Math.abs(n).toFixed(2).split('.');
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '-' : '') + grouped + '.' + frac;
 }
 
 function formatMoney(raw) {
@@ -640,7 +643,13 @@ function formatMoney(raw) {
 function formatRate(raw) {
   const n = parseNum(raw);
   if (!n) return '';
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  const text = String(n);
+  if (text.indexOf('.') === -1) return text + '.00';
+  const parts = text.split('.');
+  const frac = (parts[1] || '').slice(0, 4).replace(/0+$/, '');
+  if (!frac) return parts[0] + '.00';
+  if (frac.length === 1) return parts[0] + '.' + frac + '0';
+  return parts[0] + '.' + frac;
 }
 
 function formatLkr(raw) {
@@ -753,48 +762,8 @@ function triggerBlobDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if ([...document.scripts].some((el) => el.src.indexOf('jspdf') !== -1) && window.jspdf) {
-      resolve();
-      return;
-    }
-    const el = document.createElement('script');
-    el.src = src;
-    el.onload = resolve;
-    el.onerror = reject;
-    document.head.appendChild(el);
-  });
-}
-
-function dataUrlKind(raw) {
-  const s = String(raw || '');
-  if (s.indexOf('image/png') !== -1) return 'PNG';
-  if (s.indexOf('image/jpeg') !== -1 || s.indexOf('image/jpg') !== -1) return 'JPEG';
-  return '';
-}
-
-async function imageDataUrl(path) {
-  const res = await fetch(path, { cache: 'force-cache' });
-  if (!res.ok) return '';
-  const blob = await res.blob();
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => resolve('');
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function postQuotePdf(saved) {
-  const res = await fetch('/api/quote-pdf', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(saved)
-  });
-  const type = (res.headers.get('content-type') || '').toLowerCase();
-  if (res.ok && type.indexOf('pdf') !== -1) return res.blob();
-  return null;
+function pdfEscape(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 
 function priceText(saved, key) {
@@ -809,116 +778,130 @@ function rateText(saved, key) {
   return formatRate(raw);
 }
 
-async function downloadClientPdf(saved) {
-  await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
-  const jsPDF = window.jspdf && window.jspdf.jsPDF;
-  if (!jsPDF) throw new Error('PDF library load failed');
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const pageW = 210;
-  let y = 8;
-  try {
-    const header = await imageDataUrl('images/cs-header.jpg');
-    if (header) {
-      doc.addImage(header, 'JPEG', 0, 0, pageW, 28);
-      y = 36;
-    }
-  } catch {
-    y = 18;
+function makeQuotePdfBlob(saved) {
+  const cmds = [];
+  function color(r, g, b) {
+    cmds.push(`${(r / 255).toFixed(3)} ${(g / 255).toFixed(3)} ${(b / 255).toFixed(3)} rg`);
   }
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(29, 90, 170);
-  doc.text('PRE-ORDER VEHICLE QUOTATION', 14, y);
-  doc.setFontSize(9);
-  doc.setTextColor(20, 32, 46);
-  doc.text('Quotation No: ' + (saved.id || ''), pageW - 14, y - 4, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.text('Date: ' + (saved.quoteDate || ''), pageW - 14, y + 2, { align: 'right' });
-  y += 10;
+  function text(x, y, size, str, bold) {
+    cmds.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm (${pdfEscape(str)}) Tj ET`);
+  }
+  function textWidth(str, size) {
+    return String(str || '').length * size * 0.52;
+  }
+  function textRight(right, y, size, str, bold) {
+    text(right - textWidth(str, size), y, size, str, bold);
+  }
+  function box(x, y, w, h, fill) {
+    if (fill) cmds.push(`${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re f`);
+    else cmds.push(`0.75 0.8 0.86 RG ${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re S 0 0 0 rg`);
+  }
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(29, 90, 170);
-  doc.text('PRICE DETAILS', 14, y);
-  y += 3;
-  doc.setDrawColor(255, 101, 5);
-  doc.setLineWidth(0.4);
-  doc.line(14, y, pageW - 14, y);
-  y += 5;
+  const savedData = saved || {};
+  let y = 800;
+  color(29, 90, 170);
+  text(40, y, 14, 'PRE-ORDER VEHICLE QUOTATION', true);
+  color(20, 32, 46);
+  textRight(555, y + 8, 10, 'Quotation No: ' + (savedData.id || ''), true);
+  textRight(555, y - 6, 10, 'Date: ' + (savedData.quoteDate || ''), false);
+  y -= 26;
+  const who = [savedData.customerName, savedData.contactNo].filter(Boolean).join('  |  ');
+  const car = [savedData.make, savedData.model, savedData.year, savedData.colour].filter(Boolean).join(' ');
+  if (who) {
+    color(20, 32, 46);
+    text(40, y, 9, who, false);
+    y -= 14;
+  }
+  if (car) {
+    text(40, y, 9, car, false);
+    y -= 14;
+  }
+  y -= 4;
+  color(29, 90, 170);
+  text(40, y, 12, 'PRICE DETAILS', true);
+  y -= 8;
+  cmds.push('1 0.4 0.02 RG 40 ' + y.toFixed(1) + ' m 555 ' + y.toFixed(1) + ' l S 0 0 0 rg');
+  y -= 4;
 
-  const left = 14;
-  const width = pageW - 28;
-  const cols = [70, 28, 42, 42];
-  const rowH = 7;
-  const navy = [29, 90, 170];
-  const red = [196, 30, 58];
-  const ink = [20, 32, 46];
+  const left = 40;
+  const width = 515;
+  const rateRight = 278;
+  const jpyRight = 400;
+  const lkrRight = 548;
+  const rowH = 18;
 
-  function drawRow(cells, opts) {
-    const { header, blue, total } = opts || {};
-    if (header) {
-      doc.setFillColor(...navy);
-      doc.rect(left, y, width, rowH, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
+  function row(cells, kind) {
+    y -= rowH;
+    if (kind === 'head') {
+      color(29, 90, 170);
+      box(left, y - 4, width, rowH, true);
+      color(255, 255, 255);
     } else {
-      doc.setDrawColor(213, 222, 234);
-      doc.rect(left, y, width, rowH, 'S');
-      doc.setFont('helvetica', total || blue ? 'bold' : 'normal');
-      doc.setTextColor(total ? red[0] : blue ? navy[0] : ink[0], total ? red[1] : blue ? navy[1] : ink[1], total ? red[2] : blue ? navy[2] : ink[2]);
+      box(left, y - 4, width, rowH, false);
+      if (kind === 'total') color(196, 30, 58);
+      else if (kind === 'blue') color(29, 90, 170);
+      else color(20, 32, 46);
     }
-    doc.setFontSize(8);
-    let x = left;
-    cells.forEach((cell, i) => {
-      const text = String(cell || '');
-      if (i === 0) doc.text(text, x + 2, y + 5);
-      else doc.text(text, x + cols[i] - 2, y + 5, { align: 'right' });
-      x += cols[i];
-    });
-    y += rowH;
+    const bold = kind === 'head' || kind === 'total' || kind === 'blue';
+    text(44, y + 2, 8, String(cells[0] || ''), bold);
+    textRight(rateRight, y + 2, 8, String(cells[1] || ''), bold);
+    textRight(jpyRight, y + 2, 8, String(cells[2] || ''), bold);
+    textRight(lkrRight, y + 2, 8, String(cells[3] || ''), bold);
+    color(20, 32, 46);
   }
 
-  drawRow(['', 'Ex. Rate', 'AMOUNT JPY', 'AMOUNT LKR'], { header: true });
-  drawRow(['Total Cost CIF JPY', '', priceText(saved, 'cifJpy'), '']);
-  drawRow(['LC Amount', rateText(saved, 'lcRate'), priceText(saved, 'lcJpy'), priceText(saved, 'lcLkr')], { blue: true });
-  drawRow(['CIF Balance Amount - JPY', rateText(saved, 'balRate'), priceText(saved, 'balJpy'), priceText(saved, 'balLkr')]);
-  y += 3;
-  drawRow(['Total Japan Cost - LKR', '', '', priceText(saved, 'japanCostLkr')], { blue: true });
-  drawRow(['Customs Duty - LKR', '', '', priceText(saved, 'customsDuty')]);
-  drawRow(['Customs Clearing & Other Charges - LKR', '', '', priceText(saved, 'clearingCharges')]);
-  drawRow(['Agency Fee', '', '', priceText(saved, 'agencyFee')]);
-  drawRow(['Total Upto Hand - LKR', '', '', priceText(saved, 'totalEstimatedPrice')], { total: true });
+  row(['', 'Ex. Rate', 'AMOUNT JPY', 'AMOUNT LKR'], 'head');
+  row(['Total Cost CIF JPY', '', priceText(savedData, 'cifJpy'), '']);
+  row(['LC Amount', rateText(savedData, 'lcRate'), priceText(savedData, 'lcJpy'), priceText(savedData, 'lcLkr')], 'blue');
+  row(['CIF Balance Amount - JPY', rateText(savedData, 'balRate'), priceText(savedData, 'balJpy'), priceText(savedData, 'balLkr')]);
+  y -= 8;
+  row(['Total Japan Cost - LKR', '', '', priceText(savedData, 'japanCostLkr')], 'blue');
+  row(['Customs Duty - LKR', '', '', priceText(savedData, 'customsDuty')]);
+  row(['Customs Clearing & Other Charges - LKR', '', '', priceText(savedData, 'clearingCharges')]);
+  row(['Agency Fee', '', '', priceText(savedData, 'agencyFee')]);
+  row(['Total Upto Hand - LKR', '', '', priceText(savedData, 'totalEstimatedPrice')], 'total');
 
-  y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(29, 90, 170);
-  doc.text('Prepared By: ' + [saved.preparedByName, saved.designation].filter(Boolean).join(' · '), 14, y);
-  if (saved.signatureImage && dataUrlKind(saved.signatureImage)) {
-    try {
-      doc.addImage(saved.signatureImage, dataUrlKind(saved.signatureImage), 14, y + 3, 42, 16);
-    } catch {
-      /* skip signature */
-    }
+  y -= 28;
+  color(29, 90, 170);
+  text(40, y, 11, 'Prepared By: ' + [savedData.preparedByName, savedData.designation].filter(Boolean).join('  |  '), true);
+
+  const stream = cmds.join('\n') + '\n';
+  const objs = [
+    null,
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}endstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offs = [0];
+  for (let i = 1; i < objs.length; i += 1) {
+    offs[i] = pdf.length;
+    pdf += `${i} 0 obj\n${objs[i]}\nendobj\n`;
   }
-  try {
-    const footer = await imageDataUrl('images/cs-footer.jpg');
-    if (footer) doc.addImage(footer, 'JPEG', 0, 277, pageW, 20);
-  } catch {
-    /* skip footer */
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for (let i = 1; i < objs.length; i += 1) {
+    pdf += `${String(offs[i]).padStart(10, '0')} 00000 n \n`;
   }
-  doc.save((saved.id || 'quotation') + '.pdf');
+  pdf += `trailer << /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
+function downloadClientPdf(saved) {
+  triggerBlobDownload(makeQuotePdfBlob(saved), (saved.id || 'quotation') + '.pdf');
 }
 
 async function downloadQuotePdf(saved) {
-  if (!saved || !saved.id) return false;
-  if (val('cifJpy')) {
-    const live = readForm();
-    saved = Object.assign({}, saved, live, { id: saved.id || live.id });
-  }
+  const live = val('cifJpy') ? readForm() : null;
+  const data = Object.assign({}, saved || {}, live || {});
+  if (!data.id && saved && saved.id) data.id = saved.id;
+  if (!data.id) return false;
   showToast('PDF හදනවා...', 'wait');
   try {
-    await downloadClientPdf(saved);
+    downloadClientPdf(data);
     showToast('PDF downloaded', '');
     return true;
   } catch {
@@ -952,7 +935,9 @@ function fillForm(data) {
   RATE_FIELDS.forEach((id) => {
     if (val(id)) val(id).value = formatRate(data[id]);
   });
-  updateTotal();
+  ['lcLkr', 'japanCostLkr', 'totalEstimatedPrice'].forEach((id) => {
+    if (val(id)) val(id).value = formatMoney(data[id]);
+  });
   fillModelSuggestions();
   setSignature(
     data.id
@@ -1061,11 +1046,16 @@ async function saveQuote() {
 
   try {
     const saved = await apiSave(data);
-    saveLocalCopy(saved);
-    setQuoteNo(saved.id);
-    history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(saved.id)}`);
+    const merged = Object.assign({}, saved, data, {
+      id: saved.id,
+      createdAt: saved.createdAt || data.createdAt,
+      updatedAt: saved.updatedAt || data.updatedAt
+    });
+    saveLocalCopy(merged);
+    setQuoteNo(merged.id);
+    history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(merged.id)}`);
     showToast('Saved successfully', '');
-    return saved;
+    return merged;
   } catch (err) {
     const saved = saveLocalQuote(data);
     showToast('Saved. PDF download කරලා customer ට යවන්න පුළුවන්.', '');
@@ -1123,9 +1113,19 @@ function initEditor() {
   const pdfBtn = document.getElementById('pdf-btn');
   if (pdfBtn) {
     pdfBtn.addEventListener('click', async () => {
-      const saved = await saveQuote();
-      if (!saved) return;
-      await downloadQuotePdf(saved);
+      const live = readForm();
+      if (!STAFF.includes(live.preparedByName)) {
+        showToast('Prepared By name select කරන්න', 'error');
+        val('preparedByName').focus();
+        return;
+      }
+      if (!live.id) {
+        const saved = await saveQuote();
+        if (!saved) return;
+        live.id = saved.id;
+      }
+      await downloadQuotePdf(live);
+      saveQuote();
     });
   }
 
@@ -1257,8 +1257,12 @@ function initList() {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-pdf');
         const source = apiItems.length ? apiItems : loadLocal();
-        const item = source.find((x) => x.id === id) || loadLocal().find((x) => x.id === id);
-        if (!item) {
+        const item = Object.assign(
+          {},
+          source.find((x) => x.id === id) || {},
+          loadLocal().find((x) => x.id === id) || {}
+        );
+        if (!item.id) {
           showToast('Quotation එක හොයා ගන්න බැරි වුණා', 'error');
           return;
         }

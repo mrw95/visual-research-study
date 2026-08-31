@@ -124,12 +124,7 @@ def save_item(data):
     saved["person"] = person
     saved["createdAt"] = (existing or {}).get("createdAt") or saved.get("createdAt") or now
     saved["updatedAt"] = now
-    priced = quotation_store.price_breakdown(saved)
-    saved["lcLkr"] = priced["lcLkr"].replace(",", "")
-    saved["balJpy"] = priced["balJpy"].replace(",", "")
-    saved["balLkr"] = priced["balLkr"].replace(",", "")
-    saved["japanCostLkr"] = priced["japanCostLkr"].replace(",", "")
-    saved["totalEstimatedPrice"] = priced["totalEstimatedPrice"].replace(",", "")
+    quotation_store.apply_entered_prices(saved)
     next_items = [item for item in items if quotation_store.safe_quote_id(item.get("id")) != qid]
     next_items.insert(0, saved)
     save_items(next_items[:200])

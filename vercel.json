@@ -49,7 +49,25 @@
       ]
     },
     {
+      "source": "/quotation.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/quotations",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/quotations.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/quote-login.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
       ]

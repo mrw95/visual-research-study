@@ -292,6 +292,16 @@ def _has_num(data, key):
     return bool(str(data.get(key) or "").strip().replace(",", "").replace(" ", ""))
 
 
+def apply_entered_prices(data):
+    priced = price_breakdown(data)
+    for key in ("lcLkr", "balJpy", "balLkr", "japanCostLkr", "totalEstimatedPrice"):
+        if _has_num(data, key):
+            data[key] = str(data.get(key) or "").replace(",", "").replace(" ", "")
+        else:
+            data[key] = str(priced.get(key) or "").replace(",", "")
+    return data
+
+
 def price_breakdown(data):
     cif_jpy = _num(data, "cifJpy")
     lc_jpy = _num(data, "lcJpy")
@@ -1016,12 +1026,7 @@ def save_quote(root: Path, data: dict, images_dir: Path | None = None) -> dict:
     data["vehiclePhoto"] = str(data.get("vehiclePhoto") or "").strip()
     if not data["vehiclePhoto"].startswith("data:image/"):
         data["vehiclePhoto"] = ""
-    priced = price_breakdown(data)
-    data["lcLkr"] = priced["lcLkr"].replace(",", "")
-    data["balJpy"] = priced["balJpy"].replace(",", "")
-    data["balLkr"] = priced["balLkr"].replace(",", "")
-    data["japanCostLkr"] = priced["japanCostLkr"].replace(",", "")
-    data["totalEstimatedPrice"] = priced["totalEstimatedPrice"].replace(",", "")
+    apply_entered_prices(data)
 
     remove_quote_files(root, qid, keep_person=person)
     folder = root / person
