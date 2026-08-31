@@ -327,6 +327,8 @@ def api_quotations():
     return jsonify({
         "ok": True,
         "root": str(root),
+        "network": str(quotation_store.NETWORK_QUOTES),
+        "usingNetwork": quotation_store.using_network_share(root),
         "staff": quotation_store.STAFF,
         "items": quotation_store.list_quotes(root, person),
     })
@@ -378,7 +380,12 @@ def api_quotation():
                 "error": "PDF එක open වෙලා තියෙනවා. File එක close කරලා ආයෙත් Save කරන්න."
             }), 500
         return jsonify({"ok": False, "error": f"Folder save failed: {err}"}), 500
-    return jsonify({"ok": True, "root": str(root), "item": saved})
+    return jsonify({
+        "ok": True,
+        "root": str(root),
+        "usingNetwork": quotation_store.using_network_share(root),
+        "item": saved
+    })
 
 
 @app.get("/api/quotation/pdf")

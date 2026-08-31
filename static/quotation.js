@@ -555,7 +555,7 @@ function initPhoneShare() {
     });
     if (hint) {
       hint.hidden = false;
-      hint.innerHTML = 'ගෙදර: මේ link එකෙන් quotation හදන්න. Office PC එක on වෙන්න ඕනේ නැහැ.';
+      hint.innerHTML = 'ගෙදර/web: මේක මේ device එකේ save වෙනවා. Office folder එකට යන්නේ නැහැ. Folder එකට office PC එකේ <a href="http://localhost:8090/quotation">http://localhost:8090/quotation</a> open කරන්න (START-QUOTATION.bat).';
     }
     return;
   }
@@ -712,24 +712,23 @@ function fieldText(id) {
 }
 
 function readForm() {
-  const price = calcPrice();
   const data = {
     id: val('quotationNo').value.trim(),
     quoteDate: val('quoteDate').value || todayIso(),
     origin: val('origin').value.trim() || 'Japan',
     designation: STAFF_ROLES[val('preparedByName').value] || '',
-    cifJpy: fieldText('cifJpy') || storeNum(price.cifJpy),
-    lcRate: fieldText('lcRate') || storeNum(price.lcRate),
-    lcJpy: fieldText('lcJpy') || storeNum(price.lcJpy),
-    lcLkr: fieldText('lcLkr') || storeNum(price.lcLkr),
-    balRate: fieldText('balRate') || storeNum(price.balRate),
-    balJpy: fieldText('balJpy') || storeNum(price.balJpy),
-    balLkr: fieldText('balLkr') || storeNum(price.balLkr),
-    japanCostLkr: fieldText('japanCostLkr') || storeNum(price.japanCostLkr),
-    customsDuty: fieldText('customsDuty') || storeNum(price.customsDuty),
-    clearingCharges: fieldText('clearingCharges') || storeNum(price.clearingCharges),
-    agencyFee: fieldText('agencyFee') || storeNum(price.agencyFee),
-    totalEstimatedPrice: fieldText('totalEstimatedPrice') || storeNum(price.totalEstimatedPrice),
+    cifJpy: fieldText('cifJpy'),
+    lcRate: fieldText('lcRate'),
+    lcJpy: fieldText('lcJpy'),
+    lcLkr: fieldText('lcLkr'),
+    balRate: fieldText('balRate'),
+    balJpy: fieldText('balJpy'),
+    balLkr: fieldText('balLkr'),
+    japanCostLkr: fieldText('japanCostLkr'),
+    customsDuty: fieldText('customsDuty'),
+    clearingCharges: fieldText('clearingCharges'),
+    agencyFee: fieldText('agencyFee'),
+    totalEstimatedPrice: fieldText('totalEstimatedPrice'),
     updatedAt: new Date().toISOString()
   };
 
@@ -766,16 +765,20 @@ function pdfEscape(s) {
   return String(s || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 
-function priceText(saved, key) {
+function shownAmount(saved, key) {
+  const el = val(key);
+  if (el && String(el.value || '').trim()) return String(el.value).trim();
   const raw = saved ? saved[key] : '';
   if (raw === '' || raw == null) return '';
-  return formatMoneyValue(parseNum(raw));
+  return formatMoney(raw) || String(raw);
 }
 
-function rateText(saved, key) {
+function shownRate(saved, key) {
+  const el = val(key);
+  if (el && String(el.value || '').trim()) return String(el.value).trim();
   const raw = saved ? saved[key] : '';
   if (raw === '' || raw == null) return '';
-  return formatRate(raw);
+  return formatRate(raw) || String(raw);
 }
 
 function makeQuotePdfBlob(saved) {
@@ -851,15 +854,15 @@ function makeQuotePdfBlob(saved) {
   }
 
   row(['', 'Ex. Rate', 'AMOUNT JPY', 'AMOUNT LKR'], 'head');
-  row(['Total Cost CIF JPY', '', priceText(savedData, 'cifJpy'), '']);
-  row(['LC Amount', rateText(savedData, 'lcRate'), priceText(savedData, 'lcJpy'), priceText(savedData, 'lcLkr')], 'blue');
-  row(['CIF Balance Amount - JPY', rateText(savedData, 'balRate'), priceText(savedData, 'balJpy'), priceText(savedData, 'balLkr')]);
+  row(['Total Cost CIF JPY', '', shownAmount(savedData, 'cifJpy'), '']);
+  row(['LC Amount', shownRate(savedData, 'lcRate'), shownAmount(savedData, 'lcJpy'), shownAmount(savedData, 'lcLkr')], 'blue');
+  row(['CIF Balance Amount - JPY', shownRate(savedData, 'balRate'), shownAmount(savedData, 'balJpy'), shownAmount(savedData, 'balLkr')]);
   y -= 8;
-  row(['Total Japan Cost - LKR', '', '', priceText(savedData, 'japanCostLkr')], 'blue');
-  row(['Customs Duty - LKR', '', '', priceText(savedData, 'customsDuty')]);
-  row(['Customs Clearing & Other Charges - LKR', '', '', priceText(savedData, 'clearingCharges')]);
-  row(['Agency Fee', '', '', priceText(savedData, 'agencyFee')]);
-  row(['Total Upto Hand - LKR', '', '', priceText(savedData, 'totalEstimatedPrice')], 'total');
+  row(['Total Japan Cost - LKR', '', '', shownAmount(savedData, 'japanCostLkr')], 'blue');
+  row(['Customs Duty - LKR', '', '', shownAmount(savedData, 'customsDuty')]);
+  row(['Customs Clearing & Other Charges - LKR', '', '', shownAmount(savedData, 'clearingCharges')]);
+  row(['Agency Fee', '', '', shownAmount(savedData, 'agencyFee')]);
+  row(['Total Upto Hand - LKR', '', '', shownAmount(savedData, 'totalEstimatedPrice')], 'total');
 
   y -= 28;
   color(29, 90, 170);
@@ -895,9 +898,14 @@ function downloadClientPdf(saved) {
 }
 
 async function downloadQuotePdf(saved) {
-  const live = val('cifJpy') ? readForm() : null;
-  const data = Object.assign({}, saved || {}, live || {});
-  if (!data.id && saved && saved.id) data.id = saved.id;
+  const data = Object.assign({}, saved || {});
+  if (val('cifJpy')) {
+    const live = readForm();
+    Object.keys(live).forEach((key) => {
+      data[key] = live[key];
+    });
+    data.id = (saved && saved.id) || live.id;
+  }
   if (!data.id) return false;
   showToast('PDF හදනවා...', 'wait');
   try {
@@ -938,6 +946,8 @@ function fillForm(data) {
   ['lcLkr', 'japanCostLkr', 'totalEstimatedPrice'].forEach((id) => {
     if (val(id)) val(id).value = formatMoney(data[id]);
   });
+  const totalEl = val('totalEstimatedPrice');
+  if (totalEl) totalEl.dataset.manual = totalEl.value.trim() ? '1' : '';
   fillModelSuggestions();
   setSignature(
     data.id
@@ -957,7 +967,10 @@ function updateTotal() {
     val('balLkr').value = formatMoneyValue(price.balLkr);
   }
   val('japanCostLkr').value = formatMoneyValue(price.japanCostLkr);
-  val('totalEstimatedPrice').value = formatMoneyValue(price.totalEstimatedPrice);
+  const totalEl = val('totalEstimatedPrice');
+  if (totalEl && totalEl.dataset.manual !== '1') {
+    totalEl.value = formatMoneyValue(price.totalEstimatedPrice);
+  }
 }
 
 function setStatus(text) {
@@ -1054,11 +1067,25 @@ async function saveQuote() {
     saveLocalCopy(merged);
     setQuoteNo(merged.id);
     history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(merged.id)}`);
-    showToast('Saved successfully', '');
+    const folder = merged.pdfPath || merged.path || apiRoot;
+    const onShare = /\\\\carswitch\\/i.test(String(apiRoot || folder || ''));
+    if (onShare) {
+      showToast('Saved to folder: ' + folder, '');
+    } else if (isHomeCloud()) {
+      showToast('මේක web save. Office folder එකට යන්නේ නැහැ. Folder එකට http://localhost:8090/quotation open කරන්න.', 'error');
+    } else {
+      showToast('Saved on this PC. Office share එක open නැහැ: ' + folder, '');
+    }
+    setStatus(onShare ? 'Folder: ' + folder : 'Not the office folder');
     return merged;
   } catch (err) {
     const saved = saveLocalQuote(data);
-    showToast('Saved. PDF download කරලා customer ට යවන්න පුළුවන්.', '');
+    showToast(
+      isHomeCloud()
+        ? 'මේක web save. Office folder එකට යන්නේ නැහැ. Folder එකට http://localhost:8090/quotation open කරන්න.'
+        : 'Folder එකට යන්නේ නැහැ. START-QUOTATION.bat office PC එකේ run කරලා http://localhost:8090/quotation open කරන්න.',
+      'error'
+    );
     return saved;
   } finally {
     setSaveBusy(false);
@@ -1104,28 +1131,31 @@ function initEditor() {
       updateTotal();
     });
   });
+  const totalEl = val('totalEstimatedPrice');
+  if (totalEl) {
+    totalEl.addEventListener('input', () => {
+      totalEl.dataset.manual = totalEl.value.trim() ? '1' : '';
+    });
+    totalEl.addEventListener('blur', () => {
+      if (totalEl.value.trim()) totalEl.value = formatMoney(totalEl.value);
+    });
+  }
 
-  document.getElementById('print-btn').addEventListener('click', async () => {
-    const saved = await saveQuote();
-    if (saved) window.print();
+  document.getElementById('print-btn').addEventListener('click', () => {
+    window.print();
   });
 
   const pdfBtn = document.getElementById('pdf-btn');
   if (pdfBtn) {
-    pdfBtn.addEventListener('click', async () => {
+    pdfBtn.addEventListener('click', () => {
       const live = readForm();
       if (!STAFF.includes(live.preparedByName)) {
         showToast('Prepared By name select කරන්න', 'error');
         val('preparedByName').focus();
         return;
       }
-      if (!live.id) {
-        const saved = await saveQuote();
-        if (!saved) return;
-        live.id = saved.id;
-      }
-      await downloadQuotePdf(live);
-      saveQuote();
+      live.id = live.id || val('quotationNo').value.trim() || 'quotation';
+      downloadClientPdf(live);
     });
   }
 
@@ -1203,12 +1233,17 @@ function initList() {
   async function refresh() {
     try {
       const data = await apiList();
-      if (hint && data.root) hint.textContent = 'Save වෙන්නේ: ' + data.root;
+      if (hint && data.root) {
+        const onShare = /\\\\carswitch\\/i.test(String(data.root));
+        hint.textContent = onShare
+          ? 'Save වෙන්නේ: ' + data.root
+          : 'Office folder එකට යන්නේ නැහැ. දැන් save වෙන්නේ: ' + data.root;
+      }
     } catch {
       apiItems = loadLocal();
       if (hint) {
         hint.textContent = isHomeCloud()
-          ? 'ගෙදර mode: මේ phone/laptop එකේ save වෙනවා. PDF download කරලා customer ට යවන්න.'
+          ? 'ගෙදර/web: මේ device එකේ save වෙනවා. Office folder එකට යන්න http://localhost:8090/quotations (START-QUOTATION.bat).'
           : 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා quotations open කරන්න.';
       }
     }

@@ -49,6 +49,10 @@ def _writable(folder: Path) -> bool:
         return False
 
 
+def using_network_share(root: Path) -> bool:
+    return str(root).replace("/", "\\").lower().startswith("\\\\carswitch\\")
+
+
 def quotation_root(project_root: Path) -> Path:
     env = os.environ.get("QUOTATION_DIR")
     for candidate in (Path(env) if env else None, NETWORK_QUOTES, project_root / "quotations"):
@@ -293,13 +297,33 @@ def _has_num(data, key):
 
 
 def apply_entered_prices(data):
-    priced = price_breakdown(data)
     for key in ("lcLkr", "balJpy", "balLkr", "japanCostLkr", "totalEstimatedPrice"):
         if _has_num(data, key):
             data[key] = str(data.get(key) or "").replace(",", "").replace(" ", "")
-        else:
-            data[key] = str(priced.get(key) or "").replace(",", "")
     return data
+
+
+def price_display(data):
+    def money(key):
+        return _fmt(_num(data, key)) if _has_num(data, key) else ""
+
+    def rate(key):
+        return _fmt(_num(data, key), 2) if _has_num(data, key) else ""
+
+    return {
+        "cifJpy": money("cifJpy"),
+        "lcRate": rate("lcRate"),
+        "lcJpy": money("lcJpy"),
+        "lcLkr": money("lcLkr"),
+        "balRate": rate("balRate"),
+        "balJpy": money("balJpy"),
+        "balLkr": money("balLkr"),
+        "japanCostLkr": money("japanCostLkr"),
+        "customsDuty": money("customsDuty"),
+        "clearingCharges": money("clearingCharges"),
+        "agencyFee": money("agencyFee"),
+        "totalEstimatedPrice": money("totalEstimatedPrice"),
+    }
 
 
 def price_breakdown(data):
@@ -610,7 +634,7 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
             pass
 
     heading("Price Details")
-    p = price_breakdown(data)
+    p = price_display(data)
     col_x = [left, left + 198, left + 268, left + 378]
     col_w = [198, 70, 110, right - (left + 378)]
     headers = ("", "Ex. Rate", "AMOUNT JPY", "AMOUNT LKR")
@@ -759,7 +783,7 @@ def _pdf_field(label: str, value: str) -> str:
 
 
 def _price_html(data: dict) -> str:
-    p = price_breakdown(data)
+    p = price_display(data)
     return f"""<table class="price">
         <thead><tr><th></th><th class="amt">Ex. Rate</th><th class="amt">AMOUNT JPY</th><th class="amt">AMOUNT LKR</th></tr></thead>
         <tbody>
