@@ -683,18 +683,26 @@ function val(id) {
 }
 
 function calcPrice() {
-  const cifJpy = parseNum(val('cifJpy').value);
-  const lcJpy = parseNum(val('lcJpy').value);
-  const lcRate = parseNum(val('lcRate').value);
-  const balRate = parseNum(val('balRate').value);
-  const balJpy = parseNum(val('balJpy').value);
+  const cifJpy = parseNum(val('cifJpy') && val('cifJpy').value);
+  const lcJpy = parseNum(val('lcJpy') && val('lcJpy').value);
+  const lcRate = parseNum(val('lcRate') && val('lcRate').value);
+  const balRate = parseNum(val('balRate') && val('balRate').value);
+  const balJpyEl = val('balJpy');
+  const balLkrEl = val('balLkr');
+  const hasCifAndLc = !!(val('cifJpy') && val('cifJpy').value.trim() && val('lcJpy') && val('lcJpy').value.trim());
+  const autoBalJpy = cifJpy - lcJpy;
+  const balJpy = (balJpyEl && balJpyEl.dataset.manual === '1')
+    ? parseNum(balJpyEl.value)
+    : (hasCifAndLc ? autoBalJpy : parseNum(balJpyEl && balJpyEl.value));
   const lcLkr = lcJpy * lcRate;
-  const typedBalLkr = val('balLkr') && val('balLkr').value.trim();
-  const balLkr = typedBalLkr ? parseNum(typedBalLkr) : (balJpy && balRate ? balJpy * balRate : 0);
+  const autoBalLkr = balJpy * balRate;
+  const balLkr = (balLkrEl && balLkrEl.dataset.manual === '1')
+    ? parseNum(balLkrEl.value)
+    : autoBalLkr;
   const japanCostLkr = lcLkr + balLkr;
-  const customsDuty = parseNum(val('customsDuty').value);
-  const clearingCharges = parseNum(val('clearingCharges').value);
-  const agencyFee = parseNum(val('agencyFee').value);
+  const customsDuty = parseNum(val('customsDuty') && val('customsDuty').value);
+  const clearingCharges = parseNum(val('clearingCharges') && val('clearingCharges').value);
+  const agencyFee = parseNum(val('agencyFee') && val('agencyFee').value);
   const totalEstimatedPrice = japanCostLkr + customsDuty + clearingCharges + agencyFee;
   return {
     cifJpy, lcRate, lcJpy, lcLkr, balRate, balJpy, balLkr,
@@ -1208,6 +1216,14 @@ function saveLocalQuote(data) {
   return data;
 }
 
+function amountsDiffer(a, b) {
+  return Math.abs(parseNum(a) - parseNum(b)) > 0.05;
+}
+
+function markManualAmount(el) {
+  if (el) el.dataset.manual = el.value.trim() ? '1' : '';
+}
+
 function fillForm(data) {
   setQuoteNo(data.id || '');
   val('quoteDate').value = data.quoteDate || todayIso();
@@ -1221,11 +1237,17 @@ function fillForm(data) {
   RATE_FIELDS.forEach((id) => {
     if (val(id)) val(id).value = formatRate(data[id]);
   });
-  ['lcLkr', 'japanCostLkr', 'totalEstimatedPrice'].forEach((id) => {
-    if (val(id)) val(id).value = formatMoney(data[id]);
-  });
-  const totalEl = val('totalEstimatedPrice');
-  if (totalEl) totalEl.dataset.manual = totalEl.value.trim() ? '1' : '';
+  const autoBalJpy = parseNum(data.cifJpy) - parseNum(data.lcJpy);
+  const autoBalLkr = (String(data.balJpy || '').trim() ? parseNum(data.balJpy) : autoBalJpy) * parseNum(data.balRate);
+  const balJpyEl = val('balJpy');
+  const balLkrEl = val('balLkr');
+  if (balJpyEl) {
+    balJpyEl.dataset.manual = (String(data.balJpy || '').trim() && amountsDiffer(data.balJpy, autoBalJpy)) ? '1' : '';
+  }
+  if (balLkrEl) {
+    balLkrEl.dataset.manual = (String(data.balLkr || '').trim() && amountsDiffer(data.balLkr, autoBalLkr)) ? '1' : '';
+  }
+  updateTotal();
   fillModelSuggestions();
   setSignature(
     data.id
@@ -1240,15 +1262,21 @@ function fillForm(data) {
 function updateTotal() {
   if (!val('cifJpy')) return;
   const price = calcPrice();
-  val('lcLkr').value = formatMoneyValue(price.lcLkr);
-  if (val('balLkr') && !val('balLkr').value.trim() && val('balJpy').value.trim()) {
-    val('balLkr').value = formatMoneyValue(price.balLkr);
+  const hasLc = !!(val('lcJpy').value.trim() && val('lcRate').value.trim());
+  const hasCifAndLc = !!(val('cifJpy').value.trim() && val('lcJpy').value.trim());
+  val('lcLkr').value = hasLc ? formatMoneyValue(price.lcLkr) : '';
+  if (val('balJpy') && val('balJpy').dataset.manual !== '1') {
+    val('balJpy').value = hasCifAndLc ? formatMoneyValue(price.balJpy) : val('balJpy').value;
   }
-  val('japanCostLkr').value = formatMoneyValue(price.japanCostLkr);
-  const totalEl = val('totalEstimatedPrice');
-  if (totalEl && totalEl.dataset.manual !== '1') {
-    totalEl.value = formatMoneyValue(price.totalEstimatedPrice);
+  const hasBalParts = !!(val('balJpy').value.trim() && val('balRate').value.trim());
+  if (val('balLkr') && val('balLkr').dataset.manual !== '1') {
+    val('balLkr').value = hasBalParts ? formatMoneyValue(price.balLkr) : '';
   }
+  const hasJapan = !!(val('lcLkr').value.trim() || (val('balLkr') && val('balLkr').value.trim()));
+  val('japanCostLkr').value = hasJapan ? formatMoneyValue(price.japanCostLkr) : '';
+  const hasTotal = hasJapan
+    || !!(val('customsDuty').value.trim() || val('clearingCharges').value.trim() || val('agencyFee').value.trim());
+  val('totalEstimatedPrice').value = hasTotal ? formatMoneyValue(price.totalEstimatedPrice) : '';
 }
 
 function setStatus(text) {
@@ -1311,8 +1339,7 @@ function saveLocalCopy(data) {
 
 async function saveQuote() {
   if (saving) return null;
-  const data = readForm();
-  if (!STAFF.includes(data.preparedByName)) {
+  if (!STAFF.includes(val('preparedByName').value)) {
     showToast('Prepared By name select කරන්න', 'error');
     val('preparedByName').focus();
     return null;
@@ -1320,6 +1347,8 @@ async function saveQuote() {
 
   setSaveBusy(true);
   showToast('Saving...', 'wait');
+  updateTotal();
+  const data = readForm();
 
   let items = allKnown();
   try {
@@ -1395,9 +1424,13 @@ function initEditor() {
   PRICE_INPUTS.forEach((id) => {
     const el = val(id);
     if (!el) return;
-    el.addEventListener('input', updateTotal);
+    el.addEventListener('input', () => {
+      if (id === 'balJpy' || id === 'balLkr') markManualAmount(el);
+      updateTotal();
+    });
     el.addEventListener('blur', () => {
       if (el.value.trim()) el.value = formatMoney(el.value);
+      if (id === 'balJpy' || id === 'balLkr') markManualAmount(el);
       updateTotal();
     });
   });
@@ -1410,15 +1443,6 @@ function initEditor() {
       updateTotal();
     });
   });
-  const totalEl = val('totalEstimatedPrice');
-  if (totalEl) {
-    totalEl.addEventListener('input', () => {
-      totalEl.dataset.manual = totalEl.value.trim() ? '1' : '';
-    });
-    totalEl.addEventListener('blur', () => {
-      if (totalEl.value.trim()) totalEl.value = formatMoney(totalEl.value);
-    });
-  }
 
   document.getElementById('print-btn').addEventListener('click', () => {
     window.print();
@@ -1427,6 +1451,7 @@ function initEditor() {
   const pdfBtn = document.getElementById('pdf-btn');
   if (pdfBtn) {
     pdfBtn.addEventListener('click', async () => {
+      updateTotal();
       const live = readForm();
       if (!STAFF.includes(live.preparedByName)) {
         showToast('Prepared By name select කරන්න', 'error');
