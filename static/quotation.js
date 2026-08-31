@@ -738,6 +738,166 @@ function triggerBlobDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if ([...document.scripts].some((el) => el.src.indexOf('jspdf') !== -1) && window.jspdf) {
+      resolve();
+      return;
+    }
+    const el = document.createElement('script');
+    el.src = src;
+    el.onload = resolve;
+    el.onerror = reject;
+    document.head.appendChild(el);
+  });
+}
+
+function dataUrlKind(raw) {
+  const s = String(raw || '');
+  if (s.indexOf('image/png') !== -1) return 'PNG';
+  if (s.indexOf('image/jpeg') !== -1 || s.indexOf('image/jpg') !== -1) return 'JPEG';
+  return '';
+}
+
+async function imageDataUrl(path) {
+  const res = await fetch(path, { cache: 'force-cache' });
+  if (!res.ok) return '';
+  const blob = await res.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function postQuotePdf(saved) {
+  const res = await fetch('/api/quote-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(saved)
+  });
+  const type = (res.headers.get('content-type') || '').toLowerCase();
+  if (res.ok && type.indexOf('pdf') !== -1) return res.blob();
+  return null;
+}
+
+async function downloadClientPdf(saved) {
+  await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
+  const jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDF) throw new Error('PDF library load failed');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = 210;
+  let y = 8;
+  try {
+    const header = await imageDataUrl('images/cs-header.jpg');
+    if (header) {
+      doc.addImage(header, 'JPEG', 0, 0, pageW, 28);
+      y = 34;
+    }
+  } catch {
+    y = 16;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(29, 90, 170);
+  doc.text('PRE-ORDER VEHICLE QUOTATION', 14, y);
+  doc.setFontSize(10);
+  doc.text(saved.id || '', pageW - 14, y, { align: 'right' });
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(20, 32, 46);
+  doc.setFontSize(9);
+  const lines = [
+    ['Date', saved.quoteDate || ''],
+    ['Customer', saved.customerName || ''],
+    ['Contact', saved.contactNo || ''],
+    ['Email', saved.email || ''],
+    ['Vehicle', [saved.make, saved.model, saved.year, saved.colour].filter(Boolean).join(' ')],
+    ['Grade', saved.grade || ''],
+    ['Engine', saved.engineCapacity || ''],
+    ['Fuel / Gear', [saved.fuelType, saved.transmission].filter(Boolean).join(' / ')],
+    ['CIF JPY', saved.cifJpy || ''],
+    ['LC', [saved.lcRate, saved.lcJpy, saved.lcLkr].filter(Boolean).join(' | ')],
+    ['CIF Balance', [saved.balRate, saved.balJpy, saved.balLkr].filter(Boolean).join(' | ')],
+    ['Japan Cost LKR', saved.japanCostLkr || ''],
+    ['Customs Duty', saved.customsDuty || ''],
+    ['Clearing', saved.clearingCharges || ''],
+    ['Agency Fee', saved.agencyFee || ''],
+    ['Total Upto Hand', saved.totalEstimatedPrice || ''],
+    ['Prepared By', [saved.preparedByName, saved.designation].filter(Boolean).join(' · ')]
+  ];
+  lines.forEach(([label, value]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, 14, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(value || '—'), 58, y);
+    y += 6;
+  });
+  if (saved.vehiclePhoto && dataUrlKind(saved.vehiclePhoto)) {
+    try {
+      doc.addImage(saved.vehiclePhoto, dataUrlKind(saved.vehiclePhoto), 140, 42, 54, 36);
+    } catch {
+      /* skip photo */
+    }
+  }
+  if (saved.signatureImage && dataUrlKind(saved.signatureImage)) {
+    try {
+      doc.addImage(saved.signatureImage, dataUrlKind(saved.signatureImage), 14, y + 4, 42, 16);
+    } catch {
+      /* skip signature */
+    }
+  }
+  try {
+    const footer = await imageDataUrl('images/cs-footer.jpg');
+    if (footer) doc.addImage(footer, 'JPEG', 0, 277, pageW, 20);
+  } catch {
+    /* skip footer */
+  }
+  doc.save((saved.id || 'quotation') + '.pdf');
+}
+
+async function downloadQuotePdf(saved) {
+  if (!saved || !saved.id) return false;
+  const filename = saved.id + '.pdf';
+  showToast('PDF හදනවා...', 'wait');
+  const slim = Object.assign({}, saved, {
+    vehiclePhoto: '',
+    signatureImage: String(saved.signatureImage || '').length > 180000 ? '' : (saved.signatureImage || '')
+  });
+  const attempts = [];
+  if (!isHomeCloud()) {
+    attempts.push(async () => {
+      const res = await fetch((apiBase || '') + '/api/quotation/pdf?id=' + encodeURIComponent(saved.id), { cache: 'no-store' });
+      const type = (res.headers.get('content-type') || '').toLowerCase();
+      if (res.ok && type.indexOf('pdf') !== -1) return res.blob();
+      return null;
+    });
+  }
+  attempts.push(() => postQuotePdf(saved));
+  attempts.push(() => postQuotePdf(slim));
+  for (const attempt of attempts) {
+    try {
+      const blob = await attempt();
+      if (blob && blob.size > 800) {
+        triggerBlobDownload(blob, filename);
+        showToast('PDF downloaded', '');
+        return true;
+      }
+    } catch {
+      /* next attempt */
+    }
+  }
+  try {
+    await downloadClientPdf(saved);
+    showToast('PDF downloaded', '');
+    return true;
+  } catch {
+    showToast('PDF download failed. Page refresh කරලා ආයෙත් try කරන්න.', 'error');
+    return false;
+  }
+}
+
 function saveLocalQuote(data) {
   if (!data.id) data.id = nextRef(allKnown());
   data.updatedAt = new Date().toISOString();
@@ -748,54 +908,6 @@ function saveLocalQuote(data) {
   setQuoteNo(data.id);
   history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(data.id)}`);
   return data;
-}
-
-async function downloadQuotePdf(saved) {
-  if (!saved || !saved.id) return false;
-  const filename = saved.id + '.pdf';
-  if (isHomeCloud()) {
-    try {
-      const res = await fetch('/api/quote-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saved)
-      });
-      const type = (res.headers.get('content-type') || '').toLowerCase();
-      if (res.ok && type.indexOf('pdf') !== -1) {
-        triggerBlobDownload(await res.blob(), filename);
-        return true;
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-  try {
-    const res = await fetch((apiBase || '') + '/api/quotation/pdf?id=' + encodeURIComponent(saved.id), { cache: 'no-store' });
-    const type = (res.headers.get('content-type') || '').toLowerCase();
-    if (res.ok && type.indexOf('pdf') !== -1) {
-      triggerBlobDownload(await res.blob(), filename);
-      return true;
-    }
-  } catch {
-    /* try cloud PDF next */
-  }
-  try {
-    const res = await fetch('/api/quote-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(saved)
-    });
-    const type = (res.headers.get('content-type') || '').toLowerCase();
-    if (res.ok && type.indexOf('pdf') !== -1) {
-      triggerBlobDownload(await res.blob(), filename);
-      return true;
-    }
-  } catch {
-    /* print fallback */
-  }
-  showToast('Print window එකේ Destination: Save as PDF තෝරන්න', 'wait');
-  window.print();
-  return true;
 }
 
 function fillForm(data) {

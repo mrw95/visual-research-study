@@ -7,7 +7,8 @@
   ],
   "functions": {
     "api/quote-pdf.py": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "images/cs-*.jpg"
     },
     "api/quotation.py": {
       "maxDuration": 15
