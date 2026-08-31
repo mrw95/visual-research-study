@@ -18,6 +18,10 @@ html, body {
   font-family: "Segoe UI", "Noto Sans Sinhala", Arial, sans-serif;
 }
 
+.quote-body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 .quote-toolbar {
   position: sticky;
   top: 0;
@@ -42,6 +46,8 @@ html, body {
   font: 700 0.92rem/1 Arial, Helvetica, sans-serif;
   text-decoration: none;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(29, 90, 170, 0.18);
 }
 
 .quote-tool-link {
@@ -296,12 +302,39 @@ input[readonly] {
 }
 
 .price-table .amount {
-  width: 220px;
+  width: 22%;
   text-align: right;
 }
 
 .price-table .amount input {
   text-align: right;
+}
+
+.cif-table td:first-child {
+  font-weight: 700;
+}
+
+.lkr-summary {
+  margin-top: 12px;
+}
+
+.lkr-summary td:first-child {
+  font-weight: 700;
+}
+
+.lkr-summary .amount {
+  width: 32%;
+}
+
+.hand-total td {
+  color: #c41e3a;
+  font-weight: 800;
+  background: #fff;
+}
+
+.hand-total input {
+  color: #c41e3a;
+  font-weight: 800;
 }
 
 .total-row td {
@@ -460,6 +493,87 @@ input[readonly] {
   color: var(--muted);
 }
 
+.list-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.lan-hint {
+  background: #fff4e5;
+  color: #7a3b00;
+  font: 700 0.92rem/1.4 "Segoe UI", Arial, sans-serif;
+  padding: 10px 16px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  word-break: break-all;
+}
+
+.lan-hint a {
+  color: var(--navy);
+}
+
+.phone-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(14, 28, 48, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.phone-sheet[hidden] {
+  display: none;
+}
+
+.phone-sheet-inner,
+.phone-card {
+  width: min(520px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.phone-sheet-inner h2,
+.phone-card h1 {
+  margin: 0;
+  color: var(--navy);
+}
+
+.phone-sheet-inner p,
+.phone-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.phone-qr {
+  display: block;
+  width: 220px;
+  height: 220px;
+  margin: 4px auto;
+  background: #fff;
+}
+
+.phone-url {
+  display: block;
+  word-break: break-all;
+  color: var(--navy);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.phone-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
 .list-card,
 .quote-card {
   background: var(--paper);
@@ -542,26 +656,167 @@ input[readonly] {
   margin-top: 12px;
 }
 
-@media (max-width: 720px) {
+@media screen and (max-width: 900px) {
+  html, body {
+    overflow-x: hidden;
+  }
+  .quote-toolbar {
+    gap: 8px;
+    padding: 10px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: 10px;
+  }
+  .quote-tool-link,
+  .quote-btn {
+    min-height: 44px;
+    padding: 12px 12px;
+    font-size: 0.95rem;
+    flex: 1 1 calc(50% - 8px);
+  }
+  .quote-tool-ref,
+  .quote-tool-status {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+  .quote-sheet,
+  .quote-list-page {
+    width: 100%;
+    margin: 0 auto 32px;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+  .quote-inner {
+    padding: 12px 14px 20px;
+  }
   .quote-dochead,
   .quote-grid.three,
-  .list-header {
+  .list-header,
+  .quote-sign .quote-grid.three {
     display: block;
   }
+  .quote-dochead h2 {
+    font-size: 1.12rem;
+    letter-spacing: 0.04em;
+  }
   .quote-meta {
+    min-width: 0;
     text-align: left;
     margin-top: 12px;
   }
-  .quote-meta label { justify-content: space-between; }
-  .quote-meta input { width: 55%; }
-  .quote-inner { padding: 12px 14px 16px; }
-  .quote-table th { width: 120px; }
+  .quote-meta label {
+    justify-content: space-between;
+  }
+  .quote-meta input {
+    width: 58%;
+  }
+  .quote-table th {
+    width: 38%;
+  }
   .vehicle-layout {
     display: block;
   }
   .vehicle-photo {
-    min-height: 180px;
+    min-height: 200px;
     margin-top: 10px;
+  }
+  .quote-sign {
+    max-width: 100%;
+    margin-top: 24px;
+  }
+  .quote-sign .quote-grid > label {
+    min-height: 0;
+    margin-bottom: 14px;
+  }
+  input, select {
+    font-size: 16px;
+    min-height: 42px;
+    padding: 8px 4px;
+  }
+  .list-header .quote-btn,
+  .list-header-actions {
+    width: 100%;
+    margin-top: 12px;
+  }
+  .list-header-actions .quote-btn {
+    flex: 1 1 calc(50% - 8px);
+    margin-top: 0;
+    width: auto;
+  }
+  .quote-card-top {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .quote-card-actions .quote-btn {
+    flex: 1 1 calc(50% - 8px);
+  }
+  .staff-chip {
+    min-height: 40px;
+    padding: 10px 14px;
+  }
+  .save-toast {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    min-width: 0;
+    top: 72px;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .cif-table thead {
+    display: none;
+  }
+  .cif-table,
+  .cif-table tbody,
+  .cif-table tr,
+  .cif-table td {
+    display: block;
+    width: 100%;
+  }
+  .cif-table tr {
+    border: 1px solid var(--line);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .cif-table td {
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .cif-table td:first-child {
+    background: #f4f7fb;
+    font-size: 0.92rem;
+  }
+  .cif-table td.amount {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+  }
+  .cif-table td.amount::before {
+    content: attr(data-label);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    flex: 0 0 42%;
+  }
+  .cif-table td.amount input {
+    text-align: right;
+    flex: 1;
+    min-width: 0;
+  }
+  .cif-table td.empty-amt {
+    display: none;
+  }
+  .lkr-summary td:first-child,
+  .lkr-summary .amount {
+    width: auto;
+  }
+  .quote-btn-print,
+  .quote-card-actions a[href*="print=1"] {
+    display: none;
   }
 }
 

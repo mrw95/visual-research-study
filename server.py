@@ -6,12 +6,21 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
+import sys
 import threading
 import urllib.request
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from flask import Flask, jsonify, redirect, request, send_file, send_from_directory
 from urllib.parse import quote
@@ -138,7 +147,7 @@ def _quote_pin_gate():
     if not QUOTE_PIN or not _public_host():
         return None
     path = request.path or ""
-    if path in ("/quote-login", "/quote-unlock") or path.startswith("/static/") or path.startswith("/images/"):
+    if path in ("/quote-login", "/quote-unlock", "/home-link", "/phone-link") or path.startswith("/static/") or path.startswith("/images/"):
         return None
     if request.cookies.get("cs_quote") == QUOTE_TOKEN:
         return None
@@ -173,20 +182,123 @@ def quote_unlock():
     return resp
 
 
-@app.get("/home-link")
-def home_link_page():
-    if _public_host():
-        return jsonify({"error": "Not found"}), 404
+def _lan_ips():
+    found = []
+
+    def add(ip):
+        if not ip or ip.startswith(("127.", "169.254.")):
+            return
+        if ip not in found:
+            found.append(ip)
+
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.connect(("8.8.8.8", 80))
+        add(probe.getsockname()[0])
+        probe.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            add(info[4][0])
+    except OSError:
+        pass
+    found.sort(key=lambda ip: (0 if ip.startswith("192.168.") else 1 if ip.startswith("10.") else 2, ip))
+    return found or ["192.168.1.15"]
+
+
+def _listen_port():
+    env = os.environ.get("PORT")
+    if env:
+        try:
+            return int(env)
+        except ValueError:
+            pass
+    try:
+        return int(request.environ.get("SERVER_PORT") or 8090)
+    except (TypeError, ValueError, RuntimeError):
+        return 8090
+
+
+def _safe_quote_path(raw):
+    path = str(raw or "quotation.html").strip().lstrip("/")
+    if (not path) or "://" in path or path.startswith("//") or ".." in path:
+        return "quotation.html"
+    return path
+
+
+def _join_url(base, path):
+    return f"{str(base).rstrip('/')}/{_safe_quote_path(path)}"
+
+
+def _public_quote_base():
     url = PUBLIC_QUOTE_URL.strip()
     if HOME_LINK_FILE.exists() and not url:
         url = HOME_LINK_FILE.read_text(encoding="utf-8").strip()
-    if not url:
-        return "<p>Home link එක තාම ready නැහැ. START-QUOTATION.bat window එකේ මොහොතක් ඉන්න.</p>", 200
-    quote = url.rstrip("/") + "/quotation"
+    return url.rstrip("/")
+
+
+VERCEL_QUOTE_URL = "https://visual-research-study.vercel.app"
+
+
+def _access_info(path="quotation.html"):
+    path = _safe_quote_path(path)
+    port = _listen_port()
+    lan = [f"http://{ip}:{port}" for ip in _lan_ips()]
+    host = socket.gethostname()
+    if host and f"http://{host}:{port}" not in lan:
+        lan.append(f"http://{host}:{port}")
+    public = _public_quote_base()
+    vercel = _join_url(VERCEL_QUOTE_URL, path)
+    urls = []
+    if public:
+        urls.append(_join_url(public, path))
+    if vercel not in urls:
+        urls.append(vercel)
+    urls.extend(_join_url(base, path) for base in lan)
+    return {"port": port, "lan": lan, "public": public, "vercel": VERCEL_QUOTE_URL, "urls": urls, "path": path}
+
+
+@app.get("/api/access-urls")
+def api_access_urls():
+    info = _access_info(request.args.get("path") or "quotation.html")
+    info["ok"] = True
+    info["pin"] = QUOTE_PIN
+    return jsonify(info)
+
+
+@app.get("/home-link")
+@app.get("/phone-link")
+def home_link_page():
+    if _public_host():
+        return jsonify({"error": "Not found"}), 404
+    info = _access_info(request.args.get("path") or "quotation.html")
+    links = "".join(
+        f"<a class='phone-url' href='{html.escape(url, quote=True)}'>{html.escape(url)}</a>"
+        for url in info["urls"]
+    )
+    pin = f"<p>Tunnel PIN: <strong>{html.escape(QUOTE_PIN)}</strong></p>" if info["public"] else ""
+    first = info["urls"][0] if info["urls"] else ""
+    qr = ""
+    if first:
+        qr = (
+            "<img class='phone-qr' alt='QR' width='220' height='220' "
+            f"src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&amp;data={html.escape(quote(first, safe=''), quote=True)}'>"
+        )
+    wait = ""
+    if not info["public"]:
+        wait = "<p>ගෙදරට tunnel link එක තාම ready නැහැ. START-QUOTATION.bat window එකේ මොහොතක් ඉන්න.</p>"
     return (
-        "<!DOCTYPE html><meta charset='UTF-8'><title>Home link</title>"
-        f"<p>ගෙදර / laptop: <a href='{html.escape(quote, quote=True)}'>{html.escape(quote)}</a></p>"
-        f"<p>PIN: {html.escape(QUOTE_PIN)}</p>"
+        "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'>"
+        "<title>Phone / Tab link</title>"
+        "<link rel='stylesheet' href='/static/quotation.css?v=29'>"
+        "</head><body class='quote-body login-body'>"
+        "<div class='login-card phone-card'>"
+        "<h1>Phone / Tab</h1>"
+        "<p>Mobile data / ගෙදර: https link එක. PIN 9292. Office WiFi IP එක data වලින් වැඩ කරන්නේ නැහැ.</p>"
+        f"{qr}{links}{pin}{wait}"
+        "</div></body></html>"
     )
 
 
@@ -384,6 +496,33 @@ def _save_public_url(url: str) -> None:
         pass
 
 
+def _open_lan_port(port: int) -> None:
+    name = f"CarSwitch Quotations {port}"
+    hidden = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.run(
+            ["netsh", "advfirewall", "firewall", "delete", "rule", f"name={name}"],
+            capture_output=True,
+            creationflags=hidden,
+        )
+        result = subprocess.run(
+            [
+                "netsh", "advfirewall", "firewall", "add", "rule",
+                f"name={name}", "dir=in", "action=allow", "protocol=TCP",
+                f"localport={port}", "profile=any",
+            ],
+            capture_output=True,
+            text=True,
+            creationflags=hidden,
+        )
+        if result.returncode == 0:
+            print(f"Phone/tab LAN: Windows Firewall port {port} open.")
+        else:
+            print("Phone/tab LAN: Firewall rule add වුණේ නැහැ. START-QUOTATION.bat Run as administrator කරන්න.")
+    except OSError:
+        pass
+
+
 def _start_public_tunnel(port: int) -> None:
     if os.environ.get("QUOTE_TUNNEL", "1").strip() == "0":
         return
@@ -415,9 +554,12 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print(f"Visual Research Study -> http://localhost:{port}")
     print(f"This PC tab        -> http://localhost:{port}/quotation")
-    print(f"Office laptop/PC   -> http://CarSwitch:{port}/quotation")
-    print(f"Office laptop/PC   -> http://192.168.1.15:{port}/quotation")
+    print("PHONE / TAB (same WiFi) - localhost phone eken open WENNE NA:")
+    for ip in _lan_ips():
+        print(f"  http://{ip}:{port}/quotation.html")
+    print(f"  QR / copy: http://localhost:{port}/phone-link")
     print(f"Quotation folders  -> {quotes_dir()}")
-    print("Home / outside WiFi -> link එක මේ window එකේ ටිකක් ගානෙ පේනවා")
+    print("Home / mobile data -> tunnel link eka me window eke tikak gane penawa")
+    _open_lan_port(port)
     threading.Thread(target=_start_public_tunnel, args=(port,), daemon=True).start()
     app.run(host="0.0.0.0", port=port, threaded=True)

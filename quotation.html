@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CarSwitch — Pre-Order Vehicle Quotation</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="static/quotation.css?v=26">
+  <link rel="stylesheet" href="static/quotation.css?v=30">
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
@@ -16,9 +16,12 @@
     <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
     <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
     <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
+    <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
     <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
   </div>
+  <div id="lan-hint" class="lan-hint no-print" hidden></div>
   <div id="save-toast" class="save-toast no-print" hidden></div>
+  <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
 
   <main class="quote-sheet" id="quote-sheet">
     <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
@@ -116,32 +119,56 @@
 
     <section class="quote-block">
       <h3>Price Details</h3>
-      <table class="quote-table price-table">
+      <table class="quote-table price-table cif-table">
         <thead>
           <tr>
-            <th>Description</th>
-            <th class="amount">Amount (LKR)</th>
+            <th></th>
+            <th class="amount">Ex. Rate</th>
+            <th class="amount">AMOUNT JPY</th>
+            <th class="amount">AMOUNT LKR</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Vehicle Cost</td>
-            <td class="amount"><input id="vehicleCost" class="money" type="text" inputmode="numeric"></td>
+            <td>Total Cost CIF JPY</td>
+            <td class="amount empty-amt"></td>
+            <td class="amount" data-label="AMOUNT JPY"><input id="cifJpy" class="money" type="text" inputmode="decimal"></td>
+            <td class="amount empty-amt"></td>
           </tr>
           <tr>
-            <td>Import Charges</td>
-            <td class="amount"><input id="importCharges" class="money" type="text" inputmode="numeric"></td>
+            <td>LC Amount</td>
+            <td class="amount" data-label="Ex. Rate"><input id="lcRate" class="rate" type="text" inputmode="decimal"></td>
+            <td class="amount" data-label="AMOUNT JPY"><input id="lcJpy" class="money" type="text" inputmode="decimal"></td>
+            <td class="amount" data-label="AMOUNT LKR"><input id="lcLkr" class="money" type="text" readonly></td>
           </tr>
           <tr>
-            <td>Registration Charges</td>
-            <td class="amount"><input id="registrationCharges" class="money" type="text" inputmode="numeric"></td>
+            <td>CIF Balance Amount - JPY</td>
+            <td class="amount" data-label="Ex. Rate"><input id="balRate" class="rate" type="text" inputmode="decimal"></td>
+            <td class="amount" data-label="AMOUNT JPY"><input id="balJpy" class="money" type="text" readonly></td>
+            <td class="amount" data-label="AMOUNT LKR"><input id="balLkr" class="money" type="text" readonly></td>
+          </tr>
+        </tbody>
+      </table>
+      <table class="quote-table price-table lkr-summary">
+        <tbody>
+          <tr>
+            <td>Total Japan Cost - LKR</td>
+            <td class="amount"><input id="japanCostLkr" class="money" type="text" readonly></td>
           </tr>
           <tr>
-            <td>Other Charges</td>
-            <td class="amount"><input id="otherCharges" class="money" type="text" inputmode="numeric"></td>
+            <td>Customs Duty - LKR</td>
+            <td class="amount"><input id="customsDuty" class="money" type="text" inputmode="decimal"></td>
           </tr>
-          <tr class="total-row">
-            <td>Total Estimated Price</td>
+          <tr>
+            <td>Customs Clearing &amp; Other Charges - LKR</td>
+            <td class="amount"><input id="clearingCharges" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <td>Agency Fee</td>
+            <td class="amount"><input id="agencyFee" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr class="hand-total">
+            <td>Total Upto Hand - LKR</td>
             <td class="amount"><input id="totalEstimatedPrice" class="money" type="text" readonly></td>
           </tr>
         </tbody>
@@ -222,6 +249,6 @@
     <option value="Blue"></option>
   </datalist>
 
-  <script src="static/quotation.js?v=23"></script>
+  <script src="static/quotation.js?v=26"></script>
 </body>
 </html>

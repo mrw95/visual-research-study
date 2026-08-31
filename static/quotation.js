@@ -398,9 +398,8 @@ const TEXT_FIELDS = [
   'preparedByName', 'designation'
 ];
 
-const MONEY_FIELDS = [
-  'vehicleCost', 'importCharges', 'registrationCharges', 'otherCharges'
-];
+const PRICE_INPUTS = ['cifJpy', 'lcJpy', 'customsDuty', 'clearingCharges', 'agencyFee'];
+const RATE_FIELDS = ['lcRate', 'balRate'];
 
 let apiItems = [];
 let apiRoot = '';
@@ -434,12 +433,17 @@ function setSaveBusy(on) {
   if (printBtn) printBtn.disabled = on;
 }
 
+function isHomeCloud() {
+  return location.hostname.endsWith('vercel.app');
+}
+
 function apiCandidates() {
   const host = location.hostname;
   const local = host === 'localhost' || host === '127.0.0.1';
   const list = [];
   if (apiBase) list.push(apiBase);
   list.push('');
+  if (isHomeCloud()) return list;
   if (local) {
     ['http://127.0.0.1:8090', 'http://localhost:8090'].forEach((base) => {
       if (base !== location.origin && !list.includes(base)) list.push(base);
@@ -469,6 +473,125 @@ async function apiFetch(path, options) {
   throw lastErr || new Error('Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරන්න.');
 }
 
+function currentQuotePath() {
+  const file = location.pathname.split('/').pop() || 'quotation.html';
+  return file + location.search;
+}
+
+function fallbackAccess() {
+  const path = currentQuotePath();
+  const port = location.port || '8090';
+  const urls = [`https://visual-research-study.vercel.app/${path}`];
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    urls.push(`http://192.168.1.15:${port}/${path}`);
+  } else if (!location.hostname.endsWith('vercel.app')) {
+    urls.push(`${location.origin}/${path}`);
+  }
+  return { ok: true, urls, public: '', pin: '9292', vercel: 'https://visual-research-study.vercel.app' };
+}
+
+async function loadAccessUrls() {
+  try {
+    const res = await apiFetch('/api/access-urls?path=' + encodeURIComponent(currentQuotePath()));
+    const data = await res.json();
+    if (data && data.urls && data.urls.length) return data;
+  } catch {
+    /* use same-WiFi IP if the new API is not running yet */
+  }
+  return fallbackAccess();
+}
+
+function fillPhoneSheet(sheet, data) {
+  const urls = (data && data.urls) || [];
+  const pin = data && data.pin
+    ? `<p>Mobile data PIN: <strong>${data.pin}</strong></p>`
+    : '';
+  const first = urls[0] || '';
+  const qr = first
+    ? `<img class="phone-qr" alt="QR" width="220" height="220" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(first)}">`
+    : '';
+  sheet.innerHTML = `
+    <div class="phone-sheet-inner">
+      <h2>Phone / Tab</h2>
+      <p><strong>Mobile data / ගෙදර:</strong> උඩින් පේන https link එක. PIN 9292.</p>
+      <p>Office WiFi IP link එක data වලින් open වෙන්නේ නැහැ.</p>
+      ${qr}
+      ${urls.map((url) => `<a class="phone-url" href="${url}">${url}</a>`).join('')}
+      ${pin}
+      <div class="phone-sheet-actions">
+        <button type="button" class="quote-btn quote-btn-save" id="phone-copy"${first ? '' : ' disabled'}>Copy link</button>
+        <button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button>
+      </div>
+    </div>`;
+  const copyBtn = sheet.querySelector('#phone-copy');
+  if (copyBtn && first) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(first);
+        copyBtn.textContent = 'Copied';
+      } catch {
+        copyBtn.textContent = 'Copy failed';
+      }
+    });
+  }
+  const closeBtn = sheet.querySelector('#phone-close');
+  if (closeBtn) closeBtn.addEventListener('click', () => { sheet.hidden = true; });
+}
+
+function initPhoneShare() {
+  const btn = document.getElementById('phone-btn');
+  const sheet = document.getElementById('phone-sheet');
+  const hint = document.getElementById('lan-hint');
+  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+  if (isHomeCloud() && btn) {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        showToast('Home link copied', '');
+      } catch {
+        showToast(location.href, '');
+      }
+    });
+    if (hint) {
+      hint.hidden = false;
+      hint.innerHTML = 'ගෙදර: මේ link එකෙන් quotation හදන්න. Office PC එක on වෙන්න ඕනේ නැහැ.';
+    }
+    return;
+  }
+
+  async function refreshHint() {
+    if (!hint || !local) return;
+    try {
+      const data = await loadAccessUrls();
+      const url = (data.urls || [])[0];
+      if (!url) return;
+      hint.hidden = false;
+      hint.innerHTML = `Phone / Tab: <a href="${url}">${url}</a>`;
+    } catch {
+      hint.hidden = true;
+    }
+  }
+
+  if (btn && sheet) {
+    btn.addEventListener('click', async () => {
+      sheet.hidden = false;
+      sheet.innerHTML = '<div class="phone-sheet-inner"><p>Link හදනවා...</p></div>';
+      try {
+        fillPhoneSheet(sheet, await loadAccessUrls());
+      } catch {
+        sheet.innerHTML = '<div class="phone-sheet-inner"><p>START-QUOTATION.bat run කරන්න. PC එකේ WiFi එකේම phone එකත් තියෙන්න ඕනේ.</p><button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button></div>';
+        const closeBtn = sheet.querySelector('#phone-close');
+        if (closeBtn) closeBtn.addEventListener('click', () => { sheet.hidden = true; });
+      }
+    });
+    sheet.addEventListener('click', (ev) => {
+      if (ev.target === sheet) sheet.hidden = true;
+    });
+  }
+  refreshHint();
+}
+
 function loadLocal() {
   try {
     if (localStorage.getItem('genx-quotations-reset') !== STORAGE_RESET) {
@@ -490,10 +613,27 @@ function digits(raw) {
   return String(raw || '').replace(/[^\d]/g, '');
 }
 
-function formatLkr(raw) {
-  const n = Number(digits(raw));
+function parseNum(raw) {
+  const s = String(raw || '').replace(/,/g, '').replace(/[^\d.]/g, '');
+  if (!s) return 0;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatMoney(raw) {
+  const n = parseNum(raw);
   if (!n) return '';
-  return n.toLocaleString('en-LK');
+  return n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatRate(raw) {
+  const n = parseNum(raw);
+  if (!n) return '';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
+function formatLkr(raw) {
+  return formatMoney(raw);
 }
 
 function todayIso() {
@@ -522,26 +662,54 @@ function val(id) {
   return document.getElementById(id);
 }
 
-function readForm() {
-  const money = {};
-  MONEY_FIELDS.forEach((id) => {
-    money[id] = digits(val(id).value);
-  });
-  const total = MONEY_FIELDS.reduce((sum, id) => sum + Number(money[id] || 0), 0);
+function calcPrice() {
+  const cifJpy = parseNum(val('cifJpy').value);
+  const lcJpy = parseNum(val('lcJpy').value);
+  const lcRate = parseNum(val('lcRate').value);
+  const balRate = parseNum(val('balRate').value);
+  const balJpy = Math.max(0, cifJpy - lcJpy);
+  const lcLkr = lcJpy * lcRate;
+  const balLkr = balJpy * balRate;
+  const japanCostLkr = lcLkr + balLkr;
+  const customsDuty = parseNum(val('customsDuty').value);
+  const clearingCharges = parseNum(val('clearingCharges').value);
+  const agencyFee = parseNum(val('agencyFee').value);
+  const totalEstimatedPrice = japanCostLkr + customsDuty + clearingCharges + agencyFee;
+  return {
+    cifJpy, lcRate, lcJpy, lcLkr, balRate, balJpy, balLkr,
+    japanCostLkr, customsDuty, clearingCharges, agencyFee, totalEstimatedPrice
+  };
+}
 
+function storeNum(n) {
+  return n ? String(n) : '';
+}
+
+function readForm() {
+  const price = calcPrice();
   const data = {
     id: val('quotationNo').value.trim(),
     quoteDate: val('quoteDate').value || todayIso(),
     origin: val('origin').value.trim() || 'Japan',
     designation: STAFF_ROLES[val('preparedByName').value] || '',
-    totalEstimatedPrice: String(total || ''),
+    cifJpy: storeNum(price.cifJpy),
+    lcRate: storeNum(price.lcRate),
+    lcJpy: storeNum(price.lcJpy),
+    lcLkr: storeNum(price.lcLkr),
+    balRate: storeNum(price.balRate),
+    balJpy: storeNum(price.balJpy),
+    balLkr: storeNum(price.balLkr),
+    japanCostLkr: storeNum(price.japanCostLkr),
+    customsDuty: storeNum(price.customsDuty),
+    clearingCharges: storeNum(price.clearingCharges),
+    agencyFee: storeNum(price.agencyFee),
+    totalEstimatedPrice: storeNum(price.totalEstimatedPrice),
     updatedAt: new Date().toISOString()
   };
 
   TEXT_FIELDS.forEach((id) => {
     data[id] = val(id).value.trim();
   });
-  Object.assign(data, money);
   data.signatureImage = signatureValue();
   data.signatureScale = currentSignScale();
   data.signatureX = currentSignX();
@@ -583,6 +751,22 @@ function saveLocalQuote(data) {
 async function downloadQuotePdf(saved) {
   if (!saved || !saved.id) return false;
   const filename = saved.id + '.pdf';
+  if (isHomeCloud()) {
+    try {
+      const res = await fetch('/api/quote-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(saved)
+      });
+      const type = (res.headers.get('content-type') || '').toLowerCase();
+      if (res.ok && type.indexOf('pdf') !== -1) {
+        triggerBlobDownload(await res.blob(), filename);
+        return true;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
   try {
     const res = await fetch((apiBase || '') + '/api/quotation/pdf?id=' + encodeURIComponent(saved.id), { cache: 'no-store' });
     const type = (res.headers.get('content-type') || '').toLowerCase();
@@ -619,8 +803,11 @@ function fillForm(data) {
     if (val(id)) val(id).value = data[id] || (id === 'origin' ? 'Japan' : '');
   });
   setDesignation();
-  MONEY_FIELDS.forEach((id) => {
-    val(id).value = formatLkr(data[id]);
+  PRICE_INPUTS.forEach((id) => {
+    if (val(id)) val(id).value = formatMoney(data[id]);
+  });
+  RATE_FIELDS.forEach((id) => {
+    if (val(id)) val(id).value = formatRate(data[id]);
   });
   updateTotal();
   fillModelSuggestions();
@@ -635,8 +822,13 @@ function fillForm(data) {
 }
 
 function updateTotal() {
-  const total = MONEY_FIELDS.reduce((sum, id) => sum + Number(digits(val(id).value) || 0), 0);
-  val('totalEstimatedPrice').value = formatLkr(total);
+  if (!val('cifJpy')) return;
+  const price = calcPrice();
+  val('balJpy').value = formatMoney(price.balJpy);
+  val('lcLkr').value = formatMoney(price.lcLkr);
+  val('balLkr').value = formatMoney(price.balLkr);
+  val('japanCostLkr').value = formatMoney(price.japanCostLkr);
+  val('totalEstimatedPrice').value = formatMoney(price.totalEstimatedPrice);
 }
 
 function setStatus(text) {
@@ -760,9 +952,21 @@ function initEditor() {
   initSignatureUpload();
   initVehiclePhoto();
 
-  MONEY_FIELDS.forEach((id) => {
-    val(id).addEventListener('input', () => {
-      val(id).value = formatLkr(val(id).value);
+  PRICE_INPUTS.forEach((id) => {
+    const el = val(id);
+    if (!el) return;
+    el.addEventListener('input', updateTotal);
+    el.addEventListener('blur', () => {
+      if (el.value.trim()) el.value = formatMoney(el.value);
+      updateTotal();
+    });
+  });
+  RATE_FIELDS.forEach((id) => {
+    const el = val(id);
+    if (!el) return;
+    el.addEventListener('input', updateTotal);
+    el.addEventListener('blur', () => {
+      if (el.value.trim()) el.value = formatRate(el.value);
       updateTotal();
     });
   });
@@ -858,7 +1062,11 @@ function initList() {
       if (hint && data.root) hint.textContent = 'Save වෙන්නේ: ' + data.root;
     } catch {
       apiItems = loadLocal();
-      if (hint) hint.textContent = 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා localhost:8090/quotations open කරන්න.';
+      if (hint) {
+        hint.textContent = isHomeCloud()
+          ? 'ගෙදර mode: මේ phone/laptop එකේ save වෙනවා. PDF download කරලා customer ට යවන්න.'
+          : 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා quotations open කරන්න.';
+      }
     }
     render();
   }
@@ -939,3 +1147,4 @@ function initList() {
 
 if (document.getElementById('quote-sheet')) initEditor();
 if (document.getElementById('list')) initList();
+initPhoneShare();

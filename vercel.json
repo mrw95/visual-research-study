@@ -8,6 +8,12 @@
   "functions": {
     "api/quote-pdf.py": {
       "maxDuration": 30
+    },
+    "api/quotation.py": {
+      "maxDuration": 15
+    },
+    "api/quotations.py": {
+      "maxDuration": 15
     }
   },
   "headers": [

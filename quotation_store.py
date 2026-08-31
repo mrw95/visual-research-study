@@ -262,12 +262,55 @@ def _v(data, key, fallback=""):
     return html.escape(str(data.get(key) or fallback))
 
 
-def _money(data, key):
-    raw = str(data.get(key) or "").replace(",", "")
-    digits = "".join(ch for ch in raw if ch.isdigit())
-    if not digits:
+def _num(data, key):
+    raw = str(data.get(key) or "").replace(",", "").strip()
+    cleaned = "".join(ch for ch in raw if ch.isdigit() or ch == ".")
+    if not cleaned or cleaned == ".":
+        return 0.0
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
+
+
+def _fmt(n, places=2):
+    if not n:
         return ""
-    return f"{int(digits):,}"
+    return f"{n:,.{places}f}"
+
+
+def _money(data, key):
+    n = _num(data, key)
+    return _fmt(n)
+
+
+def price_breakdown(data):
+    cif_jpy = _num(data, "cifJpy")
+    lc_jpy = _num(data, "lcJpy")
+    lc_rate = _num(data, "lcRate")
+    bal_rate = _num(data, "balRate")
+    bal_jpy = max(0.0, cif_jpy - lc_jpy)
+    lc_lkr = lc_jpy * lc_rate
+    bal_lkr = bal_jpy * bal_rate
+    japan = lc_lkr + bal_lkr
+    duty = _num(data, "customsDuty")
+    clearing = _num(data, "clearingCharges")
+    agency = _num(data, "agencyFee")
+    hand = japan + duty + clearing + agency
+    return {
+        "cifJpy": _fmt(cif_jpy),
+        "lcRate": _fmt(lc_rate, 2) if lc_rate else "",
+        "lcJpy": _fmt(lc_jpy),
+        "lcLkr": _fmt(lc_lkr),
+        "balRate": _fmt(bal_rate, 2) if bal_rate else "",
+        "balJpy": _fmt(bal_jpy),
+        "balLkr": _fmt(bal_lkr),
+        "japanCostLkr": _fmt(japan),
+        "customsDuty": _fmt(duty),
+        "clearingCharges": _fmt(clearing),
+        "agencyFee": _fmt(agency),
+        "totalEstimatedPrice": _fmt(hand),
+    }
 
 
 def _signature_src(data):
@@ -549,13 +592,60 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
             pass
 
     heading("Price Details")
-    kv_table([
-        ("Vehicle Cost", money("vehicleCost")),
-        ("Import Charges", money("importCharges")),
-        ("Registration Charges", money("registrationCharges")),
-        ("Other Charges", money("otherCharges")),
-        ("Total Estimated Price", money("totalEstimatedPrice")),
-    ], highlight_last=True)
+    p = price_breakdown(data)
+    col_x = [left, left + 198, left + 268, left + 378]
+    col_w = [198, 70, 110, right - (left + 378)]
+    headers = ("", "Ex. Rate", "AMOUNT JPY", "AMOUNT LKR")
+    cif_rows = [
+        ("Total Cost CIF JPY", "", p["cifJpy"], ""),
+        ("LC Amount", p["lcRate"], p["lcJpy"], p["lcLkr"]),
+        ("CIF Balance Amount - JPY", p["balRate"], p["balJpy"], p["balLkr"]),
+    ]
+    row_h = 15
+    c.setFillColor(navy)
+    c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
+    c.setFillColor(Color(1, 1, 1))
+    c.setFont(font_bold, 7)
+    for i, label in enumerate(headers):
+        if i == 0:
+            c.drawString(col_x[i] + 6, y + 1, label)
+        else:
+            c.drawRightString(col_x[i] + col_w[i] - 6, y + 1, label)
+    y -= row_h
+    c.setStrokeColor(line)
+    for r, row in enumerate(cif_rows):
+        bg = fill if r % 2 == 0 else Color(1, 1, 1)
+        c.setFillColor(bg)
+        c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
+        c.setStrokeColor(line)
+        c.rect(left, y - 4, right - left, row_h, fill=0, stroke=1)
+        c.setFillColor(ink)
+        c.setFont(font_bold, 7)
+        c.drawString(left + 6, y + 1, row[0])
+        c.setFont(font_regular, 7)
+        for i in range(1, 4):
+            c.drawRightString(col_x[i] + col_w[i] - 6, y + 1, row[i])
+        y -= row_h
+    y -= 8
+    summary = [
+        ("Total Japan Cost - LKR", p["japanCostLkr"], False),
+        ("Customs Duty - LKR", p["customsDuty"], False),
+        ("Customs Clearing & Other Charges - LKR", p["clearingCharges"], False),
+        ("Agency Fee", p["agencyFee"], False),
+        ("Total Upto Hand - LKR", p["totalEstimatedPrice"], True),
+    ]
+    for i, (label, value, hand) in enumerate(summary):
+        bg = Color(1, 1, 1)
+        c.setFillColor(bg)
+        c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
+        c.setStrokeColor(line)
+        c.rect(left, y - 4, right - left, row_h, fill=0, stroke=1)
+        c.setFillColor(HexColor("#c41e3a") if hand else ink)
+        c.setFont(font_bold, 8 if hand else 7)
+        c.drawString(left + 6, y + 1, label)
+        c.drawRightString(right - 6, y + 1, value)
+        y -= row_h
+    y -= 10
 
     heading("Terms & Conditions")
     terms = [
@@ -643,6 +733,27 @@ def write_quote_pdf(pdf_path: Path, data: dict, root: Path, images_dir: Path | N
 def _pdf_field(label: str, value: str) -> str:
     shown = value if value else "&nbsp;"
     return f'<label class="field"><span>{label}</span><p>{shown}</p></label>'
+
+
+def _price_html(data: dict) -> str:
+    p = price_breakdown(data)
+    return f"""<table class="price">
+        <thead><tr><th></th><th class="amt">Ex. Rate</th><th class="amt">AMOUNT JPY</th><th class="amt">AMOUNT LKR</th></tr></thead>
+        <tbody>
+          <tr><td>Total Cost CIF JPY</td><td class="amt"></td><td class="amt">{p["cifJpy"]}</td><td class="amt"></td></tr>
+          <tr><td>LC Amount</td><td class="amt">{p["lcRate"]}</td><td class="amt">{p["lcJpy"]}</td><td class="amt">{p["lcLkr"]}</td></tr>
+          <tr><td>CIF Balance Amount - JPY</td><td class="amt">{p["balRate"]}</td><td class="amt">{p["balJpy"]}</td><td class="amt">{p["balLkr"]}</td></tr>
+        </tbody>
+      </table>
+      <table class="price lkr-sum">
+        <tbody>
+          <tr><td>Total Japan Cost - LKR</td><td class="amt">{p["japanCostLkr"]}</td></tr>
+          <tr><td>Customs Duty - LKR</td><td class="amt">{p["customsDuty"]}</td></tr>
+          <tr><td>Customs Clearing &amp; Other Charges - LKR</td><td class="amt">{p["clearingCharges"]}</td></tr>
+          <tr><td>Agency Fee</td><td class="amt">{p["agencyFee"]}</td></tr>
+          <tr class="hand"><td>Total Upto Hand - LKR</td><td class="amt">{p["totalEstimatedPrice"]}</td></tr>
+        </tbody>
+      </table>"""
 
 
 def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
@@ -755,8 +866,10 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
     th, td {{ border: 1px solid #d5deea; padding: 4px 8px; text-align: left; font-size: 11px; }}
     th {{ width: 160px; background: #f4f7fb; color: #1d5aaa; font-weight: 700; }}
     .price thead th {{ background: #1d5aaa; color: #fff; width: auto; }}
-    .price .amt {{ width: 140px; text-align: right; }}
-    .total td {{ background: #fff4ea; font-weight: 800; }}
+    .price .amt {{ width: 120px; text-align: right; }}
+    .price td:first-child {{ font-weight: 700; }}
+    .lkr-sum {{ margin-top: 8px; }}
+    .hand td {{ color: #c41e3a; font-weight: 800; background: #fff; }}
     ol {{ margin: 0; padding-left: 18px; font-size: 10.5px; }}
     li {{ margin: 2px 0; }}
     .prepared {{ margin-top: 10px; flex: 0 0 auto; }}
@@ -842,16 +955,7 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
         </div>
       </div>
       <h3>Price Details</h3>
-      <table class="price">
-        <thead><tr><th>Description</th><th class="amt">Amount (LKR)</th></tr></thead>
-        <tbody>
-          <tr><td>Vehicle Cost</td><td class="amt">{_money(data, "vehicleCost")}</td></tr>
-          <tr><td>Import Charges</td><td class="amt">{_money(data, "importCharges")}</td></tr>
-          <tr><td>Registration Charges</td><td class="amt">{_money(data, "registrationCharges")}</td></tr>
-          <tr><td>Other Charges</td><td class="amt">{_money(data, "otherCharges")}</td></tr>
-          <tr class="total"><td>Total Estimated Price</td><td class="amt">{_money(data, "totalEstimatedPrice")}</td></tr>
-        </tbody>
-      </table>
+      {_price_html(data)}
       <h3>Terms &amp; Conditions</h3>
       <ol>
         <li>This quotation is valid for 07 days from the quotation date.</li>
@@ -899,6 +1003,12 @@ def save_quote(root: Path, data: dict, images_dir: Path | None = None) -> dict:
     data["vehiclePhoto"] = str(data.get("vehiclePhoto") or "").strip()
     if not data["vehiclePhoto"].startswith("data:image/"):
         data["vehiclePhoto"] = ""
+    priced = price_breakdown(data)
+    data["lcLkr"] = priced["lcLkr"].replace(",", "")
+    data["balJpy"] = priced["balJpy"].replace(",", "")
+    data["balLkr"] = priced["balLkr"].replace(",", "")
+    data["japanCostLkr"] = priced["japanCostLkr"].replace(",", "")
+    data["totalEstimatedPrice"] = priced["totalEstimatedPrice"].replace(",", "")
 
     remove_quote_files(root, qid, keep_person=person)
     folder = root / person
