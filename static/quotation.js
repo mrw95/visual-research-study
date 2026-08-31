@@ -614,16 +614,27 @@ function digits(raw) {
 }
 
 function parseNum(raw) {
-  const s = String(raw || '').replace(/,/g, '').replace(/[^\d.]/g, '');
-  if (!s) return 0;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
+  const text = String(raw || '').replace(/,/g, '').trim();
+  if (!text) return 0;
+  const neg = text.charAt(0) === '-';
+  const cleaned = text.replace(/[^\d.]/g, '');
+  if (!cleaned || cleaned === '.') return 0;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) return 0;
+  return neg ? -n : n;
+}
+
+function formatMoneyValue(n) {
+  if (!Number.isFinite(n)) return '';
+  return n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatMoney(raw) {
-  const n = parseNum(raw);
-  if (!n) return '';
-  return n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (raw === '' || raw == null) return '';
+  const n = typeof raw === 'number' ? raw : parseNum(raw);
+  if (!n && String(raw).trim() === '') return '';
+  if (!Number.isFinite(n)) return '';
+  return formatMoneyValue(n);
 }
 
 function formatRate(raw) {
@@ -667,11 +678,17 @@ function calcPrice() {
   const lcJpy = parseNum(val('lcJpy').value);
   const lcRate = parseNum(val('lcRate').value);
   const balRate = parseNum(val('balRate').value);
-  const typedBalJpy = val('balJpy') && val('balJpy').value.trim();
-  const balJpy = typedBalJpy ? parseNum(typedBalJpy) : Math.max(0, cifJpy - lcJpy);
+  const balJpyEl = val('balJpy');
+  const balLkrEl = val('balLkr');
+  const autoJpy = cifJpy - lcJpy;
+  const balJpy = (balJpyEl && balJpyEl.dataset.manual === '1' && balJpyEl.value.trim())
+    ? parseNum(balJpyEl.value)
+    : autoJpy;
   const lcLkr = lcJpy * lcRate;
-  const typedBalLkr = val('balLkr') && val('balLkr').value.trim();
-  const balLkr = typedBalLkr ? parseNum(typedBalLkr) : balJpy * balRate;
+  const autoLkr = balJpy * balRate;
+  const balLkr = (balLkrEl && balLkrEl.dataset.manual === '1' && balLkrEl.value.trim())
+    ? parseNum(balLkrEl.value)
+    : autoLkr;
   const japanCostLkr = lcLkr + balLkr;
   const customsDuty = parseNum(val('customsDuty').value);
   const clearingCharges = parseNum(val('clearingCharges').value);
@@ -932,6 +949,12 @@ function fillForm(data) {
   RATE_FIELDS.forEach((id) => {
     if (val(id)) val(id).value = formatRate(data[id]);
   });
+  ['balJpy', 'balLkr'].forEach((id) => {
+    const el = val(id);
+    if (!el) return;
+    if (el.value.trim()) el.dataset.manual = '1';
+    else delete el.dataset.manual;
+  });
   updateTotal();
   fillModelSuggestions();
   setSignature(
@@ -947,11 +970,17 @@ function fillForm(data) {
 function updateTotal() {
   if (!val('cifJpy')) return;
   const price = calcPrice();
-  if (val('balJpy') && !val('balJpy').value.trim()) val('balJpy').value = formatMoney(price.balJpy);
-  val('lcLkr').value = formatMoney(price.lcLkr);
-  if (val('balLkr') && !val('balLkr').value.trim()) val('balLkr').value = formatMoney(price.balLkr);
-  val('japanCostLkr').value = formatMoney(price.japanCostLkr);
-  val('totalEstimatedPrice').value = formatMoney(price.totalEstimatedPrice);
+  const balJpyEl = val('balJpy');
+  const balLkrEl = val('balLkr');
+  if (balJpyEl && balJpyEl.dataset.manual !== '1') {
+    balJpyEl.value = formatMoneyValue(price.balJpy);
+  }
+  val('lcLkr').value = formatMoneyValue(price.lcLkr);
+  if (balLkrEl && balLkrEl.dataset.manual !== '1') {
+    balLkrEl.value = formatMoneyValue(price.balLkr);
+  }
+  val('japanCostLkr').value = formatMoneyValue(price.japanCostLkr);
+  val('totalEstimatedPrice').value = formatMoneyValue(price.totalEstimatedPrice);
 }
 
 function setStatus(text) {
@@ -1078,7 +1107,14 @@ function initEditor() {
   PRICE_INPUTS.forEach((id) => {
     const el = val(id);
     if (!el) return;
-    el.addEventListener('input', updateTotal);
+    el.addEventListener('input', () => {
+      if (id === 'balJpy' || id === 'balLkr') el.dataset.manual = '1';
+      if (id === 'cifJpy' || id === 'lcJpy') {
+        if (val('balJpy')) delete val('balJpy').dataset.manual;
+        if (val('balLkr')) delete val('balLkr').dataset.manual;
+      }
+      updateTotal();
+    });
     el.addEventListener('blur', () => {
       if (el.value.trim()) el.value = formatMoney(el.value);
       updateTotal();

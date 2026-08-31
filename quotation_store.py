@@ -274,7 +274,11 @@ def _num(data, key):
 
 
 def _fmt(n, places=2):
-    if not n:
+    if n is None or n == "":
+        return ""
+    try:
+        n = float(n)
+    except (TypeError, ValueError):
         return ""
     return f"{n:,.{places}f}"
 
@@ -294,7 +298,7 @@ def price_breakdown(data):
     lc_rate = _num(data, "lcRate")
     bal_rate = _num(data, "balRate")
     lc_lkr = _num(data, "lcLkr") if _has_num(data, "lcLkr") else lc_jpy * lc_rate
-    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else max(0.0, cif_jpy - lc_jpy)
+    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else (cif_jpy - lc_jpy)
     bal_lkr = _num(data, "balLkr") if _has_num(data, "balLkr") else bal_jpy * bal_rate
     japan = _num(data, "japanCostLkr") if _has_num(data, "japanCostLkr") else lc_lkr + bal_lkr
     duty = _num(data, "customsDuty")
