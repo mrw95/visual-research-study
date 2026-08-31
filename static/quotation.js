@@ -687,6 +687,11 @@ function storeNum(n) {
   return n ? String(n) : '';
 }
 
+function fieldText(id) {
+  const el = val(id);
+  return el ? el.value.trim() : '';
+}
+
 function readForm() {
   const price = calcPrice();
   const data = {
@@ -694,18 +699,18 @@ function readForm() {
     quoteDate: val('quoteDate').value || todayIso(),
     origin: val('origin').value.trim() || 'Japan',
     designation: STAFF_ROLES[val('preparedByName').value] || '',
-    cifJpy: storeNum(price.cifJpy),
-    lcRate: storeNum(price.lcRate),
-    lcJpy: storeNum(price.lcJpy),
-    lcLkr: storeNum(price.lcLkr),
-    balRate: storeNum(price.balRate),
-    balJpy: storeNum(price.balJpy),
-    balLkr: storeNum(price.balLkr),
-    japanCostLkr: storeNum(price.japanCostLkr),
-    customsDuty: storeNum(price.customsDuty),
-    clearingCharges: storeNum(price.clearingCharges),
-    agencyFee: storeNum(price.agencyFee),
-    totalEstimatedPrice: storeNum(price.totalEstimatedPrice),
+    cifJpy: fieldText('cifJpy') || storeNum(price.cifJpy),
+    lcRate: fieldText('lcRate') || storeNum(price.lcRate),
+    lcJpy: fieldText('lcJpy') || storeNum(price.lcJpy),
+    lcLkr: fieldText('lcLkr') || storeNum(price.lcLkr),
+    balRate: fieldText('balRate') || storeNum(price.balRate),
+    balJpy: fieldText('balJpy') || storeNum(price.balJpy),
+    balLkr: fieldText('balLkr') || storeNum(price.balLkr),
+    japanCostLkr: fieldText('japanCostLkr') || storeNum(price.japanCostLkr),
+    customsDuty: fieldText('customsDuty') || storeNum(price.customsDuty),
+    clearingCharges: fieldText('clearingCharges') || storeNum(price.clearingCharges),
+    agencyFee: fieldText('agencyFee') || storeNum(price.agencyFee),
+    totalEstimatedPrice: fieldText('totalEstimatedPrice') || storeNum(price.totalEstimatedPrice),
     updatedAt: new Date().toISOString()
   };
 
@@ -818,8 +823,8 @@ async function downloadClientPdf(saved) {
     ['Engine', saved.engineCapacity || ''],
     ['Fuel / Gear', [saved.fuelType, saved.transmission].filter(Boolean).join(' / ')],
     ['CIF JPY', saved.cifJpy || ''],
-    ['LC', [saved.lcRate, saved.lcJpy, saved.lcLkr].filter(Boolean).join(' | ')],
-    ['CIF Balance', [saved.balRate, saved.balJpy, saved.balLkr].filter(Boolean).join(' | ')],
+    ['LC Rate / JPY / LKR', [saved.lcRate, saved.lcJpy, saved.lcLkr].filter(Boolean).join('  |  ')],
+    ['CIF Balance Rate / JPY / LKR', [saved.balRate, saved.balJpy, saved.balLkr].filter(Boolean).join('  |  ')],
     ['Japan Cost LKR', saved.japanCostLkr || ''],
     ['Customs Duty', saved.customsDuty || ''],
     ['Clearing', saved.clearingCharges || ''],
@@ -859,6 +864,10 @@ async function downloadClientPdf(saved) {
 
 async function downloadQuotePdf(saved) {
   if (!saved || !saved.id) return false;
+  if (val('cifJpy')) {
+    const live = readForm();
+    saved = Object.assign({}, saved, live, { id: saved.id || live.id });
+  }
   const filename = saved.id + '.pdf';
   showToast('PDF හදනවා...', 'wait');
   const slim = Object.assign({}, saved, {

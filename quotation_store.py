@@ -293,14 +293,14 @@ def price_breakdown(data):
     lc_jpy = _num(data, "lcJpy")
     lc_rate = _num(data, "lcRate")
     bal_rate = _num(data, "balRate")
+    lc_lkr = _num(data, "lcLkr") if _has_num(data, "lcLkr") else lc_jpy * lc_rate
     bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else max(0.0, cif_jpy - lc_jpy)
-    lc_lkr = lc_jpy * lc_rate
     bal_lkr = _num(data, "balLkr") if _has_num(data, "balLkr") else bal_jpy * bal_rate
-    japan = lc_lkr + bal_lkr
+    japan = _num(data, "japanCostLkr") if _has_num(data, "japanCostLkr") else lc_lkr + bal_lkr
     duty = _num(data, "customsDuty")
     clearing = _num(data, "clearingCharges")
     agency = _num(data, "agencyFee")
-    hand = japan + duty + clearing + agency
+    hand = _num(data, "totalEstimatedPrice") if _has_num(data, "totalEstimatedPrice") else japan + duty + clearing + agency
     return {
         "cifJpy": _fmt(cif_jpy),
         "lcRate": _fmt(lc_rate, 2) if lc_rate else "",
