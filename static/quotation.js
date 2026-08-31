@@ -398,7 +398,7 @@ const TEXT_FIELDS = [
   'preparedByName', 'designation'
 ];
 
-const PRICE_INPUTS = ['cifJpy', 'lcJpy', 'customsDuty', 'clearingCharges', 'agencyFee'];
+const PRICE_INPUTS = ['cifJpy', 'lcJpy', 'balJpy', 'balLkr', 'customsDuty', 'clearingCharges', 'agencyFee'];
 const RATE_FIELDS = ['lcRate', 'balRate'];
 
 let apiItems = [];
@@ -667,9 +667,11 @@ function calcPrice() {
   const lcJpy = parseNum(val('lcJpy').value);
   const lcRate = parseNum(val('lcRate').value);
   const balRate = parseNum(val('balRate').value);
-  const balJpy = Math.max(0, cifJpy - lcJpy);
+  const typedBalJpy = val('balJpy') && val('balJpy').value.trim();
+  const balJpy = typedBalJpy ? parseNum(typedBalJpy) : Math.max(0, cifJpy - lcJpy);
   const lcLkr = lcJpy * lcRate;
-  const balLkr = balJpy * balRate;
+  const typedBalLkr = val('balLkr') && val('balLkr').value.trim();
+  const balLkr = typedBalLkr ? parseNum(typedBalLkr) : balJpy * balRate;
   const japanCostLkr = lcLkr + balLkr;
   const customsDuty = parseNum(val('customsDuty').value);
   const clearingCharges = parseNum(val('clearingCharges').value);
@@ -824,9 +826,9 @@ function fillForm(data) {
 function updateTotal() {
   if (!val('cifJpy')) return;
   const price = calcPrice();
-  val('balJpy').value = formatMoney(price.balJpy);
+  if (val('balJpy') && !val('balJpy').value.trim()) val('balJpy').value = formatMoney(price.balJpy);
   val('lcLkr').value = formatMoney(price.lcLkr);
-  val('balLkr').value = formatMoney(price.balLkr);
+  if (val('balLkr') && !val('balLkr').value.trim()) val('balLkr').value = formatMoney(price.balLkr);
   val('japanCostLkr').value = formatMoney(price.japanCostLkr);
   val('totalEstimatedPrice').value = formatMoney(price.totalEstimatedPrice);
 }

@@ -284,14 +284,18 @@ def _money(data, key):
     return _fmt(n)
 
 
+def _has_num(data, key):
+    return bool(str(data.get(key) or "").strip().replace(",", "").replace(" ", ""))
+
+
 def price_breakdown(data):
     cif_jpy = _num(data, "cifJpy")
     lc_jpy = _num(data, "lcJpy")
     lc_rate = _num(data, "lcRate")
     bal_rate = _num(data, "balRate")
-    bal_jpy = max(0.0, cif_jpy - lc_jpy)
+    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else max(0.0, cif_jpy - lc_jpy)
     lc_lkr = lc_jpy * lc_rate
-    bal_lkr = bal_jpy * bal_rate
+    bal_lkr = _num(data, "balLkr") if _has_num(data, "balLkr") else bal_jpy * bal_rate
     japan = lc_lkr + bal_lkr
     duty = _num(data, "customsDuty")
     clearing = _num(data, "clearingCharges")
