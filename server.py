@@ -9,6 +9,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import urllib.request
 import uuid
@@ -386,6 +387,33 @@ def api_quotation():
         "usingNetwork": quotation_store.using_network_share(root),
         "item": saved
     })
+
+
+@app.post("/api/quote-pdf")
+def api_quote_pdf():
+    data = request.get_json(silent=True) or {}
+    person = quotation_store.staff_name(data.get("preparedByName") or data.get("person"))
+    if not person:
+        return jsonify({"ok": False, "error": "Prepared By name select කරන්න"}), 400
+    data = dict(data)
+    data["preparedByName"] = person
+    data["designation"] = quotation_store.STAFF_ROLES[person]
+    qid = quotation_store.safe_quote_id(data.get("id")) or "quotation"
+    data["id"] = qid
+    pdf_path = Path(tempfile.gettempdir()) / f"{qid}-download.pdf"
+    try:
+        quotation_store.write_quote_pdf(pdf_path, data, quotes_dir(), IMAGES_DIR)
+    except Exception as err:
+        return jsonify({"ok": False, "error": str(err)}), 500
+    if not pdf_path.exists() or pdf_path.stat().st_size < 800:
+        return jsonify({"ok": False, "error": "PDF හදන්න බැරි වුණා"}), 500
+    return send_file(
+        pdf_path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"{qid}.pdf",
+        max_age=0,
+    )
 
 
 @app.get("/api/quotation/pdf")

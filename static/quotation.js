@@ -555,7 +555,7 @@ function initPhoneShare() {
     });
     if (hint) {
       hint.hidden = false;
-      hint.innerHTML = 'ගෙදර/web: මේක මේ device එකේ save වෙනවා. Office folder එකට යන්නේ නැහැ. Folder එකට office PC එකේ <a href="http://localhost:8090/quotation">http://localhost:8090/quotation</a> open කරන්න (START-QUOTATION.bat).';
+      hint.innerHTML = 'ගෙදර: Save සහ Download PDF මෙතනින් කරන්න. Office folder එකට යන්නේ නැහැ — ඒකට office PC එකේ <a href="http://localhost:8090/quotation">http://localhost:8090/quotation</a> (START-QUOTATION.bat).';
     }
     return;
   }
@@ -781,7 +781,112 @@ function shownRate(saved, key) {
   return formatRate(raw) || String(raw);
 }
 
-function makeQuotePdfBlob(saved) {
+function shownText(saved, key) {
+  const el = val(key);
+  if (el && String(el.value || '').trim()) return String(el.value).trim();
+  return String((saved && saved[key]) || '').trim();
+}
+
+function strBytes(s) {
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i += 1) out[i] = s.charCodeAt(i) & 255;
+  return out;
+}
+
+function jpegSize(u8) {
+  let i = 2;
+  while (i + 8 < u8.length) {
+    if (u8[i] !== 0xFF) {
+      i += 1;
+      continue;
+    }
+    const marker = u8[i + 1];
+    if (marker === 0xD8 || marker === 0xD9 || marker === 0x01) {
+      i += 2;
+      continue;
+    }
+    if (marker >= 0xD0 && marker <= 0xD7) {
+      i += 2;
+      continue;
+    }
+    const len = (u8[i + 2] << 8) | u8[i + 3];
+    if (marker >= 0xC0 && marker <= 0xC3) {
+      return {
+        height: (u8[i + 5] << 8) | u8[i + 6],
+        width: (u8[i + 7] << 8) | u8[i + 8]
+      };
+    }
+    i += 2 + len;
+  }
+  return { width: 1600, height: 220 };
+}
+
+function jpegFromDataUrl(raw) {
+  const s = String(raw || '');
+  const m = s.match(/^data:image\/jpe?g;base64,(.+)$/i);
+  if (!m) return null;
+  const bin = atob(m[1]);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+function toJpegBytes(raw) {
+  return new Promise((resolve) => {
+    const s = String(raw || '');
+    if (s.indexOf('data:image/') !== 0) {
+      resolve(null);
+      return;
+    }
+    const jpeg = jpegFromDataUrl(s);
+    if (jpeg) {
+      resolve(jpeg);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, img.naturalWidth || img.width);
+      canvas.height = Math.max(1, img.naturalHeight || img.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      resolve(jpegFromDataUrl(canvas.toDataURL('image/jpeg', 0.92)));
+    };
+    img.onerror = () => resolve(null);
+    img.src = s;
+  });
+}
+
+async function fetchJpeg(path) {
+  try {
+    const res = await fetch(path, { cache: 'force-cache' });
+    if (!res.ok) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.length < 100) return null;
+    return buf;
+  } catch {
+    return null;
+  }
+}
+
+const QUOTE_TERMS = [
+  '1. This quotation is valid for 07 days from the quotation date.',
+  '2. The Letter of Credit (LC) must be opened within 07 days of signing the Proforma Invoice.',
+  '3. Final price may vary due to exchange rate, shipping cost, taxes, and government regulations.',
+  '4. Booking advance is required to confirm the order.',
+  '5. Delivery time depends on shipping schedules and customs clearance.',
+  '6. Any additional government taxes or levies imposed after booking will be borne by the customer.'
+];
+
+async function makeQuotePdfBlob(saved) {
+  const savedData = saved || {};
+  const header = await fetchJpeg('images/cs-header.jpg?v=3');
+  const footer = await fetchJpeg('images/cs-footer.jpg?v=9');
+  const signJpeg = await toJpegBytes(savedData.signatureImage || signatureValue());
+  const photoJpeg = await toJpegBytes(savedData.vehiclePhoto || vehiclePhotoValue());
+
   const cmds = [];
   function color(r, g, b) {
     cmds.push(`${(r / 255).toFixed(3)} ${(g / 255).toFixed(3)} ${(b / 255).toFixed(3)} rg`);
@@ -789,112 +894,285 @@ function makeQuotePdfBlob(saved) {
   function text(x, y, size, str, bold) {
     cmds.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm (${pdfEscape(str)}) Tj ET`);
   }
-  function textWidth(str, size) {
-    return String(str || '').length * size * 0.52;
+  function helveticaWidth(str, size, bold) {
+    const s = String(str || '');
+    const units = {
+      ' ': 278, '.': 278, ',': 278, '-': 333, ':': 278, '|': 260,
+      '0': 556, '1': 556, '2': 556, '3': 556, '4': 556,
+      '5': 556, '6': 556, '7': 556, '8': 556, '9': 556,
+      A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 500,
+      K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611,
+      U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
+      a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222, j: 222,
+      k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333, s: 500, t: 278,
+      u: 556, v: 500, w: 722, x: 500, y: 500, z: 500
+    };
+    let w = 0;
+    for (let i = 0; i < s.length; i += 1) w += (units[s.charAt(i)] || 560);
+    return (w / 1000) * size * (bold ? 1.06 : 1);
   }
-  function textRight(right, y, size, str, bold) {
-    text(right - textWidth(str, size), y, size, str, bold);
+  function textRight(rightX, y, size, str, bold) {
+    const w = helveticaWidth(str, size, bold);
+    text(rightX - w, y, size, str, bold);
   }
   function box(x, y, w, h, fill) {
     if (fill) cmds.push(`${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re f`);
     else cmds.push(`0.75 0.8 0.86 RG ${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re S 0 0 0 rg`);
   }
+  function drawJpeg(name, x, y, w, h) {
+    cmds.push(`q ${w.toFixed(1)} 0 0 ${h.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)} cm /${name} Do Q`);
+  }
 
-  const savedData = saved || {};
-  let y = 800;
+  const pageW = 595;
+  const pageH = 842;
+  const headerH = header ? Math.min(78, pageW * (jpegSize(header).height / jpegSize(header).width)) : 0;
+  const footerH = footer ? Math.min(52, pageW * (jpegSize(footer).height / jpegSize(footer).width)) : 0;
+  if (header) drawJpeg('ImH', 0, pageH - headerH, pageW, headerH);
+  if (footer) drawJpeg('ImF', 0, 0, pageW, footerH);
+
+  let y = pageH - headerH - 14;
+  const left = 36;
+  const right = 559;
+  const width = right - left;
+
   color(29, 90, 170);
-  text(40, y, 14, 'PRE-ORDER VEHICLE QUOTATION', true);
+  text(left, y, 13, 'PRE-ORDER VEHICLE QUOTATION', true);
   color(20, 32, 46);
-  textRight(555, y + 8, 10, 'Quotation No: ' + (savedData.id || ''), true);
-  textRight(555, y - 6, 10, 'Date: ' + (savedData.quoteDate || ''), false);
-  y -= 26;
-  const who = [savedData.customerName, savedData.contactNo].filter(Boolean).join('  |  ');
-  const car = [savedData.make, savedData.model, savedData.year, savedData.colour].filter(Boolean).join(' ');
-  if (who) {
-    color(20, 32, 46);
-    text(40, y, 9, who, false);
-    y -= 14;
-  }
-  if (car) {
-    text(40, y, 9, car, false);
-    y -= 14;
-  }
-  y -= 4;
-  color(29, 90, 170);
-  text(40, y, 12, 'PRICE DETAILS', true);
-  y -= 8;
-  cmds.push('1 0.4 0.02 RG 40 ' + y.toFixed(1) + ' m 555 ' + y.toFixed(1) + ' l S 0 0 0 rg');
-  y -= 4;
+  textRight(right, y + 6, 9, 'Quotation No: ' + (savedData.id || shownText(savedData, 'quotationNo')), true);
+  textRight(right, y - 6, 9, 'Date: ' + (savedData.quoteDate || shownText(savedData, 'quoteDate')), false);
+  y -= 18;
+  cmds.push('1 0.4 0.02 RG ' + left + ' ' + y.toFixed(1) + ' m ' + right + ' ' + y.toFixed(1) + ' l S 0 0 0 rg');
+  y -= 14;
 
-  const left = 40;
-  const width = 515;
-  const rateRight = 278;
-  const jpyRight = 400;
-  const lkrRight = 548;
-  const rowH = 18;
+  function heading(label) {
+    color(29, 90, 170);
+    text(left, y, 10, label, true);
+    y -= 4;
+    cmds.push('0.11 0.35 0.67 RG ' + left + ' ' + y.toFixed(1) + ' m ' + right + ' ' + y.toFixed(1) + ' l S 0 0 0 rg');
+    y -= 12;
+  }
+
+  heading('CUSTOMER DETAILS');
+  color(20, 32, 46);
+  text(left, y, 8, 'Customer: ' + shownText(savedData, 'customerName'), false);
+  text(left + 250, y, 8, 'Contact: ' + shownText(savedData, 'contactNo'), false);
+  y -= 12;
+  text(left, y, 8, 'Email: ' + shownText(savedData, 'email'), false);
+  y -= 16;
+
+  heading('VEHICLE DETAILS');
+  const vehicleRows = [
+    ['Make', shownText(savedData, 'make')],
+    ['Model', shownText(savedData, 'model')],
+    ['Year', shownText(savedData, 'year')],
+    ['Grade', shownText(savedData, 'grade')],
+    ['Engine Capacity', shownText(savedData, 'engineCapacity')],
+    ['Fuel Type', shownText(savedData, 'fuelType')],
+    ['Transmission', shownText(savedData, 'transmission')],
+    ['Mileage', shownText(savedData, 'mileage')],
+    ['Colour', shownText(savedData, 'colour')],
+    ['Origin', shownText(savedData, 'origin')],
+    ['Estimated Arrival', shownText(savedData, 'estimatedArrival')]
+  ];
+  const vRow = 11;
+  const tableRight = photoJpeg ? right - 120 : right;
+  vehicleRows.forEach((row, i) => {
+    const rowY = y - i * vRow;
+    if (i % 2 === 0) {
+      cmds.push('0.95 0.96 0.98 rg ' + left + ' ' + (rowY - 3).toFixed(1) + ' ' + (tableRight - left).toFixed(1) + ' ' + vRow + ' re f');
+    }
+    color(29, 90, 170);
+    text(left + 4, rowY, 7, row[0], true);
+    color(20, 32, 46);
+    text(left + 108, rowY, 7, row[1], false);
+  });
+  if (photoJpeg) {
+    const ph = vehicleRows.length * vRow;
+    const pw = 110;
+    drawJpeg('ImV', right - pw, y - ph + 4, pw, ph - 2);
+  }
+  y -= vehicleRows.length * vRow + 10;
+
+  heading('PRICE DETAILS');
+  const rateRight = left + width * 0.60 - 6;
+  const jpyRight = left + width * 0.80 - 6;
+  const lkrRight = right - 6;
+  const rowH = 14;
 
   function row(cells, kind) {
     y -= rowH;
-    if (kind === 'head') {
+    const isHead = kind === 'head';
+    const isTotal = kind === 'total';
+    const isBlue = kind === 'blue';
+    const lkrBlue = kind === 'lkrblue' || isBlue;
+    if (isHead) {
       color(29, 90, 170);
-      box(left, y - 4, width, rowH, true);
-      color(255, 255, 255);
-    } else {
-      box(left, y - 4, width, rowH, false);
-      if (kind === 'total') color(196, 30, 58);
-      else if (kind === 'blue') color(29, 90, 170);
-      else color(20, 32, 46);
+      box(left, y - 4, width, rowH + 1, true);
     }
-    const bold = kind === 'head' || kind === 'total' || kind === 'blue';
-    text(44, y + 2, 8, String(cells[0] || ''), bold);
-    textRight(rateRight, y + 2, 8, String(cells[1] || ''), bold);
-    textRight(jpyRight, y + 2, 8, String(cells[2] || ''), bold);
-    textRight(lkrRight, y + 2, 8, String(cells[3] || ''), bold);
+    const size = isHead ? 7 : 8;
+    if (isHead) color(255, 255, 255);
+    else if (isTotal) color(196, 30, 58);
+    else if (isBlue) color(29, 90, 170);
+    else color(20, 32, 46);
+    text(left + 4, y, size, String(cells[0] || ''), isHead || isTotal || isBlue);
+    function num(rightX, val, asBlue) {
+      const shown = String(val || '');
+      if (!shown) return;
+      if (isHead) color(255, 255, 255);
+      else if (isTotal) color(196, 30, 58);
+      else if (asBlue) color(29, 90, 170);
+      else color(20, 32, 46);
+      textRight(rightX, y, size, shown, isHead || isTotal || asBlue);
+    }
+    num(rateRight, cells[1], false);
+    num(jpyRight, cells[2], false);
+    num(lkrRight, cells[3], lkrBlue);
     color(20, 32, 46);
   }
 
   row(['', 'Ex. Rate', 'AMOUNT JPY', 'AMOUNT LKR'], 'head');
   row(['Total Cost CIF JPY', '', shownAmount(savedData, 'cifJpy'), '']);
-  row(['LC Amount', shownRate(savedData, 'lcRate'), shownAmount(savedData, 'lcJpy'), shownAmount(savedData, 'lcLkr')], 'blue');
+  row(['LC Amount', shownRate(savedData, 'lcRate'), shownAmount(savedData, 'lcJpy'), shownAmount(savedData, 'lcLkr')], 'lkrblue');
   row(['CIF Balance Amount - JPY', shownRate(savedData, 'balRate'), shownAmount(savedData, 'balJpy'), shownAmount(savedData, 'balLkr')]);
-  y -= 8;
+  y -= 5;
+  cmds.push('0.11 0.35 0.67 RG ' + left + ' ' + y.toFixed(1) + ' m ' + right + ' ' + y.toFixed(1) + ' l S 0 0 0 rg');
+  y -= 2;
   row(['Total Japan Cost - LKR', '', '', shownAmount(savedData, 'japanCostLkr')], 'blue');
   row(['Customs Duty - LKR', '', '', shownAmount(savedData, 'customsDuty')]);
   row(['Customs Clearing & Other Charges - LKR', '', '', shownAmount(savedData, 'clearingCharges')]);
   row(['Agency Fee', '', '', shownAmount(savedData, 'agencyFee')]);
   row(['Total Upto Hand - LKR', '', '', shownAmount(savedData, 'totalEstimatedPrice')], 'total');
+  y -= 16;
 
-  y -= 28;
+  heading('TERMS & CONDITIONS');
+  color(20, 32, 46);
+  QUOTE_TERMS.forEach((line) => {
+    text(left, y, 7, line, false);
+    y -= 10;
+  });
+  y -= 8;
+
+  heading('PREPARED BY');
+  color(92, 107, 122);
+  text(left, y, 7, 'Name', false);
+  text(left + 170, y, 7, 'Designation', false);
+  text(left + 340, y, 7, 'Signature', false);
+  y -= 16;
+  color(20, 32, 46);
+  text(left, y, 10, shownText(savedData, 'preparedByName') || savedData.preparedByName || '', true);
   color(29, 90, 170);
-  text(40, y, 11, 'Prepared By: ' + [savedData.preparedByName, savedData.designation].filter(Boolean).join('  |  '), true);
+  text(left + 170, y, 10, shownText(savedData, 'designation') || savedData.designation || '', true);
+  if (signJpeg) {
+    const size = jpegSize(signJpeg);
+    const sh = 32;
+    const sw = Math.min(120, sh * ((size.width || 2) / (size.height || 1)));
+    drawJpeg('ImS', left + 340, y - 8, sw, sh);
+    y -= sh + 2;
+  } else {
+    y -= 8;
+  }
 
-  const stream = cmds.join('\n') + '\n';
-  const objs = [
+  const stream = strBytes(cmds.join('\n') + '\n');
+  const images = [];
+  if (header) {
+    images.push({ name: 'ImH', bytes: header, size: jpegSize(header) });
+  }
+  if (footer) {
+    images.push({ name: 'ImF', bytes: footer, size: jpegSize(footer) });
+  }
+  if (signJpeg) {
+    images.push({ name: 'ImS', bytes: signJpeg, size: jpegSize(signJpeg) });
+  }
+  if (photoJpeg) {
+    images.push({ name: 'ImV', bytes: photoJpeg, size: jpegSize(photoJpeg) });
+  }
+
+  const fontRes = '/Font << /F1 5 0 R /F2 6 0 R >>';
+  let imgRes = '';
+  if (images.length) {
+    imgRes = ' /XObject << ' + images.map((img, i) => '/' + img.name + ' ' + (7 + i) + ' 0 R').join(' ') + ' >>';
+  }
+
+  const objects = [
     null,
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>',
-    `<< /Length ${stream.length} >>\nstream\n${stream}endstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << ${fontRes}${imgRes} >> /Contents 4 0 R >>`
   ];
-  let pdf = '%PDF-1.4\n';
+
+  const writerParts = [];
+  let offset = 0;
+  function pushBytes(u8) {
+    writerParts.push(u8);
+    offset += u8.length;
+  }
+  function pushStr(s) {
+    pushBytes(strBytes(s));
+  }
+
+  pushStr('%PDF-1.4\n');
   const offs = [0];
-  for (let i = 1; i < objs.length; i += 1) {
-    offs[i] = pdf.length;
-    pdf += `${i} 0 obj\n${objs[i]}\nendobj\n`;
+
+  function addObject(index, headerStr, streamBytes) {
+    offs[index] = offset;
+    if (streamBytes) {
+      pushStr(`${index} 0 obj\n${headerStr}\nstream\n`);
+      pushBytes(streamBytes);
+      pushStr('\nendstream\nendobj\n');
+    } else {
+      pushStr(`${index} 0 obj\n${headerStr}\nendobj\n`);
+    }
   }
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
-  for (let i = 1; i < objs.length; i += 1) {
-    pdf += `${String(offs[i]).padStart(10, '0')} 00000 n \n`;
+
+  addObject(1, objects[1]);
+  addObject(2, objects[2]);
+  addObject(3, objects[3]);
+  addObject(4, `<< /Length ${stream.length} >>`, stream);
+  addObject(5, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  addObject(6, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  images.forEach((img, i) => {
+    const n = 7 + i;
+    addObject(
+      n,
+      `<< /Type /XObject /Subtype /Image /Width ${img.size.width} /Height ${img.size.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>`,
+      img.bytes
+    );
+  });
+
+  const xref = offset;
+  const count = 7 + images.length;
+  pushStr(`xref\n0 ${count}\n0000000000 65535 f \n`);
+  for (let i = 1; i < count; i += 1) {
+    pushStr(`${String(offs[i]).padStart(10, '0')} 00000 n \n`);
   }
-  pdf += `trailer << /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return new Blob([pdf], { type: 'application/pdf' });
+  pushStr(`trailer << /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(writerParts, { type: 'application/pdf' });
 }
 
-function downloadClientPdf(saved) {
-  triggerBlobDownload(makeQuotePdfBlob(saved), (saved.id || 'quotation') + '.pdf');
+async function postQuotePdf(saved) {
+  if (isHomeCloud()) return null;
+  const res = await fetch('/api/quote-pdf', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(saved)
+  });
+  const type = (res.headers.get('content-type') || '').toLowerCase();
+  if (res.ok && type.indexOf('pdf') !== -1) return res.blob();
+  return null;
+}
+
+async function downloadClientPdf(saved) {
+  try {
+    const blob = await postQuotePdf(saved);
+    if (blob && blob.size > 800) {
+      triggerBlobDownload(blob, (saved.id || 'quotation') + '.pdf');
+      return;
+    }
+  } catch {
+    /* use on-screen PDF */
+  }
+  triggerBlobDownload(await makeQuotePdfBlob(saved), (saved.id || 'quotation') + '.pdf');
 }
 
 async function downloadQuotePdf(saved) {
@@ -909,7 +1187,7 @@ async function downloadQuotePdf(saved) {
   if (!data.id) return false;
   showToast('PDF හදනවා...', 'wait');
   try {
-    downloadClientPdf(data);
+    await downloadClientPdf(data);
     showToast('PDF downloaded', '');
     return true;
   } catch {
@@ -1072,20 +1350,21 @@ async function saveQuote() {
     if (onShare) {
       showToast('Saved to folder: ' + folder, '');
     } else if (isHomeCloud()) {
-      showToast('මේක web save. Office folder එකට යන්නේ නැහැ. Folder එකට http://localhost:8090/quotation open කරන්න.', 'error');
+      showToast('ගෙදර save උනා. Download PDF කරන්න.', '');
     } else {
       showToast('Saved on this PC. Office share එක open නැහැ: ' + folder, '');
     }
-    setStatus(onShare ? 'Folder: ' + folder : 'Not the office folder');
+    setStatus(onShare ? 'Folder: ' + folder : (isHomeCloud() ? 'Saved on this device' : 'Not the office folder'));
     return merged;
   } catch (err) {
     const saved = saveLocalQuote(data);
     showToast(
       isHomeCloud()
-        ? 'මේක web save. Office folder එකට යන්නේ නැහැ. Folder එකට http://localhost:8090/quotation open කරන්න.'
+        ? 'ගෙදර save උනා මේ device එකේ. Download PDF කරන්න.'
         : 'Folder එකට යන්නේ නැහැ. START-QUOTATION.bat office PC එකේ run කරලා http://localhost:8090/quotation open කරන්න.',
-      'error'
+      isHomeCloud() ? '' : 'error'
     );
+    setStatus(isHomeCloud() ? 'Saved on this device' : '');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -1147,7 +1426,7 @@ function initEditor() {
 
   const pdfBtn = document.getElementById('pdf-btn');
   if (pdfBtn) {
-    pdfBtn.addEventListener('click', () => {
+    pdfBtn.addEventListener('click', async () => {
       const live = readForm();
       if (!STAFF.includes(live.preparedByName)) {
         showToast('Prepared By name select කරන්න', 'error');
@@ -1155,7 +1434,13 @@ function initEditor() {
         return;
       }
       live.id = live.id || val('quotationNo').value.trim() || 'quotation';
-      downloadClientPdf(live);
+      showToast('PDF හදනවා...', 'wait');
+      try {
+        await downloadClientPdf(live);
+        showToast('PDF downloaded', '');
+      } catch {
+        showToast('PDF download failed. Page refresh කරලා ආයෙත් try කරන්න.', 'error');
+      }
     });
   }
 
@@ -1243,7 +1528,7 @@ function initList() {
       apiItems = loadLocal();
       if (hint) {
         hint.textContent = isHomeCloud()
-          ? 'ගෙදර/web: මේ device එකේ save වෙනවා. Office folder එකට යන්න http://localhost:8090/quotations (START-QUOTATION.bat).'
+          ? 'ගෙදර: මේ device එකේ save වෙනවා. PDF Download මෙතනින් කරන්න. Office folder එකට office PC එකේ http://localhost:8090/quotations.'
           : 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා quotations open කරන්න.';
       }
     }

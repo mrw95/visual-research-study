@@ -295,22 +295,42 @@ input[readonly] {
   color: var(--navy);
 }
 
+.price-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.price-table col.price-desc { width: 46%; }
+.price-table col.price-rate { width: 14%; }
+.price-table col.price-jpy { width: 20%; }
+.price-table col.price-lkr { width: 20%; }
+
 .price-table thead th {
   background: var(--navy);
   color: #fff;
   width: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.price-table thead th:first-child {
+  text-align: left;
 }
 
 .price-table .amount {
-  width: 22%;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .price-table .amount input {
+  width: 100%;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
 }
 
-.cif-table td:first-child {
+.cif-table td:first-child,
+.lkr-summary td:first-child {
   font-weight: 700;
 }
 
@@ -318,12 +338,8 @@ input[readonly] {
   margin-top: 12px;
 }
 
-.lkr-summary td:first-child {
-  font-weight: 700;
-}
-
-.lkr-summary .amount {
-  width: 32%;
+.japan-cost td:first-child {
+  color: var(--navy);
 }
 
 .hand-total td {
@@ -816,6 +832,9 @@ input[readonly] {
   .cif-table td.empty-amt {
     display: none;
   }
+  .lkr-summary td.empty-amt {
+    display: none;
+  }
   .lkr-summary td:first-child,
   .lkr-summary .amount {
     width: auto;
@@ -852,14 +871,43 @@ input[readonly] {
     width: 100%;
   }
   .quote-inner {
-    padding: 26mm 12mm 24mm;
+    padding: 22mm 10mm 20mm;
   }
   .quote-block {
+    margin-top: 6px;
+  }
+  .quote-terms {
+    font-size: 8.5px;
+    line-height: 1.35;
+  }
+  .quote-sign {
     margin-top: 10px;
+    max-width: 68%;
   }
   .quote-sign {
     margin-top: 20px;
     max-width: 68%;
+  }
+  .price-table th,
+  .price-table td {
+    border: none !important;
+    border-bottom: 1px solid #e8eef5 !important;
+    padding: 5px 8px;
+  }
+  .price-table thead th {
+    background: #1d5aaa !important;
+    color: #fff !important;
+    border-bottom: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .price-table .amount,
+  .price-table .amount input {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+  }
+  .lkr-summary {
+    margin-top: 10px;
   }
   input, select {
     border: none !important;

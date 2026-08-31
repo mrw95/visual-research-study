@@ -6,7 +6,7 @@
   <title>CarSwitch — Pre-Order Vehicle Quotation</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=36">
+  <link rel="stylesheet" href="static/quotation.css?v=42">
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
@@ -121,6 +121,12 @@
     <section class="quote-block">
       <h3>Price Details</h3>
       <table class="quote-table price-table cif-table">
+        <colgroup>
+          <col class="price-desc">
+          <col class="price-rate">
+          <col class="price-jpy">
+          <col class="price-lkr">
+        </colgroup>
         <thead>
           <tr>
             <th></th>
@@ -151,25 +157,41 @@
         </tbody>
       </table>
       <table class="quote-table price-table lkr-summary">
+        <colgroup>
+          <col class="price-desc">
+          <col class="price-rate">
+          <col class="price-jpy">
+          <col class="price-lkr">
+        </colgroup>
         <tbody>
-          <tr>
+          <tr class="japan-cost">
             <td>Total Japan Cost - LKR</td>
+            <td class="amount empty-amt"></td>
+            <td class="amount empty-amt"></td>
             <td class="amount"><input id="japanCostLkr" class="money" type="text" readonly></td>
           </tr>
           <tr>
             <td>Customs Duty - LKR</td>
+            <td class="amount empty-amt"></td>
+            <td class="amount empty-amt"></td>
             <td class="amount"><input id="customsDuty" class="money" type="text" inputmode="decimal"></td>
           </tr>
           <tr>
             <td>Customs Clearing &amp; Other Charges - LKR</td>
+            <td class="amount empty-amt"></td>
+            <td class="amount empty-amt"></td>
             <td class="amount"><input id="clearingCharges" class="money" type="text" inputmode="decimal"></td>
           </tr>
           <tr>
             <td>Agency Fee</td>
+            <td class="amount empty-amt"></td>
+            <td class="amount empty-amt"></td>
             <td class="amount"><input id="agencyFee" class="money" type="text" inputmode="decimal"></td>
           </tr>
           <tr class="hand-total">
             <td>Total Upto Hand - LKR</td>
+            <td class="amount empty-amt"></td>
+            <td class="amount empty-amt"></td>
             <td class="amount"><input id="totalEstimatedPrice" class="money" type="text" inputmode="decimal"></td>
           </tr>
         </tbody>
@@ -250,6 +272,6 @@
     <option value="Blue"></option>
   </datalist>
 
-  <script src="static/quotation.js?v=36"></script>
+  <script src="static/quotation.js?v=42"></script>
 </body>
 </html>

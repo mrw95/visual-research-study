@@ -635,63 +635,66 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
 
     heading("Price Details")
     p = price_display(data)
-    col_x = [left, left + 198, left + 268, left + 378]
-    col_w = [198, 70, 110, right - (left + 378)]
-    headers = ("", "Ex. Rate", "AMOUNT JPY", "AMOUNT LKR")
-    cif_rows = [
-        ("Total Cost CIF JPY", "", p["cifJpy"], ""),
-        ("LC Amount", p["lcRate"], p["lcJpy"], p["lcLkr"]),
-        ("CIF Balance Amount - JPY", p["balRate"], p["balJpy"], p["balLkr"]),
-    ]
+    content_w = right - left
+    rate_right = left + content_w * 0.60 - 6
+    jpy_right = left + content_w * 0.80 - 6
+    lkr_right = right - 6
     row_h = 15
     c.setFillColor(navy)
-    c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
+    c.rect(left, y - 4, content_w, row_h, fill=1, stroke=0)
     c.setFillColor(Color(1, 1, 1))
     c.setFont(font_bold, 7)
-    for i, label in enumerate(headers):
-        if i == 0:
-            c.drawString(col_x[i] + 6, y + 1, label)
-        else:
-            c.drawRightString(col_x[i] + col_w[i] - 6, y + 1, label)
+    c.drawRightString(rate_right, y + 1, "Ex. Rate")
+    c.drawRightString(jpy_right, y + 1, "AMOUNT JPY")
+    c.drawRightString(lkr_right, y + 1, "AMOUNT LKR")
     y -= row_h
-    c.setStrokeColor(line)
-    for r, row in enumerate(cif_rows):
-        bg = fill if r % 2 == 0 else Color(1, 1, 1)
-        c.setFillColor(bg)
-        c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
-        c.setStrokeColor(line)
-        c.rect(left, y - 4, right - left, row_h, fill=0, stroke=1)
+
+    cif_rows = [
+        ("Total Cost CIF JPY", "", p["cifJpy"], "", "plain"),
+        ("LC Amount", p["lcRate"], p["lcJpy"], p["lcLkr"], "lkrblue"),
+        ("CIF Balance Amount - JPY", p["balRate"], p["balJpy"], p["balLkr"], "plain"),
+    ]
+
+    def draw_price_row(label, rate, jpy, lkr, kind):
+        nonlocal y
+        if kind == "total":
+            c.setFillColor(HexColor("#c41e3a"))
+            c.setFont(font_bold, 8)
+        elif kind == "blue":
+            c.setFillColor(navy)
+            c.setFont(font_bold, 8)
+        else:
+            c.setFillColor(ink)
+            c.setFont(font_bold, 8)
+        c.drawString(left + 6, y + 1, label)
+        c.setFont(font_regular, 8)
         c.setFillColor(ink)
-        c.setFont(font_bold, 7)
-        c.drawString(left + 6, y + 1, row[0])
-        for i in range(1, 4):
-            if r == 1 and i == 3:
-                c.setFillColor(navy)
+        if rate:
+            c.drawRightString(rate_right, y + 1, rate)
+        if jpy:
+            c.drawRightString(jpy_right, y + 1, jpy)
+        if lkr:
+            if kind in ("blue", "lkrblue", "total"):
+                c.setFillColor(HexColor("#c41e3a") if kind == "total" else navy)
                 c.setFont(font_bold, 8)
             else:
                 c.setFillColor(ink)
-                c.setFont(font_regular, 7)
-            c.drawRightString(col_x[i] + col_w[i] - 6, y + 1, row[i])
+                c.setFont(font_regular, 8)
+            c.drawRightString(lkr_right, y + 1, lkr)
         y -= row_h
-    y -= 8
-    summary = [
-        ("Total Japan Cost - LKR", p["japanCostLkr"], False),
-        ("Customs Duty - LKR", p["customsDuty"], False),
-        ("Customs Clearing & Other Charges - LKR", p["clearingCharges"], False),
-        ("Agency Fee", p["agencyFee"], False),
-        ("Total Upto Hand - LKR", p["totalEstimatedPrice"], True),
-    ]
-    for i, (label, value, hand) in enumerate(summary):
-        bg = Color(1, 1, 1)
-        c.setFillColor(bg)
-        c.rect(left, y - 4, right - left, row_h, fill=1, stroke=0)
-        c.setStrokeColor(line)
-        c.rect(left, y - 4, right - left, row_h, fill=0, stroke=1)
-        c.setFillColor(HexColor("#c41e3a") if hand else (navy if i == 0 else ink))
-        c.setFont(font_bold, 8 if hand else 7)
-        c.drawString(left + 6, y + 1, label)
-        c.drawRightString(right - 6, y + 1, value)
-        y -= row_h
+
+    for row in cif_rows:
+        draw_price_row(*row)
+    y -= 6
+    c.setStrokeColor(navy)
+    c.setLineWidth(0.8)
+    c.line(left, y + 8, right, y + 8)
+    y -= 2
+    draw_price_row("Total Japan Cost - LKR", "", "", p["japanCostLkr"], "blue")
+    draw_price_row("Customs Duty - LKR", "", "", p["customsDuty"], "plain")
+    draw_price_row("Customs Clearing & Other Charges - LKR", "", "", p["clearingCharges"], "plain")
+    draw_price_row("Agency Fee", "", "", p["agencyFee"], "plain")
+    draw_price_row("Total Upto Hand - LKR", "", "", p["totalEstimatedPrice"], "total")
     y -= 10
 
     heading("Terms & Conditions")
@@ -785,20 +788,32 @@ def _pdf_field(label: str, value: str) -> str:
 def _price_html(data: dict) -> str:
     p = price_display(data)
     return f"""<table class="price">
+        <colgroup>
+          <col class="desc">
+          <col class="rate">
+          <col class="jpy">
+          <col class="lkr">
+        </colgroup>
         <thead><tr><th></th><th class="amt">Ex. Rate</th><th class="amt">AMOUNT JPY</th><th class="amt">AMOUNT LKR</th></tr></thead>
         <tbody>
           <tr><td>Total Cost CIF JPY</td><td class="amt"></td><td class="amt">{p["cifJpy"]}</td><td class="amt"></td></tr>
-          <tr><td>LC Amount</td><td class="amt">{p["lcRate"]}</td><td class="amt">{p["lcJpy"]}</td><td class="amt">{p["lcLkr"]}</td></tr>
+          <tr><td>LC Amount</td><td class="amt">{p["lcRate"]}</td><td class="amt">{p["lcJpy"]}</td><td class="amt navy">{p["lcLkr"]}</td></tr>
           <tr><td>CIF Balance Amount - JPY</td><td class="amt">{p["balRate"]}</td><td class="amt">{p["balJpy"]}</td><td class="amt">{p["balLkr"]}</td></tr>
         </tbody>
       </table>
       <table class="price lkr-sum">
+        <colgroup>
+          <col class="desc">
+          <col class="rate">
+          <col class="jpy">
+          <col class="lkr">
+        </colgroup>
         <tbody>
-          <tr><td>Total Japan Cost - LKR</td><td class="amt">{p["japanCostLkr"]}</td></tr>
-          <tr><td>Customs Duty - LKR</td><td class="amt">{p["customsDuty"]}</td></tr>
-          <tr><td>Customs Clearing &amp; Other Charges - LKR</td><td class="amt">{p["clearingCharges"]}</td></tr>
-          <tr><td>Agency Fee</td><td class="amt">{p["agencyFee"]}</td></tr>
-          <tr class="hand"><td>Total Upto Hand - LKR</td><td class="amt">{p["totalEstimatedPrice"]}</td></tr>
+          <tr class="japan"><td>Total Japan Cost - LKR</td><td></td><td></td><td class="amt navy">{p["japanCostLkr"]}</td></tr>
+          <tr><td>Customs Duty - LKR</td><td></td><td></td><td class="amt">{p["customsDuty"]}</td></tr>
+          <tr><td>Customs Clearing &amp; Other Charges - LKR</td><td></td><td></td><td class="amt">{p["clearingCharges"]}</td></tr>
+          <tr><td>Agency Fee</td><td></td><td></td><td class="amt">{p["agencyFee"]}</td></tr>
+          <tr class="hand"><td>Total Upto Hand - LKR</td><td></td><td></td><td class="amt">{p["totalEstimatedPrice"]}</td></tr>
         </tbody>
       </table>"""
 
@@ -909,13 +924,48 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
       color: #14202e;
       min-height: 16px;
     }}
-    table {{ width: 100%; border-collapse: collapse; }}
+    table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
     th, td {{ border: 1px solid #d5deea; padding: 4px 8px; text-align: left; font-size: 11px; }}
-    th {{ width: 160px; background: #f4f7fb; color: #1d5aaa; font-weight: 700; }}
-    .price thead th {{ background: #1d5aaa; color: #fff; width: auto; }}
-    .price .amt {{ width: 120px; text-align: right; }}
+    th {{ width: 38%; background: #f4f7fb; color: #1d5aaa; font-weight: 700; }}
+    .vehicle-layout table tr:nth-child(even) th,
+    .vehicle-layout table tr:nth-child(even) td {{ background: #eef3f9; }}
+    .vehicle-layout table tr:nth-child(odd) th,
+    .vehicle-layout table tr:nth-child(odd) td {{ background: #fff; }}
+    .vehicle-layout td {{
+      background: #f7fafc;
+      border: 1px solid #c5d0dc;
+      font-weight: 700;
+      color: #14202e;
+    }}
+    .price {{ table-layout: fixed; width: 100%; }}
+    .price col.desc {{ width: 46%; }}
+    .price col.rate {{ width: 14%; }}
+    .price col.jpy {{ width: 20%; }}
+    .price col.lkr {{ width: 20%; }}
+    .price th, .price td {{
+      border: none;
+      padding: 5px 8px;
+      font-size: 10.5px;
+    }}
+    .price thead th {{
+      background: #1d5aaa;
+      color: #fff;
+      width: auto;
+      text-align: right;
+      white-space: nowrap;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }}
+    .price thead th:first-child {{ text-align: left; }}
+    .price .amt {{
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-family: Arial, Helvetica, sans-serif;
+    }}
     .price td:first-child {{ font-weight: 700; }}
-    .lkr-sum {{ margin-top: 8px; }}
+    .price .navy {{ color: #1d5aaa; font-weight: 800; }}
+    .lkr-sum {{ margin-top: 10px; }}
+    .japan td {{ color: #1d5aaa; font-weight: 800; }}
     .hand td {{ color: #c41e3a; font-weight: 800; background: #fff; }}
     ol {{ margin: 0; padding-left: 18px; font-size: 10.5px; }}
     li {{ margin: 2px 0; }}
@@ -930,7 +980,7 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
       gap: 8px;
       align-items: stretch;
     }}
-    .vehicle-layout table {{ margin: 0; height: 100%; }}
+    .vehicle-layout table {{ margin: 0; height: 100%; table-layout: auto; }}
     .vehicle-photo {{
       border: 1px solid #d5deea;
       background: #fff;
@@ -967,14 +1017,13 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
     .sign-row p {{
       margin: 0;
       min-height: 22px;
-      border-bottom: 1px solid #c5d0dc;
       padding-bottom: 3px;
       font-size: 13px;
       font-weight: 700;
       line-height: 1.2;
     }}
-    .sign-img {{ height: 32px; max-width: 100%; width: auto; display: block; background: transparent; object-fit: contain; object-position: left bottom; }}
-    .sign-line {{ height: 22px; border-bottom: 1px solid #c5d0dc; }}
+    .sign-row p.role {{ color: #1d5aaa; font-weight: 800; }}
+    .sign-line {{ height: 22px; }}
   </style>
 </head>
 <body>
@@ -1016,7 +1065,7 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
       <h3>Prepared By</h3>
       <div class="sign-row">
         <div><span>Name</span><p>{_v(data, "preparedByName")}</p></div>
-        <div><span>Designation</span><p>{_v(data, "designation")}</p></div>
+        <div><span>Designation</span><p class="role">{_v(data, "designation")}</p></div>
         <div><span>Signature</span>{sign_html}</div>
       </div>
       </div>
