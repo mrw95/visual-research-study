@@ -3,6 +3,11 @@
   "rewrites": [
     { "source": "/quotation", "destination": "/quotation.html" },
     { "source": "/quotations", "destination": "/quotations.html" },
+    { "source": "/agreement", "destination": "/agreement.html" },
+    { "source": "/agreements", "destination": "/agreements.html" },
+    { "source": "/preorder", "destination": "/preorder.html" },
+    { "source": "/invoice", "destination": "/invoice.html" },
+    { "source": "/desk", "destination": "/desk.html" },
     { "source": "/quote-login", "destination": "/quote-login.html" }
   ],
   "functions": {
@@ -68,6 +73,66 @@
     },
     {
       "source": "/quote-login.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/agreement",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/agreement.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/agreements",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/agreements.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/preorder",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/preorder.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/invoice",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/invoice.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/desk",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/desk.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
       ]

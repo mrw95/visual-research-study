@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CarSwitch — Sales Agreement</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <link rel="stylesheet" href="static/quotation.css?v=47">
+</head>
+<body class="quote-body">
+  <div class="quote-toolbar no-print">
+    <a class="quote-tool-link quote-tool-home" href="desk.html">Desk</a>
+    <a class="quote-tool-link" href="agreements.html">Saved agreements</a>
+    <a class="quote-tool-link" href="agreement.html">New agreement</a>
+    <a class="quote-tool-link" href="preorder.html">Pre-order</a>
+    <a class="quote-tool-link" href="invoice.html">Invoice</a>
+    <a class="quote-tool-link" href="quotation.html">Quotations</a>
+    <span class="quote-tool-ref" id="toolbar-ref">New</span>
+    <span class="quote-tool-status" id="save-status"></span>
+    <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
+    <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
+    <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
+    <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
+    <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
+  </div>
+  <div id="lan-hint" class="lan-hint no-print" hidden></div>
+  <div id="save-toast" class="save-toast no-print" hidden></div>
+  <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
+
+  <main class="quote-sheet agree-sheet" id="agree-sheet">
+    <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
+    <div class="quote-inner">
+      <header class="quote-dochead">
+        <h2>Sales Agreement</h2>
+        <div class="quote-meta">
+          <label>
+            <span>Agreement Ref No:</span>
+            <input id="agreementNo" type="text" readonly placeholder="Assigned on save">
+          </label>
+          <label>
+            <span>Date:</span>
+            <input id="agreementDate" type="date">
+          </label>
+        </div>
+      </header>
+
+      <p class="agree-intro" id="agree-intro">This agreement (“Agreement”) is entered into on this date between the undersigned Buyer and the Seller (CarSwitch (Pvt) Ltd), collectively referred to as the “Parties.”</p>
+
+      <div class="agree-bar">Customer/Buyer Details</div>
+      <table class="agree-kv">
+        <tr><th>Customer ID</th><td>:</td><td><input id="customerId" type="text" maxlength="40"></td></tr>
+        <tr><th>Name</th><td>:</td><td><input id="customerName" type="text" maxlength="160" autocomplete="name"></td></tr>
+        <tr><th>Address</th><td>:</td><td><input id="address" type="text" maxlength="200"></td></tr>
+        <tr><th>Telephone Nr</th><td>:</td><td><input id="telephone" type="text" maxlength="40" inputmode="tel"></td></tr>
+        <tr><th>NIC Nr</th><td>:</td><td><input id="nic" type="text" maxlength="20"></td></tr>
+      </table>
+
+      <div class="agree-bar">Vehicle Details</div>
+      <table class="agree-kv">
+        <tr><th>Make &amp; Model</th><td>:</td><td><input id="makeModel" type="text" maxlength="80"></td></tr>
+        <tr><th>Vehicle Registration Nr</th><td>:</td><td><input id="registrationNr" type="text" maxlength="40"></td></tr>
+        <tr><th>Chassis Nr</th><td>:</td><td><input id="chassisNr" type="text" maxlength="40"></td></tr>
+        <tr><th>Manufact. Year</th><td>:</td><td><input id="year" type="text" maxlength="10" inputmode="numeric"></td></tr>
+      </table>
+
+      <table class="agree-pay">
+        <thead>
+          <tr>
+            <th class="agree-bar-cell">Transaction Details</th>
+            <th class="amt">Amount</th>
+            <th class="amt">Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Agreed Amount</th>
+            <td class="amt"><input id="agreedAmount" class="money" type="text" inputmode="decimal"></td>
+            <td class="amt"></td>
+          </tr>
+          <tr>
+            <th>Advance Payment (1st)</th>
+            <td class="amt"></td>
+            <td class="amt"><input id="advancePaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>2nd Installment</th>
+            <td class="amt"></td>
+            <td class="amt"><input id="secondPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>3rd Installment</th>
+            <td class="amt"></td>
+            <td class="amt"><input id="thirdPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Final Installment</th>
+            <td class="amt"></td>
+            <td class="amt"><input id="finalPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Additional Fee</th>
+            <td class="amt"><input id="additionalFee" class="money" type="text" inputmode="decimal"></td>
+            <td class="amt"><input id="additionalPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Registration Fee</th>
+            <td class="amt"><input id="registrationFee" class="money" type="text" inputmode="decimal"></td>
+            <td class="amt"><input id="registrationPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Valuation Fee</th>
+            <td class="amt"><input id="valuationFee" class="money" type="text" inputmode="decimal"></td>
+            <td class="amt"><input id="valuationPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Sales Tax</th>
+            <td class="amt"><input id="salesTax" class="money" type="text" inputmode="decimal"></td>
+            <td class="amt"><input id="salesTaxPaid" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr class="agree-total">
+            <th>Total Amount</th>
+            <td class="amt"><input id="totalAmount" class="money" type="text" readonly></td>
+            <td class="amt"><input id="totalPaid" class="money" type="text" readonly></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="agree-note"><strong>Note:</strong> Refer to Annexure 1, 2 &amp; 3 for the full terms and conditions mutually agreed upon by both Parties (the Customer and CarSwitch (Pvt) Ltd).</p>
+      <p class="agree-confirm">I hereby confirm that the information provided above, including the vehicle and payment details, is accurate to the best of my knowledge. I further acknowledge that I have read, understood, and agreed to the terms and conditions as outlined herein and in Annexure 1, 2 &amp; 3.</p>
+
+      <div class="agree-signs">
+        <label class="sign-field">
+          <span>Customer’s Signature (Buyer)</span>
+          <div class="sign-pad" id="buyer-pad">
+            <button type="button" class="sign-hint no-print" id="buyer-upload">Upload signature</button>
+            <div class="sign-stage">
+              <img id="buyerPreview" alt="Buyer signature">
+            </div>
+          </div>
+          <input id="buyerFile" type="file" accept="image/*" hidden>
+        </label>
+        <label class="sign-field">
+          <span>CarSwitch (Pvt) Ltd (Seller)</span>
+          <select id="preparedByName" required>
+            <option value="">Select name</option>
+            <option value="Nipun">Nipun</option>
+            <option value="Isuru">Isuru</option>
+            <option value="Malki">Malki</option>
+            <option value="Harshani">Harshani</option>
+            <option value="Rakitha">Rakitha</option>
+          </select>
+          <input id="designation" type="text" maxlength="60" readonly>
+          <div class="sign-pad" id="seller-pad">
+            <button type="button" class="sign-hint no-print" id="seller-upload">Upload signature</button>
+            <div class="sign-stage">
+              <img id="sellerPreview" alt="Seller signature">
+            </div>
+          </div>
+          <input id="sellerFile" type="file" accept="image/*" hidden>
+        </label>
+      </div>
+
+      <h3 class="agree-annex-title">Annexure 1</h3>
+      <p class="agree-small">Applicable Terms and Conditions under this Sales Agreement.</p>
+      <p class="agree-small"><strong>Purchase Price:</strong> The Buyer hereby agrees to purchase the aforementioned vehicle from the Seller for a total consideration in Sri Lankan Rupees, as stated above. The full purchase price has been paid in advance of this Agreement’s execution.</p>
+      <p class="agree-small"><strong>Payment Confirmation:</strong> The Seller acknowledges that the full payment has been received from the Buyer via bank transfer or an equivalent secure method of payment.</p>
+      <p class="agree-small"><strong>Vehicle Condition and Warranty:</strong> The Vehicle is sold on an “as-is” basis.</p>
+      <p class="agree-warranty">
+        <strong>Warranty:</strong>
+        <label><input type="radio" name="warranty" value="Yes"> Yes</label>
+        <label><input type="radio" name="warranty" value="No" checked> No</label>
+        <span>Validity:</span>
+        <input id="warrantyYears" type="text" maxlength="4" inputmode="numeric" placeholder="Years">
+        <span>Years</span>
+        <input id="warrantyMonths" type="text" maxlength="4" inputmode="numeric" placeholder="Months">
+        <span>Months from the date of this delivery/Agreement, whichever is the earliest, if applicable.</span>
+      </p>
+      <p class="agree-small"><strong>Transfer of Ownership</strong> (If the vehicle is already registered in Sri Lanka): Ownership shall pass to the Buyer upon execution of this Agreement. Both Parties agree to complete all required vehicle ownership transfer documentation in accordance with the applicable regulations of the Department of Motor Traffic.</p>
+      <p class="agree-small"><strong>Registration of Ownership</strong> (If the vehicle is unregistered in Sri Lanka): In cases where the Vehicle is not yet registered in Sri Lanka, the registration shall be completed under the Buyer’s name (unless otherwise specified in Annexure 2 below) upon execution of this Agreement. Both Parties agree to fully cooperate in completing the registration process and all necessary documentation.</p>
+      <p class="agree-small"><strong>Delivery:</strong> The Vehicle, including all tools, accessories, keys, and applicable documentation, has been physically handed over to the Buyer in good condition as of the date of this Agreement.</p>
+      <p class="agree-small"><strong>Default:</strong> In the event of default by either party, the non-defaulting party may pursue legal remedies to enforce the terms of this Agreement.</p>
+
+      <h3 class="agree-annex-title">Annexure 2</h3>
+      <p class="agree-small">If the Vehicle is to be registered or transferred under a party other than the Buyer, the following details shall apply:</p>
+      <table class="agree-kv">
+        <tr><th>Name of the Registered/Transferee Party</th><td>:</td><td><input id="transfereeName" type="text" maxlength="160"></td></tr>
+        <tr><th>National Identity Card (NIC) Number</th><td>:</td><td><input id="transfereeNic" type="text" maxlength="20"></td></tr>
+      </table>
+
+      <h3 class="agree-annex-title">Annexure 3</h3>
+      <p class="agree-small">CarSwitch (Pvt) Ltd hereby confirms that it has provided all essential documents and information to the Buyer to facilitate the prompt and efficient completion of the vehicle ownership transfer and registration process. The list of submitted documents is as follows:</p>
+      <table class="agree-docs">
+        <tr>
+          <td>Ownership Registration Form (MTA-2) with Signature</td>
+          <td>
+            <select id="docMta2"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </td>
+        </tr>
+        <tr>
+          <td>Original Vehicle Registration Certificate (Issued by the Commissioner General of Motor Traffic)</td>
+          <td>
+            <select id="docVrc"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </td>
+        </tr>
+        <tr>
+          <td>Ownership Transfer Form (MTA-6) with Signature</td>
+          <td>
+            <select id="docMta6"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </td>
+        </tr>
+        <tr>
+          <td>Valid Insurance Certificate</td>
+          <td>
+            <select id="docInsurance"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </td>
+        </tr>
+        <tr>
+          <td>Vehicle Emission Test Certificate</td>
+          <td>
+            <select id="docEmission"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </td>
+        </tr>
+        <tr>
+          <td>Revenue License</td>
+          <td>
+            <select id="docRevenue"><option value="">—</option><option>Yes</option><option>No</option></select>
+          </td>
+        </tr>
+      </table>
+      <p class="agree-small">This declaration affirms that all relevant documents required for the legal and administrative transfer of vehicle ownership have been duly submitted, subject to the indicated responses.</p>
+    </div>
+    <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
+  </main>
+  <script src="static/agreement.js?v=46"></script>
+</body>
+</html>

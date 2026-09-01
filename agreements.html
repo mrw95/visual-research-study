@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Saved Quotations</title>
+  <title>CarSwitch — Saved Invoices &amp; Agreements</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="static/quotation.css?v=47">
 </head>
@@ -14,20 +14,22 @@
     <header class="list-header">
       <div>
         <img class="list-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
-        <h1>Saved Quotations</h1>
-        <p class="list-sub" id="folder-hint">Prepared By name එකට අදාළ folder එකට save වෙනවා.</p>
+        <h1>Saved Invoices &amp; Agreements</h1>
+        <p class="list-sub" id="folder-hint">Save වෙන්නේ Invoice &amp; Agreement folder එකට.</p>
       </div>
       <div class="list-header-actions">
         <a class="quote-btn quote-btn-save" href="desk.html">Desk</a>
+        <a class="quote-btn quote-btn-ghost" href="quotations.html">Quotations</a>
         <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
-        <a class="quote-btn quote-btn-ghost" href="agreements.html">Agreements</a>
-        <a class="quote-btn quote-btn-save" href="quotation.html">New quotation</a>
+        <a class="quote-btn quote-btn-ghost" href="invoice.html">New invoice</a>
+        <a class="quote-btn quote-btn-ghost" href="preorder.html">New pre-order</a>
+        <a class="quote-btn quote-btn-save" href="agreement.html">New sales agreement</a>
       </div>
     </header>
 
     <section class="list-card">
       <label class="list-search-label" for="search">Search</label>
-      <input id="search" type="search" placeholder="Quotation No, customer, phone, model...">
+      <input id="search" type="search" placeholder="INV / SA / PO, customer, chassis, model...">
       <div class="staff-chips" id="staff-filters">
         <button type="button" class="staff-chip selected" data-person="">All</button>
         <button type="button" class="staff-chip" data-person="Nipun">Nipun</button>
@@ -38,9 +40,9 @@
       </div>
     </section>
 
-    <p class="list-count" id="summary">0 quotations</p>
-    <div id="list"></div>
+    <p class="list-count" id="summary">0 agreements</p>
+    <div id="agree-list"></div>
   </div>
-  <script src="static/quotation.js?v=44"></script>
+  <script src="static/agreement.js?v=46"></script>
 </body>
 </html>

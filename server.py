@@ -28,6 +28,7 @@ from urllib.parse import quote
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import quotation_store
+import agreement_store
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -172,9 +173,9 @@ def quote_login_page():
 
 @app.post("/quote-unlock")
 def quote_unlock():
-    nxt = str(request.form.get("next") or "/quotation")
+    nxt = str(request.form.get("next") or "/desk")
     if not nxt.startswith("/"):
-        nxt = "/quotation"
+        nxt = "/desk"
     pin = str(request.form.get("pin") or "").strip()
     if pin != QUOTE_PIN:
         return redirect("/quote-login?err=1&next=" + nxt)
@@ -222,9 +223,9 @@ def _listen_port():
 
 
 def _safe_quote_path(raw):
-    path = str(raw or "quotation.html").strip().lstrip("/")
+    path = str(raw or "desk.html").strip().lstrip("/")
     if (not path) or "://" in path or path.startswith("//") or ".." in path:
-        return "quotation.html"
+        return "desk.html"
     return path
 
 
@@ -242,7 +243,7 @@ def _public_quote_base():
 VERCEL_QUOTE_URL = "https://visual-research-study.vercel.app"
 
 
-def _access_info(path="quotation.html"):
+def _access_info(path="desk.html"):
     path = _safe_quote_path(path)
     port = _listen_port()
     lan = [f"http://{ip}:{port}" for ip in _lan_ips()]
@@ -262,7 +263,7 @@ def _access_info(path="quotation.html"):
 
 @app.get("/api/access-urls")
 def api_access_urls():
-    info = _access_info(request.args.get("path") or "quotation.html")
+    info = _access_info(request.args.get("path") or "desk.html")
     info["ok"] = True
     info["pin"] = QUOTE_PIN
     return jsonify(info)
@@ -273,7 +274,7 @@ def api_access_urls():
 def home_link_page():
     if _public_host():
         return jsonify({"error": "Not found"}), 404
-    info = _access_info(request.args.get("path") or "quotation.html")
+    info = _access_info(request.args.get("path") or "desk.html")
     links = "".join(
         f"<a class='phone-url' href='{html.escape(url, quote=True)}'>{html.escape(url)}</a>"
         for url in info["urls"]
@@ -313,6 +314,36 @@ def quotation_page():
 @app.get("/quotations.html")
 def quotations_page():
     return send_from_directory(ROOT, "quotations.html")
+
+
+@app.get("/agreement")
+@app.get("/agreement.html")
+def agreement_page():
+    return send_from_directory(ROOT, "agreement.html")
+
+
+@app.get("/agreements")
+@app.get("/agreements.html")
+def agreements_page():
+    return send_from_directory(ROOT, "agreements.html")
+
+
+@app.get("/preorder")
+@app.get("/preorder.html")
+def preorder_page():
+    return send_from_directory(ROOT, "preorder.html")
+
+
+@app.get("/invoice")
+@app.get("/invoice.html")
+def invoice_page():
+    return send_from_directory(ROOT, "invoice.html")
+
+
+@app.get("/desk")
+@app.get("/desk.html")
+def desk_page():
+    return send_from_directory(ROOT, "desk.html")
 
 
 def quotes_dir():
@@ -387,6 +418,84 @@ def api_quotation():
         "usingNetwork": quotation_store.using_network_share(root),
         "item": saved
     })
+
+
+def agreements_dir():
+    root = agreement_store.agreement_root(ROOT)
+    agreement_store.ensure_layout(root, IMAGES_DIR)
+    return root
+
+
+@app.get("/api/agreements")
+def api_agreements():
+    root = agreements_dir()
+    person = request.args.get("person", "")
+    return jsonify({
+        "ok": True,
+        "root": str(root),
+        "network": str(agreement_store.NETWORK_AGREEMENTS),
+        "usingNetwork": quotation_store.using_network_share(root),
+        "staff": agreement_store.STAFF,
+        "items": agreement_store.list_agreements(root, person),
+    })
+
+
+@app.route("/api/agreement", methods=["GET", "POST", "DELETE", "OPTIONS"])
+def api_agreement():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+    root = agreements_dir()
+    if request.method == "GET":
+        qid = request.args.get("id") or request.args.get("ref") or ""
+        item = agreement_store.find_agreement(root, qid)
+        if not item:
+            return jsonify({"ok": False, "error": "Not found"}), 404
+        return jsonify({"ok": True, "root": str(root), "item": item})
+    if request.method == "DELETE":
+        qid = request.args.get("id") or (request.get_json(silent=True) or {}).get("id") or ""
+        if not agreement_store.delete_agreement(root, qid):
+            return jsonify({"ok": False, "error": "Not found"}), 404
+        return jsonify({"ok": True})
+    data = request.get_json(silent=True) or {}
+    try:
+        saved = agreement_store.save_agreement(root, data, IMAGES_DIR)
+    except ValueError as err:
+        return jsonify({"ok": False, "error": str(err)}), 400
+    except Exception as err:
+        return jsonify({"ok": False, "error": str(err)}), 500
+    return jsonify({
+        "ok": True,
+        "root": str(root),
+        "usingNetwork": quotation_store.using_network_share(root),
+        "item": saved
+    })
+
+
+@app.post("/api/agreement-pdf")
+def api_agreement_pdf():
+    data = request.get_json(silent=True) or {}
+    person = quotation_store.staff_name(data.get("preparedByName") or data.get("person"))
+    if not person:
+        return jsonify({"ok": False, "error": "Seller name select කරන්න"}), 400
+    data = dict(data)
+    data["preparedByName"] = person
+    data["designation"] = quotation_store.STAFF_ROLES[person]
+    qid = agreement_store.safe_agreement_id(data.get("id")) or "agreement"
+    data["id"] = qid
+    pdf_path = Path(tempfile.gettempdir()) / f"{qid}-download.pdf"
+    try:
+        agreement_store.write_agreement_pdf(pdf_path, data, agreements_dir(), IMAGES_DIR)
+    except Exception as err:
+        return jsonify({"ok": False, "error": str(err)}), 500
+    if not pdf_path.exists() or pdf_path.stat().st_size < 800:
+        return jsonify({"ok": False, "error": "PDF හදන්න බැරි වුණා"}), 500
+    return send_file(
+        pdf_path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"{qid}.pdf",
+        max_age=0,
+    )
 
 
 @app.post("/api/quote-pdf")
@@ -518,7 +627,7 @@ def _save_public_url(url: str) -> None:
         HOME_LINK_FILE.write_text(PUBLIC_QUOTE_URL, encoding="utf-8")
     except OSError:
         pass
-    quote = PUBLIC_QUOTE_URL + "/quotation"
+    quote = PUBLIC_QUOTE_URL + "/desk"
     print()
     print("  HOME / LAPTOP (any browser tab):")
     print(f"  {quote}")
@@ -588,12 +697,17 @@ def _start_public_tunnel(port: int) -> None:
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print(f"Visual Research Study -> http://localhost:{port}")
-    print(f"This PC tab        -> http://localhost:{port}/quotation")
+    print(f"This PC tab        -> http://localhost:{port}/desk")
+    print(f"Quotation          -> http://localhost:{port}/quotation")
+    print(f"Sales agreement    -> http://localhost:{port}/agreement")
+    print(f"Pre-order agreement -> http://localhost:{port}/preorder")
+    print(f"Invoice            -> http://localhost:{port}/invoice")
     print("PHONE / TAB (same WiFi) - localhost phone eken open WENNE NA:")
     for ip in _lan_ips():
-        print(f"  http://{ip}:{port}/quotation.html")
+        print(f"  http://{ip}:{port}/desk")
     print(f"  QR / copy: http://localhost:{port}/phone-link")
     print(f"Quotation folders  -> {quotes_dir()}")
+    print(f"Agreement folders  -> {agreements_dir()}")
     print("Home / mobile data -> tunnel link eka me window eke tikak gane penawa")
     _open_lan_port(port)
     threading.Thread(target=_start_public_tunnel, args=(port,), daemon=True).start()

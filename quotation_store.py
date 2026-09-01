@@ -396,7 +396,7 @@ def _find_browser() -> str:
     return ""
 
 
-def _browser_pdf(html_text: str, pdf_path: Path) -> None:
+def _browser_pdf(html_text: str, pdf_path: Path, keep_first_page: bool = True) -> None:
     browser = _find_browser()
     if not browser:
         raise RuntimeError("Edge/Chrome හොයා ගන්න බැරි වුණා")
@@ -433,7 +433,8 @@ def _browser_pdf(html_text: str, pdf_path: Path) -> None:
             )
             if out_pdf.exists() and out_pdf.stat().st_size >= 1000:
                 _install_pdf(out_pdf, pdf_path)
-                _keep_first_page(pdf_path)
+                if keep_first_page:
+                    _keep_first_page(pdf_path)
                 return
             last_err = (result.stderr or result.stdout or last_err).strip()[:300]
         raise RuntimeError(last_err)

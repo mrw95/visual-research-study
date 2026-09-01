@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CarSwitch — Quotations login</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="static/quotation.css?v=43">
+  <link rel="stylesheet" href="static/quotation.css?v=47">
 </head>
 <body class="quote-body login-body">
   <form class="login-card" method="post" action="/quote-unlock">
     <img class="list-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
-    <h1>Quotations</h1>
+    <h1>CarSwitch Desk</h1>
     <p>ගෙදර / laptop එකෙන් open කරනවා නම් staff PIN එක දාන්න.</p>
-    <input type="hidden" name="next" id="next" value="/quotation">
+    <input type="hidden" name="next" id="next" value="/desk">
     <label for="pin">Staff PIN</label>
     <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" autofocus>
     <p class="login-error" id="login-error" hidden>PIN එක වැරදියි.</p>
@@ -20,7 +20,7 @@
   </form>
   <script>
     const params = new URLSearchParams(location.search);
-    document.getElementById('next').value = params.get('next') || '/quotation';
+    document.getElementById('next').value = params.get('next') || '/desk';
     if (params.get('err') === '1') document.getElementById('login-error').hidden = false;
   </script>
 </body>

@@ -977,3 +977,394 @@ input[readonly] {
   color: #9b1c1c !important;
   font-weight: 600;
 }
+
+.agree-sheet {
+  overflow: visible;
+}
+
+.agree-sheet .quote-dochead h2 {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 1.7rem;
+}
+
+.agree-intro,
+.agree-note,
+.agree-confirm,
+.agree-small {
+  margin: 8px 0;
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.agree-bar,
+.agree-bar-cell {
+  background: #ec7c30;
+  color: #111;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.agree-bar {
+  margin: 10px 0 0;
+  padding: 6px 10px;
+  border: 1px solid #111;
+}
+
+.agree-kv,
+.agree-pay,
+.agree-docs {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 8px;
+}
+
+.agree-kv th,
+.agree-kv td,
+.agree-pay th,
+.agree-pay td,
+.agree-docs td {
+  border: 1px solid #111;
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+
+.agree-kv th {
+  width: 32%;
+  text-align: left;
+  font-weight: 700;
+  background: #fff;
+}
+
+.agree-kv td:nth-child(2) {
+  width: 18px;
+  text-align: center;
+}
+
+.agree-triple {
+  display: flex;
+  gap: 8px;
+}
+
+.agree-triple input {
+  flex: 1;
+  min-width: 0;
+}
+
+.agree-kv input,
+.agree-pay input,
+.agree-docs select {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.agree-pay thead th {
+  text-align: left;
+}
+
+.agree-pay .amt,
+.agree-pay .amt input {
+  width: 22%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.agree-pay tbody th {
+  text-align: left;
+  font-weight: 600;
+  background: #fff;
+}
+
+.agree-total th,
+.agree-total td,
+.agree-total input {
+  font-weight: 800;
+}
+
+.agree-signs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 16px 0 20px;
+}
+
+.agree-signs select,
+.agree-signs #designation {
+  width: 100%;
+  margin: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font: inherit;
+}
+
+.agree-annex-title {
+  margin: 16px 0 6px;
+  color: #111;
+  border-bottom: 1px solid #111;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.05rem;
+}
+
+.agree-warranty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.92rem;
+}
+
+.agree-warranty input[type="text"] {
+  width: 64px;
+  border: 0;
+  border-bottom: 1px solid #111;
+  text-align: center;
+}
+
+.agree-docs td:last-child {
+  width: 90px;
+}
+
+.inv-title {
+  color: #084083;
+  letter-spacing: 0.12em;
+  font-size: 2rem;
+}
+
+.inv-dochead {
+  align-items: flex-end;
+}
+
+.inv-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 12px 0 16px;
+}
+
+.inv-label {
+  margin: 0 0 6px;
+  color: #535353;
+  font-size: 1.05rem;
+  border: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.inv-from {
+  margin: 0;
+  line-height: 1.45;
+  color: #333;
+}
+
+.inv-split textarea {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font: inherit;
+  resize: vertical;
+  margin-bottom: 6px;
+}
+
+.inv-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.inv-items th,
+.inv-items td {
+  border: 1px solid #111;
+  padding: 6px 8px;
+}
+
+.inv-items thead th {
+  background: #084083;
+  color: #fff;
+  text-align: left;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.inv-items .qty,
+.inv-items .qty input {
+  width: 64px;
+  text-align: center;
+}
+
+.inv-items .amt,
+.inv-items .amt input {
+  width: 22%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-items input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.inv-row-act {
+  width: 28px;
+  border: 0;
+  text-align: center;
+}
+
+.inv-remove {
+  border: 0;
+  background: transparent;
+  color: #9b1c1c;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.inv-add-wrap {
+  margin: 0 0 12px;
+}
+
+.inv-section {
+  margin: 16px 0 6px;
+  color: #6a6a6a;
+  border-bottom: 1px solid #ddd;
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-size: 1rem;
+}
+
+.inv-terms {
+  margin: 6px 0 14px 22px;
+  color: #6a6a6a;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.inv-closing {
+  margin: 18px 0 8px;
+}
+
+.inv-sign {
+  grid-template-columns: 1fr;
+  max-width: 320px;
+}
+
+@media print {
+  .agree-bar,
+  .agree-bar-cell {
+    background: #ec7c30 !important;
+  }
+  .agree-signs {
+    max-width: none;
+  }
+  .inv-items thead th {
+    background: #084083 !important;
+    color: #fff !important;
+  }
+  .inv-row-act {
+    display: none;
+  }
+}
+
+.desk-body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 420px at 8% -8%, rgba(255, 101, 5, 0.2), transparent 52%),
+    radial-gradient(900px 480px at 100% 0%, rgba(8, 64, 131, 0.16), transparent 48%),
+    var(--bg);
+}
+
+.desk-page {
+  width: min(880px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 36px 0 56px;
+}
+
+.desk-hero {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.desk-logo {
+  margin: 0 auto 12px;
+}
+
+.desk-hero h1 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 2rem;
+}
+
+.desk-hero p {
+  margin: 8px auto 0;
+  max-width: 34rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.desk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.desk-card {
+  display: block;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px 20px 20px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 14px 32px rgba(11, 37, 69, 0.08);
+  min-height: 132px;
+}
+
+.desk-card:hover,
+.desk-card:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(11, 37, 69, 0.14);
+  border-color: #b9cbe0;
+}
+
+.desk-kicker {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.desk-card h2 {
+  margin: 8px 0 6px;
+  color: var(--navy);
+  font-size: 1.28rem;
+}
+
+.desk-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.desk-card.is-list {
+  background: #f6f9fd;
+}
+
+.quote-tool-home {
+  background: var(--gold);
+  color: #fff;
+}
+
+@media (max-width: 680px) {
+  .desk-grid {
+    grid-template-columns: 1fr;
+  }
+}
