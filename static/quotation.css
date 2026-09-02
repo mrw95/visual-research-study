@@ -1301,6 +1301,24 @@ input[readonly] {
   font-size: 2rem;
 }
 
+.desk-phone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin: 14px auto 0;
+  max-width: 40rem;
+  color: var(--ink);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.desk-phone a {
+  color: var(--navy);
+  font-weight: 700;
+}
+
 .desk-hero p {
   margin: 8px auto 0;
   max-width: 34rem;

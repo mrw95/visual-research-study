@@ -6,46 +6,64 @@
   <title>CarSwitch — Desk</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=48">
+  <link rel="stylesheet" href="static/quotation.css?v=50">
 </head>
 <body class="quote-body desk-body">
   <div class="desk-page">
     <header class="desk-hero">
       <img class="list-logo desk-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
       <h1>CarSwitch Desk</h1>
+      <p class="desk-phone">
+        <strong>Phone / data:</strong>
+        <a href="https://visual-research-study.vercel.app/desk">https://visual-research-study.vercel.app/desk</a>
+        <button type="button" class="quote-btn quote-btn-save" id="copy-home">Copy</button>
+      </p>
     </header>
 
     <section class="desk-grid">
-      <a class="desk-card" href="quotation.html">
+      <a class="desk-card" href="/quotation">
         <span class="desk-kicker">Quote</span>
         <h2>Quotation</h2>
         <p>Pre-order vehicle quotation හදන්න.</p>
       </a>
-      <a class="desk-card" href="invoice.html">
+      <a class="desk-card" href="/invoice">
         <span class="desk-kicker">Bill</span>
         <h2>Invoice</h2>
         <p>Customer invoice හදන්න.</p>
       </a>
-      <a class="desk-card" href="agreement.html">
+      <a class="desk-card" href="/agreement">
         <span class="desk-kicker">Sales</span>
         <h2>Sales Agreement</h2>
         <p>Local sales agreement fill කරන්න.</p>
       </a>
-      <a class="desk-card" href="preorder.html">
+      <a class="desk-card" href="/preorder">
         <span class="desk-kicker">Import</span>
         <h2>Pre-Order Agreement</h2>
         <p>Japan / import pre-order agreement.</p>
       </a>
-      <a class="desk-card is-list" href="quotations.html">
+      <a class="desk-card is-list" href="/quotations">
         <span class="desk-kicker">Saved</span>
         <h2>Saved Quotations</h2>
-        <p>CS numbers, staff folders.</p>
       </a>
-      <a class="desk-card is-list" href="agreements.html">
+      <a class="desk-card is-list" href="/agreements">
         <span class="desk-kicker">Saved</span>
         <h2>Invoices &amp; Agreements</h2>
       </a>
     </section>
   </div>
+  <script>
+    const HOME = 'https://visual-research-study.vercel.app/desk';
+    const btn = document.getElementById('copy-home');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(HOME);
+          btn.textContent = 'Copied';
+        } catch {
+          btn.textContent = 'Copy failed';
+        }
+      });
+    }
+  </script>
 </body>
 </html>

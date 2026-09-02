@@ -585,15 +585,21 @@ function initList() {
   refresh();
 }
 
+function homeCloudLink() {
+  const name = (location.pathname.split('/').pop() || 'preorder.html').replace(/\.html$/i, '') || 'preorder';
+  return 'https://visual-research-study.vercel.app/' + name + location.search;
+}
+
 function initPhoneShare() {
   const btn = val('phone-btn');
   if (!btn) return;
   btn.addEventListener('click', async () => {
+    const url = isHomeCloud() ? location.href.split('#')[0] : homeCloudLink();
     try {
-      await navigator.clipboard.writeText(location.href);
-      showToast('Link copied', '');
+      await navigator.clipboard.writeText(url);
+      showToast('Phone data link copied', '');
     } catch {
-      showToast(location.href, '');
+      showToast(url, '');
     }
   });
 }
