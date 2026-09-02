@@ -62,6 +62,23 @@ function formatMoney(raw) {
   return formatMoneyValue(typeof raw === 'number' ? raw : parseNum(raw));
 }
 
+function formatMoneyTyping(raw) {
+  const text = String(raw ?? '');
+  if (!text.trim()) return '';
+  const neg = text.trim().charAt(0) === '-';
+  const cleaned = text.replace(/[^\d.]/g, '');
+  if (!cleaned) return neg ? '-' : '';
+  const dot = cleaned.indexOf('.');
+  const hasDot = dot !== -1;
+  const intRaw = (hasDot ? cleaned.slice(0, dot) : cleaned).replace(/\D/g, '');
+  const frac = hasDot ? cleaned.slice(dot + 1).replace(/\D/g, '').slice(0, 2) : '';
+  const intPart = intRaw.replace(/^0+(?=\d)/, '') || '0';
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let out = (neg ? '-' : '') + grouped;
+  if (hasDot) out += '.' + frac;
+  return out;
+}
+
 function isHomeCloud() {
   return location.hostname.endsWith('vercel.app');
 }
@@ -432,8 +449,16 @@ function initEditor() {
     if (!input || !row) return;
     const i = Number(row.getAttribute('data-i'));
     if (!lines[i]) return;
-    lines[i][input.getAttribute('data-field')] = input.value;
-    if (input.getAttribute('data-field') !== 'description') updateTotals();
+    const field = input.getAttribute('data-field');
+    if (field === 'price') {
+      const shown = formatMoneyTyping(input.value);
+      if (input.value !== shown) input.value = shown;
+      lines[i].price = shown;
+      updateTotals();
+      return;
+    }
+    lines[i][field] = input.value;
+    if (field !== 'description') updateTotals();
   });
   val('invoice-lines').addEventListener('blur', (e) => {
     const input = e.target.closest('[data-field]');

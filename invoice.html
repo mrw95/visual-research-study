@@ -6,7 +6,13 @@
   <title>CarSwitch — Invoice</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=47">
+  <link rel="stylesheet" href="static/quotation.css?v=53">
+  <style>
+    .inv-items td.amt,
+    .inv-items th.amt { width: 12rem !important; min-width: 12rem !important; }
+    .inv-items td.amt input,
+    .inv-items #totalAmount { width: 100% !important; min-width: 100% !important; box-sizing: border-box !important; }
+  </style>
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
@@ -57,7 +63,15 @@
         </div>
       </div>
 
+      <div class="inv-items-wrap">
       <table class="inv-items">
+        <colgroup>
+          <col class="inv-col-desc">
+          <col class="inv-col-qty">
+          <col class="inv-col-amt">
+          <col class="inv-col-amt">
+          <col class="inv-col-act">
+        </colgroup>
         <thead>
           <tr>
             <th>Description</th>
@@ -76,6 +90,7 @@
           </tr>
         </tfoot>
       </table>
+      </div>
       <p class="no-print inv-add-wrap">
         <button type="button" class="quote-btn quote-btn-ghost" id="add-line">Add line</button>
       </p>
@@ -123,6 +138,6 @@
     </div>
     <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
   </main>
-  <script src="static/invoice.js?v=50"></script>
+  <script src="static/invoice.js?v=51"></script>
 </body>
 </html>

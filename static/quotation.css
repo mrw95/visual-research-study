@@ -1066,11 +1066,18 @@ input[readonly] {
   text-align: left;
 }
 
-.agree-pay .amt,
-.agree-pay .amt input {
+.agree-pay .amt {
   width: 22%;
+  min-width: 7.5rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.agree-pay .amt input {
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
 }
 
 .agree-pay tbody th {
@@ -1172,16 +1179,29 @@ input[readonly] {
   margin-bottom: 6px;
 }
 
+.inv-items-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .inv-items {
   width: 100%;
+  min-width: 640px;
+  table-layout: auto;
   border-collapse: collapse;
   margin: 8px 0;
 }
 
+.inv-items .inv-col-desc { width: auto; }
+.inv-items .inv-col-qty { width: 58px; }
+.inv-items .inv-col-amt { width: 12rem; }
+.inv-items .inv-col-act { width: 28px; }
+
 .inv-items th,
 .inv-items td {
   border: 1px solid #111;
-  padding: 6px 8px;
+  padding: 8px 10px;
+  overflow: visible;
 }
 
 .inv-items thead th {
@@ -1192,24 +1212,56 @@ input[readonly] {
   print-color-adjust: exact;
 }
 
-.inv-items .qty,
-.inv-items .qty input {
-  width: 64px;
+.inv-items .qty {
+  width: 58px;
   text-align: center;
 }
 
-.inv-items .amt,
-.inv-items .amt input {
-  width: 22%;
+.inv-items td.amt,
+.inv-items th.amt {
+  width: 12rem;
+  min-width: 12rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .inv-items input {
+  display: block;
   width: 100%;
+  min-height: 2em;
   border: 0;
-  background: transparent;
-  font: inherit;
+  background: #fff;
+  color: #14202e;
+  font: 700 1rem/1.4 "Segoe UI", Arial, sans-serif;
+  padding: 4px 6px;
+}
+
+.inv-items .qty input {
+  width: 100%;
+  text-align: center;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.inv-items td.amt input,
+.inv-items #totalAmount {
+  width: 100%;
+  min-width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  padding: 4px 8px;
+}
+
+.inv-items input[readonly] {
+  color: #084083;
+}
+
+@media screen and (max-width: 900px) {
+  .inv-items input {
+    min-height: 2.2em;
+    font-size: 16px;
+  }
 }
 
 .inv-row-act {
@@ -1267,8 +1319,16 @@ input[readonly] {
     background: #084083 !important;
     color: #fff !important;
   }
-  .inv-row-act {
+  .inv-row-act,
+  .inv-items .inv-col-act {
     display: none;
+    width: 0;
+  }
+  .inv-items .inv-col-amt,
+  .inv-items td.amt,
+  .inv-items th.amt {
+    width: 28%;
+    min-width: 0;
   }
 }
 
