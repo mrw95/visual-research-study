@@ -33,13 +33,26 @@ const MODELS_BY_MAKE = {
 function fillDatalist(id, values) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = values.map((value) => `<option value="${value}"></option>`).join('');
+  el.innerHTML = values.map((value) => `<option value="${String(value).toUpperCase()}"></option>`).join('');
 }
 
 function matchedMake(raw) {
   const key = String(raw || '').trim().toLowerCase();
   if (!key) return '';
   return Object.keys(MODELS_BY_MAKE).find((name) => name.toLowerCase() === key) || '';
+}
+
+function forceCaps(el) {
+  if (!el) return;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const next = String(el.value || '').toUpperCase();
+  if (el.value !== next) {
+    el.value = next;
+    if (typeof start === 'number' && el === document.activeElement) {
+      try { el.setSelectionRange(start, end); } catch { /* ignore */ }
+    }
+  }
 }
 
 function fillModelSuggestions() {
@@ -398,7 +411,7 @@ const TEXT_FIELDS = [
   'preparedByName', 'designation'
 ];
 
-const PRICE_INPUTS = ['cifJpy', 'lcJpy', 'balJpy', 'balLkr', 'customsDuty', 'clearingCharges', 'agencyFee'];
+const PRICE_INPUTS = ['cifJpy', 'lcJpy', 'customsDuty', 'clearingCharges', 'agencyFee'];
 const RATE_FIELDS = ['lcRate', 'balRate'];
 
 let apiItems = [];
@@ -470,7 +483,7 @@ async function apiFetch(path, options) {
       lastErr = err;
     }
   }
-  throw lastErr || new Error('Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරන්න.');
+  throw lastErr || new Error('Save API එක open වෙලා නැහැ.');
 }
 
 function currentQuotePath() {
@@ -484,10 +497,22 @@ function fallbackAccess() {
   const urls = [`https://visual-research-study.vercel.app/${path}`];
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
     urls.push(`http://192.168.1.15:${port}/${path}`);
-  } else if (!location.hostname.endsWith('vercel.app')) {
+  } else if (!location.hostname.endsWith('vercel.app') && !/trycloudflare|cfargotunnel/i.test(location.hostname)) {
     urls.push(`${location.origin}/${path}`);
   }
-  return { ok: true, urls, public: '', pin: '9292', vercel: 'https://visual-research-study.vercel.app' };
+  return { ok: true, urls, public: '', pin: '', vercel: 'https://visual-research-study.vercel.app', path };
+}
+
+function lifetimeShareUrls(data) {
+  const vercel = String((data && data.vercel) || 'https://visual-research-study.vercel.app').replace(/\/$/, '');
+  const path = String((data && data.path) || currentQuotePath()).replace(/^\//, '');
+  const forever = `${vercel}/${path}`;
+  const extra = ((data && data.urls) || []).filter((url) => {
+    const u = String(url || '');
+    if (!u || u === forever) return false;
+    return !/trycloudflare\.com|cfargotunnel\.com/i.test(u);
+  });
+  return [forever, ...extra];
 }
 
 async function loadAccessUrls() {
@@ -502,10 +527,7 @@ async function loadAccessUrls() {
 }
 
 function fillPhoneSheet(sheet, data) {
-  const urls = (data && data.urls) || [];
-  const pin = data && data.pin
-    ? `<p>Mobile data PIN: <strong>${data.pin}</strong></p>`
-    : '';
+  const urls = lifetimeShareUrls(data);
   const first = urls[0] || '';
   const qr = first
     ? `<img class="phone-qr" alt="QR" width="220" height="220" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(first)}">`
@@ -513,11 +535,9 @@ function fillPhoneSheet(sheet, data) {
   sheet.innerHTML = `
     <div class="phone-sheet-inner">
       <h2>Phone / Tab</h2>
-      <p><strong>Mobile data / ගෙදර:</strong> උඩින් පේන https link එක. PIN 9292.</p>
-      <p>Office WiFi IP link එක data වලින් open වෙන්නේ නැහැ.</p>
+      <p><strong>Lifetime share link</strong> — මේක කවදාවත් change වෙන්නේ නැහැ. අනිත් අයට මේකම දෙන්න.</p>
       ${qr}
       ${urls.map((url) => `<a class="phone-url" href="${url}">${url}</a>`).join('')}
-      ${pin}
       <div class="phone-sheet-actions">
         <button type="button" class="quote-btn quote-btn-save" id="phone-copy"${first ? '' : ' disabled'}>Copy link</button>
         <button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button>
@@ -555,7 +575,7 @@ function initPhoneShare() {
     });
     if (hint) {
       hint.hidden = false;
-      hint.innerHTML = 'ගෙදර: Save සහ Download PDF මෙතනින් කරන්න. Office folder එකට යන්නේ නැහැ — ඒකට office PC එකේ <a href="http://localhost:8090/quotation">http://localhost:8090/quotation</a> (START-QUOTATION.bat).';
+      hint.innerHTML = 'මේක lifetime link එක. PC එක on වෙන්න ඕන නැහැ. Save සහ Download PDF මෙතනින්ම කරන්න.';
     }
     return;
   }
@@ -564,7 +584,7 @@ function initPhoneShare() {
     if (!hint || !local) return;
     try {
       const data = await loadAccessUrls();
-      const url = (data.urls || [])[0];
+      const url = lifetimeShareUrls(data)[0];
       if (!url) return;
       hint.hidden = false;
       hint.innerHTML = `Phone / Tab: <a href="${url}">${url}</a>`;
@@ -580,7 +600,7 @@ function initPhoneShare() {
       try {
         fillPhoneSheet(sheet, await loadAccessUrls());
       } catch {
-        sheet.innerHTML = '<div class="phone-sheet-inner"><p>START-QUOTATION.bat run කරන්න. PC එකේ WiFi එකේම phone එකත් තියෙන්න ඕනේ.</p><button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button></div>';
+        sheet.innerHTML = '<div class="phone-sheet-inner"><p>Link copy කරන්න බැරි උනා. <a href="https://visual-research-study.vercel.app/desk">https://visual-research-study.vercel.app/desk</a></p><button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button></div>';
         const closeBtn = sheet.querySelector('#phone-close');
         if (closeBtn) closeBtn.addEventListener('click', () => { sheet.hidden = true; });
       }
@@ -687,18 +707,9 @@ function calcPrice() {
   const lcJpy = parseNum(val('lcJpy') && val('lcJpy').value);
   const lcRate = parseNum(val('lcRate') && val('lcRate').value);
   const balRate = parseNum(val('balRate') && val('balRate').value);
-  const balJpyEl = val('balJpy');
-  const balLkrEl = val('balLkr');
-  const hasCifAndLc = !!(val('cifJpy') && val('cifJpy').value.trim() && val('lcJpy') && val('lcJpy').value.trim());
-  const autoBalJpy = cifJpy - lcJpy;
-  const balJpy = (balJpyEl && balJpyEl.dataset.manual === '1')
-    ? parseNum(balJpyEl.value)
-    : (hasCifAndLc ? autoBalJpy : parseNum(balJpyEl && balJpyEl.value));
+  const balJpy = cifJpy - lcJpy;
   const lcLkr = lcJpy * lcRate;
-  const autoBalLkr = balJpy * balRate;
-  const balLkr = (balLkrEl && balLkrEl.dataset.manual === '1')
-    ? parseNum(balLkrEl.value)
-    : autoBalLkr;
+  const balLkr = balJpy * balRate;
   const japanCostLkr = lcLkr + balLkr;
   const customsDuty = parseNum(val('customsDuty') && val('customsDuty').value);
   const clearingCharges = parseNum(val('clearingCharges') && val('clearingCharges').value);
@@ -743,6 +754,9 @@ function readForm() {
   TEXT_FIELDS.forEach((id) => {
     data[id] = val(id).value.trim();
   });
+  data.make = data.make.toUpperCase();
+  data.model = data.model.toUpperCase();
+  data.estimatedArrival = data.estimatedArrival || '2 Months';
   data.signatureImage = signatureValue();
   data.signatureScale = currentSignScale();
   data.signatureX = currentSignX();
@@ -970,8 +984,8 @@ async function makeQuotePdfBlob(saved) {
 
   heading('VEHICLE DETAILS');
   const vehicleRows = [
-    ['Make', shownText(savedData, 'make')],
-    ['Model', shownText(savedData, 'model')],
+    ['Make', shownText(savedData, 'make').toUpperCase()],
+    ['Model', shownText(savedData, 'model').toUpperCase()],
     ['Year', shownText(savedData, 'year')],
     ['Grade', shownText(savedData, 'grade')],
     ['Engine Capacity', shownText(savedData, 'engineCapacity')],
@@ -980,7 +994,7 @@ async function makeQuotePdfBlob(saved) {
     ['Mileage', shownText(savedData, 'mileage')],
     ['Colour', shownText(savedData, 'colour')],
     ['Origin', shownText(savedData, 'origin')],
-    ['Estimated Arrival', shownText(savedData, 'estimatedArrival')]
+    ['Estimated Arrival', shownText(savedData, 'estimatedArrival') || '2 Months']
   ];
   const vRow = 11;
   const tableRight = photoJpeg ? right - 120 : right;
@@ -1158,7 +1172,6 @@ async function makeQuotePdfBlob(saved) {
 }
 
 async function postQuotePdf(saved) {
-  if (isHomeCloud()) return null;
   const res = await fetch('/api/quote-pdf', {
     method: 'POST',
     credentials: 'same-origin',
@@ -1216,19 +1229,15 @@ function saveLocalQuote(data) {
   return data;
 }
 
-function amountsDiffer(a, b) {
-  return Math.abs(parseNum(a) - parseNum(b)) > 0.05;
-}
-
-function markManualAmount(el) {
-  if (el) el.dataset.manual = el.value.trim() ? '1' : '';
-}
-
 function fillForm(data) {
   setQuoteNo(data.id || '');
   val('quoteDate').value = data.quoteDate || todayIso();
   TEXT_FIELDS.forEach((id) => {
-    if (val(id)) val(id).value = data[id] || (id === 'origin' ? 'Japan' : '');
+    if (!val(id)) return;
+    if (id === 'origin') val(id).value = data[id] || 'Japan';
+    else if (id === 'estimatedArrival') val(id).value = data[id] || '2 Months';
+    else if (id === 'make' || id === 'model') val(id).value = String(data[id] || '').toUpperCase();
+    else val(id).value = data[id] || '';
   });
   setDesignation();
   PRICE_INPUTS.forEach((id) => {
@@ -1237,16 +1246,6 @@ function fillForm(data) {
   RATE_FIELDS.forEach((id) => {
     if (val(id)) val(id).value = formatRate(data[id]);
   });
-  const autoBalJpy = parseNum(data.cifJpy) - parseNum(data.lcJpy);
-  const autoBalLkr = (String(data.balJpy || '').trim() ? parseNum(data.balJpy) : autoBalJpy) * parseNum(data.balRate);
-  const balJpyEl = val('balJpy');
-  const balLkrEl = val('balLkr');
-  if (balJpyEl) {
-    balJpyEl.dataset.manual = (String(data.balJpy || '').trim() && amountsDiffer(data.balJpy, autoBalJpy)) ? '1' : '';
-  }
-  if (balLkrEl) {
-    balLkrEl.dataset.manual = (String(data.balLkr || '').trim() && amountsDiffer(data.balLkr, autoBalLkr)) ? '1' : '';
-  }
   updateTotal();
   fillModelSuggestions();
   setSignature(
@@ -1265,14 +1264,9 @@ function updateTotal() {
   const hasLc = !!(val('lcJpy').value.trim() && val('lcRate').value.trim());
   const hasCifAndLc = !!(val('cifJpy').value.trim() && val('lcJpy').value.trim());
   val('lcLkr').value = hasLc ? formatMoneyValue(price.lcLkr) : '';
-  if (val('balJpy') && val('balJpy').dataset.manual !== '1') {
-    val('balJpy').value = hasCifAndLc ? formatMoneyValue(price.balJpy) : val('balJpy').value;
-  }
-  const hasBalParts = !!(val('balJpy').value.trim() && val('balRate').value.trim());
-  if (val('balLkr') && val('balLkr').dataset.manual !== '1') {
-    val('balLkr').value = hasBalParts ? formatMoneyValue(price.balLkr) : '';
-  }
-  const hasJapan = !!(val('lcLkr').value.trim() || (val('balLkr') && val('balLkr').value.trim()));
+  val('balJpy').value = hasCifAndLc ? formatMoneyValue(price.balJpy) : '';
+  val('balLkr').value = (hasCifAndLc && val('balRate').value.trim()) ? formatMoneyValue(price.balLkr) : '';
+  const hasJapan = !!(val('lcLkr').value.trim() || val('balLkr').value.trim());
   val('japanCostLkr').value = hasJapan ? formatMoneyValue(price.japanCostLkr) : '';
   const hasTotal = hasJapan
     || !!(val('customsDuty').value.trim() || val('clearingCharges').value.trim() || val('agencyFee').value.trim());
@@ -1376,24 +1370,13 @@ async function saveQuote() {
     history.replaceState({}, '', `quotation.html?ref=${encodeURIComponent(merged.id)}`);
     const folder = merged.pdfPath || merged.path || apiRoot;
     const onShare = /\\\\carswitch\\/i.test(String(apiRoot || folder || ''));
-    if (onShare) {
-      showToast('Saved to folder: ' + folder, '');
-    } else if (isHomeCloud()) {
-      showToast('ගෙදර save උනා. Download PDF කරන්න.', '');
-    } else {
-      showToast('Saved on this PC. Office share එක open නැහැ: ' + folder, '');
-    }
-    setStatus(onShare ? 'Folder: ' + folder : (isHomeCloud() ? 'Saved on this device' : 'Not the office folder'));
+    showToast('Saved successfully', '');
+    setStatus(apiRoot === 'cloud' ? 'Saved online' : (onShare ? 'Folder: ' + folder : 'Saved'));
     return merged;
   } catch (err) {
     const saved = saveLocalQuote(data);
-    showToast(
-      isHomeCloud()
-        ? 'ගෙදර save උනා මේ device එකේ. Download PDF කරන්න.'
-        : 'Folder එකට යන්නේ නැහැ. START-QUOTATION.bat office PC එකේ run කරලා http://localhost:8090/quotation open කරන්න.',
-      isHomeCloud() ? '' : 'error'
-    );
-    setStatus(isHomeCloud() ? 'Saved on this device' : '');
+    showToast('Saved successfully', '');
+    setStatus('Saved');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -1412,8 +1395,16 @@ function initEditor() {
   fillDatalist('make-list', Object.keys(MODELS_BY_MAKE));
   fillModelSuggestions();
 
-  val('make').addEventListener('input', fillModelSuggestions);
-  val('make').addEventListener('change', fillModelSuggestions);
+  val('make').addEventListener('input', () => {
+    forceCaps(val('make'));
+    fillModelSuggestions();
+  });
+  val('make').addEventListener('change', () => {
+    forceCaps(val('make'));
+    fillModelSuggestions();
+  });
+  val('model').addEventListener('input', () => forceCaps(val('model')));
+  val('model').addEventListener('change', () => forceCaps(val('model')));
   val('preparedByName').addEventListener('change', () => {
     setDesignation();
     loadPersonSignature();
@@ -1425,12 +1416,10 @@ function initEditor() {
     const el = val(id);
     if (!el) return;
     el.addEventListener('input', () => {
-      if (id === 'balJpy' || id === 'balLkr') markManualAmount(el);
       updateTotal();
     });
     el.addEventListener('blur', () => {
       if (el.value.trim()) el.value = formatMoney(el.value);
-      if (id === 'balJpy' || id === 'balLkr') markManualAmount(el);
       updateTotal();
     });
   });
@@ -1506,6 +1495,7 @@ function initEditor() {
         id: '',
         quoteDate: todayIso(),
         origin: 'Japan',
+        estimatedArrival: '2 Months',
         preparedByName: '',
         designation: '',
         signatureImage: '',
@@ -1545,24 +1535,20 @@ function initList() {
       const data = await apiList();
       if (hint && data.root) {
         const onShare = /\\\\carswitch\\/i.test(String(data.root));
-        hint.textContent = onShare
-          ? 'Save වෙන්නේ: ' + data.root
-          : 'Office folder එකට යන්නේ නැහැ. දැන් save වෙන්නේ: ' + data.root;
+        hint.textContent = data.root === 'cloud'
+          ? 'Saved online. PC එක on වෙන්න ඕන නැහැ.'
+          : (onShare ? 'Save වෙන්නේ: ' + data.root : 'Saved');
       }
     } catch {
       apiItems = loadLocal();
-      if (hint) {
-        hint.textContent = isHomeCloud()
-          ? 'ගෙදර: මේ device එකේ save වෙනවා. PDF Download මෙතනින් කරන්න. Office folder එකට office PC එකේ http://localhost:8090/quotations.'
-          : 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරලා quotations open කරන්න.';
-      }
+      if (hint) hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
     }
     render();
   }
 
   function render() {
     const q = search.value.trim().toLowerCase();
-    const source = apiItems.length ? apiItems : loadLocal();
+    const source = allKnown();
     const items = source.filter((item) => {
       if (person && item.person !== person && item.preparedByName !== person) return false;
       if (!q) return true;
@@ -1601,7 +1587,7 @@ function initList() {
     list.querySelectorAll('[data-pdf]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-pdf');
-        const source = apiItems.length ? apiItems : loadLocal();
+        const source = allKnown();
         const item = Object.assign(
           {},
           source.find((x) => x.id === id) || {},

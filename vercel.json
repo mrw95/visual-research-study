@@ -15,10 +15,23 @@
       "maxDuration": 30,
       "includeFiles": "images/cs-*.jpg"
     },
+    "api/agreement-pdf.py": {
+      "maxDuration": 30,
+      "includeFiles": "images/cs-*.jpg"
+    },
     "api/quotation.py": {
       "maxDuration": 15
     },
     "api/quotations.py": {
+      "maxDuration": 15
+    },
+    "api/agreement.py": {
+      "maxDuration": 15
+    },
+    "api/agreements.py": {
+      "maxDuration": 15
+    },
+    "api/survey.js": {
       "maxDuration": 15
     }
   },
@@ -141,6 +154,13 @@
       "source": "/static/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/images/og-share.jpg",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" },
+        { "key": "Content-Type", "value": "image/jpeg" }
       ]
     },
     {

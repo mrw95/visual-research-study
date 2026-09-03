@@ -46,10 +46,10 @@ IMAGE_COUNT = 6
 IMAGE_LABELS = {
     1: "Smart Study Area with AC / Free Wifi",
     2: "Mobile Accessories",
-    3: "Branded Decants Perfumes",
+    3: "Transport Bus Service",
     4: "Bookshop and Stationery",
     5: "Budget Price Cafe",
-    6: "Smart Cafe",
+    6: "Water Park",
 }
 
 
@@ -252,13 +252,16 @@ def _access_info(path="desk.html"):
         lan.append(f"http://{host}:{port}")
     public = _public_quote_base()
     vercel = _join_url(VERCEL_QUOTE_URL, path)
-    urls = []
-    if public:
-        urls.append(_join_url(public, path))
-    if vercel not in urls:
-        urls.append(vercel)
+    urls = [vercel]
     urls.extend(_join_url(base, path) for base in lan)
-    return {"port": port, "lan": lan, "public": public, "vercel": VERCEL_QUOTE_URL, "urls": urls, "path": path}
+    return {
+        "port": port,
+        "lan": lan,
+        "public": public,
+        "vercel": VERCEL_QUOTE_URL,
+        "urls": urls,
+        "path": path,
+    }
 
 
 @app.get("/api/access-urls")
@@ -279,7 +282,7 @@ def home_link_page():
         f"<a class='phone-url' href='{html.escape(url, quote=True)}'>{html.escape(url)}</a>"
         for url in info["urls"]
     )
-    pin = f"<p>Tunnel PIN: <strong>{html.escape(QUOTE_PIN)}</strong></p>" if info["public"] else ""
+    pin = ""
     first = info["urls"][0] if info["urls"] else ""
     qr = ""
     if first:
@@ -287,9 +290,6 @@ def home_link_page():
             "<img class='phone-qr' alt='QR' width='220' height='220' "
             f"src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&amp;data={html.escape(quote(first, safe=''), quote=True)}'>"
         )
-    wait = ""
-    if not info["public"]:
-        wait = "<p>ගෙදරට tunnel link එක තාම ready නැහැ. START-QUOTATION.bat window එකේ මොහොතක් ඉන්න.</p>"
     return (
         "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'>"
@@ -298,8 +298,8 @@ def home_link_page():
         "</head><body class='quote-body login-body'>"
         "<div class='login-card phone-card'>"
         "<h1>Phone / Tab</h1>"
-        "<p>Mobile data / ගෙදර: https link එක. PIN 9292. Office WiFi IP එක data වලින් වැඩ කරන්නේ නැහැ.</p>"
-        f"{qr}{links}{pin}{wait}"
+        "<p><strong>Lifetime share link</strong> — මේක කවදාවත් change වෙන්නේ නැහැ. අනිත් අයට මේකම දෙන්න.</p>"
+        f"{qr}{links}{pin}"
         "</div></body></html>"
     )
 
@@ -498,6 +498,42 @@ def api_agreement_pdf():
     )
 
 
+def _allowed_office_path(raw: str) -> Path | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    path = Path(text)
+    target = path if path.is_dir() else path.parent
+    try:
+        resolved = str(target.resolve())
+    except OSError:
+        resolved = str(target)
+    allowed = []
+    for root in (agreements_dir(), quotes_dir(), agreement_store.NETWORK_AGREEMENTS, quotation_store.NETWORK_QUOTES):
+        try:
+            allowed.append(str(Path(root).resolve()))
+        except OSError:
+            allowed.append(str(root))
+    norm = resolved.replace("/", "\\").lower()
+    for base in allowed:
+        if norm.startswith(str(base).replace("/", "\\").lower()):
+            return Path(resolved)
+    return None
+
+
+@app.post("/api/open-folder")
+def api_open_folder():
+    data = request.get_json(silent=True) or {}
+    folder = _allowed_office_path(data.get("path") or "")
+    if folder is None:
+        return jsonify({"ok": False, "error": "Folder එක open කරන්න බැරි වුණා"}), 400
+    try:
+        os.startfile(folder)
+    except OSError as err:
+        return jsonify({"ok": False, "error": str(err)}), 500
+    return jsonify({"ok": True})
+
+
 @app.post("/api/quote-pdf")
 def api_quote_pdf():
     data = request.get_json(silent=True) or {}
@@ -627,12 +663,11 @@ def _save_public_url(url: str) -> None:
         HOME_LINK_FILE.write_text(PUBLIC_QUOTE_URL, encoding="utf-8")
     except OSError:
         pass
-    quote = PUBLIC_QUOTE_URL + "/desk"
+    quote = VERCEL_QUOTE_URL + "/desk"
     print()
-    print("  HOME / LAPTOP (any browser tab):")
+    print("  SHARE (lifetime, never changes):")
     print(f"  {quote}")
-    print(f"  PIN: {QUOTE_PIN}")
-    print("  Me link eka START-QUOTATION.bat close kalama change wenawa.")
+    print("  Temporary tunnel URL is office-from-home only — WhatsApp / staff ට දෙන්න එපා.")
     print()
     try:
         subprocess.run(["clip"], input=quote, text=True, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -667,8 +702,42 @@ def _open_lan_port(port: int) -> None:
         pass
 
 
+def _take_port(port: int) -> None:
+    if os.name != "nt":
+        return
+    me = os.getpid()
+    try:
+        out = subprocess.check_output(
+            ["netstat", "-ano"],
+            text=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except OSError:
+        return
+    pids = set()
+    for line in out.splitlines():
+        if "LISTENING" not in line.upper():
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        local = parts[1]
+        if not local.endswith(f":{port}"):
+            continue
+        try:
+            pid = int(parts[-1])
+        except ValueError:
+            continue
+        if pid not in (0, me):
+            pids.add(pid)
+    hidden = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    for pid in pids:
+        subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, creationflags=hidden)
+        print(f"Old server PID {pid} stop කළා — port {port} එකකට එක server එකක් විතරයි.")
+
+
 def _start_public_tunnel(port: int) -> None:
-    if os.environ.get("QUOTE_TUNNEL", "1").strip() == "0":
+    if os.environ.get("QUOTE_TUNNEL", "0").strip() == "0":
         return
     exe = _ensure_cloudflared()
     if not exe:
@@ -696,6 +765,7 @@ def _start_public_tunnel(port: int) -> None:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
+    _take_port(port)
     print(f"Visual Research Study -> http://localhost:{port}")
     print(f"This PC tab        -> http://localhost:{port}/desk")
     print(f"Quotation          -> http://localhost:{port}/quotation")
@@ -708,7 +778,7 @@ if __name__ == "__main__":
     print(f"  QR / copy: http://localhost:{port}/phone-link")
     print(f"Quotation folders  -> {quotes_dir()}")
     print(f"Agreement folders  -> {agreements_dir()}")
-    print("Home / mobile data -> tunnel link eka me window eke tikak gane penawa")
+    print("SHARE (lifetime, never changes) -> https://visual-research-study.vercel.app/desk")
     _open_lan_port(port)
     threading.Thread(target=_start_public_tunnel, args=(port,), daemon=True).start()
     app.run(host="0.0.0.0", port=port, threaded=True)
