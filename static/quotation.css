@@ -201,14 +201,9 @@ html, body {
   color: var(--muted);
 }
 
-input, select {
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid #c5d0dc;
-  background: transparent;
-  padding: 6px 2px;
-  font: 600 0.98rem/1.4 "Segoe UI", Arial, sans-serif;
-  color: var(--ink);
+#make,
+#model {
+  text-transform: uppercase;
 }
 
 input:focus,
@@ -387,7 +382,8 @@ input[readonly] {
   gap: 18px;
 }
 
-.quote-sign .quote-grid > label {
+.quote-sign .quote-grid > label,
+.quote-sign .quote-grid > .sign-field {
   overflow: visible;
   display: flex;
   flex-direction: column;
@@ -395,13 +391,35 @@ input[readonly] {
   min-height: 72px;
 }
 
-.quote-sign .quote-grid > label > span:first-child {
+.quote-sign .quote-grid > label > span:first-child,
+.quote-sign .quote-grid > .sign-field > span:first-child {
   margin-bottom: 16px;
 }
 
 .quote-sign input,
 .quote-sign select {
+  width: 100%;
   height: 36px;
+  margin: 0;
+  padding: 0 4px 2px 0;
+  border: 0;
+  border-bottom: 1px solid #c5d0dc;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-shadow: none;
+}
+
+.quote-sign select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235c6b7a' d='M1.2 1.2L6 6l4.8-4.8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  background-size: 10px;
+  padding-right: 18px;
+  cursor: pointer;
 }
 
 .sign-pad {
@@ -717,6 +735,9 @@ input[readonly] {
   .quote-sign .quote-grid.three {
     display: block;
   }
+  .inv-sheet .inv-sign-block .quote-grid.three {
+    display: grid;
+  }
   .quote-dochead h2 {
     font-size: 1.12rem;
     letter-spacing: 0.04em;
@@ -746,7 +767,8 @@ input[readonly] {
     max-width: 100%;
     margin-top: 24px;
   }
-  .quote-sign .quote-grid > label {
+  .quote-sign .quote-grid > label,
+  .quote-sign .quote-grid > .sign-field {
     min-height: 0;
     margin-bottom: 14px;
   }
@@ -869,9 +891,32 @@ input[readonly] {
     left: 0;
     right: 0;
     width: 100%;
+    height: auto;
+    margin: 0;
+    object-fit: contain;
+    object-position: bottom center;
   }
   .quote-inner {
     padding: 22mm 10mm 20mm;
+  }
+  .inv-sheet .quote-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8mm 10mm 36mm;
+    min-height: calc(297mm - 26mm);
+  }
+  .inv-sheet .inv-bottom {
+    margin-top: 0;
+  }
+  .inv-sheet .quote-foot-img {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    object-fit: cover;
+    object-position: bottom center;
   }
   .quote-block {
     margin-top: 6px;
@@ -1103,10 +1148,15 @@ input[readonly] {
 .agree-signs #designation {
   width: 100%;
   margin: 6px 0;
+  padding: 0 4px 2px 0;
   border: 0;
   border-bottom: 1px solid var(--line);
+  border-radius: 0;
   background: transparent;
   font: inherit;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .agree-annex-title {
@@ -1141,6 +1191,205 @@ input[readonly] {
   color: #084083;
   letter-spacing: 0.12em;
   font-size: 2rem;
+}
+
+.inv-sheet.quote-sheet {
+  position: relative;
+  width: min(210mm, calc(100% - 24px));
+  height: 297mm;
+  min-height: 297mm;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inv-sheet .quote-inner {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+  padding: 8px 28px 36mm;
+}
+
+.inv-sheet .inv-bottom {
+  margin-top: 0;
+  padding-top: 4px;
+  padding-bottom: 2mm;
+}
+
+.inv-sheet .inv-sign-block {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  max-width: 100%;
+  overflow: visible;
+  position: relative;
+  z-index: 3;
+}
+
+.inv-sheet .inv-sign-block h3 {
+  color: var(--navy);
+  border-bottom: 1px solid var(--gold);
+  font-size: 0.95rem;
+}
+
+.inv-sheet .inv-sign-block .quote-grid.three {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: start;
+  gap: 18px;
+}
+
+.inv-sheet .inv-sign-block .quote-grid > label,
+.inv-sheet .inv-sign-block .quote-grid > .sign-field {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 72px;
+  height: auto;
+  overflow: visible;
+}
+
+.inv-sheet .inv-sign-block .quote-grid > label > span:first-child,
+.inv-sheet .inv-sign-block .quote-grid > .sign-field > span:first-child {
+  margin-bottom: 8px;
+}
+
+.inv-sheet .inv-sign-block .sign-pad {
+  position: relative;
+  overflow: visible;
+  min-height: 36px;
+  height: 36px;
+}
+
+.inv-sheet .inv-sign-block .sign-pad.has-sign .sign-stage {
+  display: block;
+}
+
+.inv-sheet .inv-sign-block .sign-stage {
+  position: absolute;
+  left: 0;
+  right: auto;
+  bottom: 0;
+  z-index: 5;
+  line-height: 0;
+  max-width: 100%;
+}
+
+.inv-sheet .inv-sign-block .sign-stage img {
+  display: block;
+  height: 36px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+  background: transparent;
+}
+
+.inv-sheet .quote-foot-img {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  margin: 0;
+  display: block;
+  object-fit: cover;
+  object-position: bottom center;
+  z-index: 2;
+}
+
+.inv-sheet .inv-title {
+  font-size: 1.7rem;
+}
+
+.inv-sheet .inv-split {
+  margin: 6px 0 10px;
+  gap: 16px;
+}
+
+.inv-sheet .inv-items {
+  margin: 4px 0;
+}
+
+.inv-sheet .inv-items th,
+.inv-sheet .inv-items td {
+  padding: 4px 8px;
+}
+
+.inv-sheet .inv-add-wrap {
+  margin: 6px 0 10px;
+  height: auto;
+  overflow: visible;
+}
+
+.inv-sheet .inv-add-wrap .quote-btn {
+  transform: none;
+}
+
+.inv-sheet .inv-terms {
+  margin: 2px 0 4px 18px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.inv-sheet .inv-closing {
+  margin: 4px 0 2px;
+}
+
+.inv-sheet .inv-sign-block .sign-pad {
+  min-height: 36px;
+}
+
+.inv-sheet .inv-vehicle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+  width: 100%;
+}
+
+.inv-sheet .inv-vehicle .agree-kv {
+  margin: 0;
+}
+
+.inv-sheet .inv-section {
+  margin: 8px 0 4px;
+}
+
+.inv-sheet .inv-terms {
+  margin: 4px 0 8px 20px;
+  font-size: 0.8rem;
+}
+
+.inv-sheet .inv-closing {
+  margin: 8px 0 4px;
+}
+
+.inv-sheet .quote-head-img {
+  max-height: 26mm;
+  object-fit: contain;
+  object-position: top;
+}
+
+.inv-sheet .inv-split textarea {
+  min-height: 0;
+  margin-bottom: 2px;
+}
+
+.inv-sheet .agree-kv th,
+.inv-sheet .agree-kv td {
+  padding: 3px 8px;
+}
+
+.inv-sheet .inv-sign-block .sign-pad {
+  min-height: 36px;
+  height: 36px;
+}
+
+.inv-sheet .inv-items input {
+  min-height: 1.5em;
 }
 
 .inv-dochead {
