@@ -6,7 +6,7 @@
   <title>CarSwitch — Pre-Order Vehicle Quotation</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=47">
+  <link rel="stylesheet" href="static/quotation.css?v=49">
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
@@ -110,7 +110,7 @@
           </tr>
           <tr>
             <th>Estimated Arrival</th>
-            <td><input id="estimatedArrival" type="text" maxlength="60"></td>
+            <td><input id="estimatedArrival" type="text" maxlength="60" value="2 Months"></td>
           </tr>
         </tbody>
       </table>
@@ -155,8 +155,8 @@
           <tr>
             <td>CIF Balance Amount - JPY</td>
             <td class="amount" data-label="Ex. Rate"><input id="balRate" class="rate" type="text" inputmode="decimal"></td>
-            <td class="amount" data-label="AMOUNT JPY"><input id="balJpy" class="money" type="text" inputmode="decimal"></td>
-            <td class="amount" data-label="AMOUNT LKR"><input id="balLkr" class="money" type="text" inputmode="decimal"></td>
+            <td class="amount" data-label="AMOUNT JPY"><input id="balJpy" class="money" type="text" readonly></td>
+            <td class="amount" data-label="AMOUNT LKR"><input id="balLkr" class="money" type="text" readonly></td>
           </tr>
         </tbody>
       </table>
@@ -276,6 +276,6 @@
     <option value="Blue"></option>
   </datalist>
 
-  <script src="static/quotation.js?v=44"></script>
+  <script src="static/quotation.js?v=50"></script>
 </body>
 </html>
