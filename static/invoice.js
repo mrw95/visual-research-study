@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'cs-agreements-v1';
 const PREP_KEY = 'genx-prepared-by';
 const SIG_KEY = 'genx-signature-';
+const SIG_SCALE_KEY = 'genx-signature-scale-';
 const STAFF_ROLES = {
   Nipun: 'Sales Executive',
   Isuru: 'Sales Executive',
@@ -16,11 +17,12 @@ const TEXT_FIELDS = [
 
 let apiItems = [];
 let apiRoot = '';
+let lastUsingNetwork = false;
 let apiBase = '';
 let saving = false;
 let toastTimer = 0;
 let sellerSign = '';
-let lines = [emptyLine(), emptyLine(), emptyLine()];
+let lines = [emptyLine(), emptyLine()];
 
 function emptyLine() {
   return { description: '', qty: '1', price: '', total: '' };
@@ -28,6 +30,19 @@ function emptyLine() {
 
 function val(id) {
   return document.getElementById(id);
+}
+
+function forceCaps(el) {
+  if (!el) return;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const next = String(el.value || '').toUpperCase();
+  if (el.value !== next) {
+    el.value = next;
+    if (typeof start === 'number' && el === document.activeElement) {
+      try { el.setSelectionRange(start, end); } catch { /* ignore */ }
+    }
+  }
 }
 
 function param(name) {
@@ -158,7 +173,7 @@ function escapeAttr(raw) {
 }
 
 function makeModel() {
-  return [val('make') && val('make').value.trim(), val('model') && val('model').value.trim()]
+  return [val('make') && val('make').value.trim().toUpperCase(), val('model') && val('model').value.trim().toUpperCase()]
     .filter(Boolean)
     .join(' ');
 }
@@ -172,6 +187,7 @@ function readForm() {
     agreementDate: date,
     designation: STAFF_ROLES[val('preparedByName').value] || '',
     signatureImage: sellerSign,
+    signatureScale: Number(localStorage.getItem(SIG_SCALE_KEY + val('preparedByName').value) || 56),
     lines: lines.map((line) => ({
       description: String(line.description || '').trim(),
       qty: String(line.qty || '').trim(),
@@ -183,6 +199,9 @@ function readForm() {
     updatedAt: new Date().toISOString()
   };
   TEXT_FIELDS.forEach((id) => { data[id] = val(id) ? val(id).value.trim() : ''; });
+  data.make = data.make.toUpperCase();
+  data.model = data.model.toUpperCase();
+  data.makeModel = makeModel();
   return data;
 }
 
@@ -198,7 +217,9 @@ function fillForm(data) {
   setQuoteNo(data.id || '');
   val('invoiceDate').value = data.invoiceDate || data.agreementDate || todayIso();
   TEXT_FIELDS.forEach((id) => {
-    if (val(id)) val(id).value = data[id] || '';
+    if (!val(id)) return;
+    if (id === 'make' || id === 'model') val(id).value = String(data[id] || '').toUpperCase();
+    else val(id).value = data[id] || '';
   });
   if (Array.isArray(data.lines) && data.lines.length) {
     lines = data.lines.map((line) => ({
@@ -208,7 +229,7 @@ function fillForm(data) {
       total: formatMoney(line.total)
     }));
   } else {
-    lines = [emptyLine(), emptyLine(), emptyLine()];
+    lines = [emptyLine(), emptyLine()];
   }
   val('designation').value = STAFF_ROLES[data.preparedByName] || data.designation || '';
   setSign(data.signatureImage || (data.preparedByName ? localStorage.getItem(SIG_KEY + data.preparedByName) : '') || '');
@@ -285,8 +306,49 @@ async function apiList() {
   if (!res.ok) throw new Error('API unavailable');
   const data = await res.json();
   apiRoot = data.root || '';
+  lastUsingNetwork = !!data.usingNetwork;
   apiItems = data.items || [];
+  setFolderHint(data.root, lastUsingNetwork);
   return data;
+}
+
+function setFolderHint(root, onShare) {
+  const hint = val('folder-hint');
+  if (!hint) return;
+  if (root && onShare) {
+    hint.hidden = false;
+    hint.textContent = 'Save වෙන්නේ: ' + root;
+    return;
+  }
+  if (isHomeCloud() || root === 'cloud') {
+    hint.hidden = false;
+    hint.textContent = 'මේක lifetime link එක. PC එක on වෙන්න ඕන නැහැ. Save සහ Download PDF මෙතනින්ම.';
+    return;
+  }
+  if (root) {
+    hint.hidden = false;
+    hint.textContent = 'Office share එක open නැහැ. දැන් save වෙන්නේ: ' + root;
+    return;
+  }
+  hint.hidden = false;
+  hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
+}
+
+function officeSharePath(raw) {
+  return /\\\\carswitch\\/i.test(String(raw || ''));
+}
+
+async function openSavedFolder(pdfPath) {
+  if (isHomeCloud() || !pdfPath) return;
+  try {
+    await fetch('/api/open-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: pdfPath })
+    });
+  } catch {
+    /* office PC only */
+  }
 }
 
 async function apiGet(id) {
@@ -305,6 +367,7 @@ async function apiSave(payload) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) throw new Error(data.error || 'Folder save failed');
   apiRoot = data.root || apiRoot;
+  lastUsingNetwork = !!data.usingNetwork;
   return data.item;
 }
 
@@ -325,7 +388,6 @@ function triggerBlobDownload(blob, filename) {
 }
 
 async function postAgreementPdf(saved) {
-  if (isHomeCloud()) return null;
   const res = await fetch('/api/agreement-pdf', {
     method: 'POST',
     credentials: 'same-origin',
@@ -392,12 +454,19 @@ async function saveInvoice() {
     saveLocalCopy(merged);
     setQuoteNo(merged.id);
     history.replaceState({}, '', `invoice.html?ref=${encodeURIComponent(merged.id)}`);
-    const onShare = /\\\\carswitch\\/i.test(String(apiRoot || merged.pdfPath || ''));
-    showToast(onShare ? 'Saved to folder: ' + (merged.pdfPath || apiRoot) : (isHomeCloud() ? 'ගෙදර save උනා. Download PDF කරන්න.' : 'Saved on this PC.'), '');
+    const onShare = lastUsingNetwork || officeSharePath(apiRoot || merged.pdfPath);
+    setFolderHint(apiRoot || merged.pdfPath, onShare);
+    if (merged.pdfOk === false) {
+      showToast('Folder එකට save උනා, PDF fail: ' + (merged.pdfError || 'retry Save'), 'error');
+    } else {
+      showToast('Saved successfully', '');
+      if (onShare) openSavedFolder(merged.pdfPath);
+    }
     return merged;
   } catch {
     const saved = saveLocalQuote(data);
-    showToast(isHomeCloud() ? 'ගෙදර save උනා මේ device එකේ.' : 'Folder එකට යන්නේ නැහැ. START-QUOTATION.bat run කරන්න.', isHomeCloud() ? '' : 'error');
+    setFolderHint('', false);
+    showToast('Saved successfully', '');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -411,6 +480,113 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function knockOutSignatureBackground(canvas) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const original = new Uint8ClampedArray(image.data);
+  const d = image.data;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  function sample(x, y) {
+    const i = (Math.max(0, Math.min(h - 1, y)) * w + Math.max(0, Math.min(w - 1, x))) * 4;
+    return [d[i], d[i + 1], d[i + 2]];
+  }
+
+  const corners = [
+    ...sample(2, 2), ...sample(w - 3, 2), ...sample(2, h - 3), ...sample(w - 3, h - 3),
+    ...sample(Math.floor(w / 2), 2), ...sample(Math.floor(w / 2), h - 3)
+  ];
+  const bg = [
+    (corners[0] + corners[3] + corners[6] + corners[9] + corners[12] + corners[15]) / 6,
+    (corners[1] + corners[4] + corners[7] + corners[10] + corners[13] + corners[16]) / 6,
+    (corners[2] + corners[5] + corners[8] + corners[11] + corners[14] + corners[17]) / 6
+  ];
+
+  let minX = w;
+  let minY = h;
+  let maxX = 0;
+  let maxY = 0;
+  const paperCut = 40;
+  const inkFull = 88;
+  const bgLuma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2];
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    const a = d[i + 3];
+    const dist = Math.sqrt((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2);
+    const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    const paperLike = a < 16
+      || dist < paperCut
+      || (luma > 210 && chroma < 18)
+      || (Math.abs(luma - bgLuma) < 16 && chroma < 22);
+
+    if (paperLike) {
+      d[i + 3] = 0;
+      continue;
+    }
+
+    let t = (dist - paperCut) / (inkFull - paperCut);
+    t = Math.max(0, Math.min(1, t));
+    t = t * t * (3 - 2 * t);
+    const alpha = Math.round(Math.max(t, chroma / 90, 0.55) * (a / 255) * 255);
+    if (alpha < 18) {
+      d[i + 3] = 0;
+      continue;
+    }
+
+    d[i + 3] = alpha;
+    const px = (i / 4) % w;
+    const py = Math.floor(i / 4 / w);
+    if (px < minX) minX = px;
+    if (py < minY) minY = py;
+    if (px > maxX) maxX = px;
+    if (py > maxY) maxY = py;
+  }
+
+  if (maxX < minX || maxY < minY) {
+    image.data.set(original);
+    ctx.putImageData(image, 0, 0);
+    return canvas;
+  }
+
+  ctx.putImageData(image, 0, 0);
+  const pad = 8;
+  const x = Math.max(0, minX - pad);
+  const y = Math.max(0, minY - pad);
+  const cw = Math.min(w - x, maxX - minX + 1 + pad * 2);
+  const ch = Math.min(h - y, maxY - minY + 1 + pad * 2);
+  const cropped = document.createElement('canvas');
+  cropped.width = cw;
+  cropped.height = ch;
+  cropped.getContext('2d').drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
+  return cropped;
+}
+
+function compressSignature(file) {
+  return fileToDataUrl(file).then((dataUrl) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, 520 / img.width, 180 / img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(knockOutSignatureBackground(canvas).toDataURL('image/png'));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  }));
 }
 
 function initEditor() {
@@ -433,6 +609,10 @@ function initEditor() {
     await apiDelete(id);
     writeLocal(loadLocal().filter((x) => x.id !== id));
     location.href = 'agreements.html';
+  });
+  ['make', 'model'].forEach((id) => {
+    val(id).addEventListener('input', () => forceCaps(val(id)));
+    val(id).addEventListener('change', () => forceCaps(val(id)));
   });
   val('preparedByName').addEventListener('change', () => {
     const name = val('preparedByName').value;
@@ -483,20 +663,30 @@ function initEditor() {
   });
   const uploadBtn = document.querySelector('[data-upload="seller"]');
   const file = val('sellerFile');
-  if (uploadBtn && file) {
-    uploadBtn.addEventListener('click', () => file.click());
+  const pad = val('seller-pad');
+  function pickSellerFile(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (file) file.click();
+  }
+  if (uploadBtn && file) uploadBtn.addEventListener('click', pickSellerFile);
+  if (pad && file) pad.addEventListener('click', pickSellerFile);
+  if (file) {
     file.addEventListener('change', async () => {
       const picked = file.files && file.files[0];
       file.value = '';
       if (!picked) return;
       try {
-        const dataUrl = await fileToDataUrl(picked);
+        const dataUrl = await compressSignature(picked);
+        if (!dataUrl) throw new Error('empty');
         setSign(dataUrl);
         if (val('preparedByName').value) {
           localStorage.setItem(SIG_KEY + val('preparedByName').value, dataUrl);
         }
       } catch {
-        showToast('Signature upload failed', 'error');
+        showToast('Signature upload failed. Image එකක් select කරන්න.', 'error');
       }
     });
   }

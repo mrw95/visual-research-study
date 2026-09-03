@@ -1,4 +1,6 @@
+import base64
 import html
+import io
 import json
 import os
 import re
@@ -458,14 +460,14 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
     rows = []
     for line in data.get("lines") or []:
         desc = str((line or {}).get("description") or "").strip()
-        if not desc:
+        qty = str((line or {}).get("qty") or "").strip()
+        price = str((line or {}).get("price") or "").strip()
+        total = str((line or {}).get("total") or "").strip()
+        if not (desc or price or total):
             continue
-        qty = _v(line, "qty")
-        price = _v(line, "price")
-        total = _v(line, "total")
         rows.append(
-            f"<tr><td>{html.escape(desc)}</td><td class='qty'>{qty}</td>"
-            f"<td class='amt'>{price}</td><td class='amt'>{total}</td></tr>"
+            f"<tr><td>{html.escape(desc)}</td><td class='qty'>{html.escape(qty)}</td>"
+            f"<td class='amt'>{html.escape(price)}</td><td class='amt'>{html.escape(total)}</td></tr>"
         )
     if not rows:
         rows.append("<tr><td>&nbsp;</td><td class='qty'></td><td class='amt'></td><td class='amt'></td></tr>")
@@ -477,28 +479,62 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
   <title>{_v(data, "id")} — Invoice</title>
   <style>
     @page {{ size: A4; margin: 0; }}
-    html, body {{ margin: 0; background: #fff; color: #111; font-family: Arial, Helvetica, sans-serif; }}
-    .sheet {{ width: 210mm; min-height: 297mm; }}
-    .head, .foot {{ width: 100%; display: block; }}
-    .head {{ max-height: 28mm; object-fit: contain; object-position: top left; }}
-    .foot {{ max-height: 22mm; object-fit: contain; object-position: bottom left; }}
-    .inner {{ padding: 4mm 14mm 8mm; }}
-    h2 {{ color: #084083; font-size: 28px; letter-spacing: 0.12em; margin: 0; }}
-    .meta {{ text-align: right; font-size: 12px; font-weight: 700; }}
+    html, body {{
+      margin: 0;
+      padding: 0;
+      width: 210mm;
+      height: 297mm;
+      background: #fff;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+    }}
+    .sheet {{
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }}
+    .head, .foot {{
+      width: 100%;
+      display: block;
+      flex: 0 0 auto;
+    }}
+    .head {{
+      max-height: 26mm;
+      object-fit: contain;
+      object-position: top left;
+    }}
+    .foot {{
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      object-position: bottom center;
+      margin-top: auto;
+    }}
+    .inner {{
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: 3mm 12mm 32mm;
+    }}
+    h2 {{ color: #084083; font-size: 22px; letter-spacing: 0.12em; margin: 0; }}
+    .meta {{ text-align: right; font-size: 11px; font-weight: 700; }}
     .dochead {{ display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }}
-    .split {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 12px 0 16px; }}
-    .label {{ color: #535353; font-size: 15px; margin: 0 0 6px; }}
-    .from, .bill {{ font-size: 12px; line-height: 1.45; margin: 0; }}
-    table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
-    th, td {{ border: 1px solid #111; padding: 6px 8px; font-size: 12px; }}
+    .split {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 8px 0 10px; }}
+    .label {{ color: #535353; font-size: 13px; margin: 0 0 4px; }}
+    .from, .bill {{ font-size: 11px; line-height: 1.35; margin: 0; }}
+    table {{ width: 100%; border-collapse: collapse; margin-bottom: 6px; }}
+    th, td {{ border: 1px solid #111; padding: 4px 7px; font-size: 11px; }}
     thead th {{ background: #084083; color: #fff; text-align: left; }}
-    .qty {{ width: 10%; text-align: center; }}
-    .amt {{ width: 22%; text-align: right; }}
-    h3 {{ color: #6a6a6a; font-size: 13px; margin: 14px 0 6px; letter-spacing: 0.04em; }}
-    ol {{ font-size: 11px; color: #6a6a6a; margin: 4px 0 12px 18px; }}
-    .closing {{ margin: 18px 0 6px; font-size: 12px; }}
-    .sign-line {{ border-bottom: 1px solid #111; height: 36px; width: 46%; }}
-    .sign-img {{ height: 42px; }}
+    .qty {{ width: 12%; text-align: center; }}
+    .amt {{ width: 22%; text-align: right; white-space: nowrap; }}
+    .vehicle {{ display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }}
+    h3 {{ color: #6a6a6a; font-size: 12px; margin: 8px 0 4px; letter-spacing: 0.04em; }}
+    ol {{ font-size: 9px; color: #6a6a6a; margin: 2px 0 6px 16px; line-height: 1.3; }}
+    .closing {{ margin: 8px 0 4px; font-size: 11px; }}
+    .sign-line {{ border-bottom: 1px solid #111; height: 28px; width: 46%; }}
+    .sign-img {{ height: 36px; }}
   </style>
 </head>
 <body>
@@ -532,15 +568,19 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
         </tbody>
       </table>
       <h3>VEHICLE DETAILS</h3>
-      <table>
-        <tr><th>Make</th><td>:</td><td>{_v(data, "make")}</td></tr>
-        <tr><th>Model</th><td>:</td><td>{_v(data, "model")}</td></tr>
-        <tr><th>Chassis NO</th><td>:</td><td>{_v(data, "chassisNr")}</td></tr>
-        <tr><th>Engine</th><td>:</td><td>{_v(data, "engineNr")}</td></tr>
-        <tr><th>Manufacture Year</th><td>:</td><td>{_v(data, "year")}</td></tr>
-        <tr><th>Engine Capacity</th><td>:</td><td>{_v(data, "engineCapacity")}</td></tr>
-        <tr><th>Manufacture Country</th><td>:</td><td>{_v(data, "country")}</td></tr>
-      </table>
+      <div class="vehicle">
+        <table>
+          <tr><th>Make</th><td>:</td><td>{html.escape(str(data.get("make") or "").upper())}</td></tr>
+          <tr><th>Model</th><td>:</td><td>{html.escape(str(data.get("model") or "").upper())}</td></tr>
+          <tr><th>Chassis NO</th><td>:</td><td>{_v(data, "chassisNr")}</td></tr>
+          <tr><th>Engine</th><td>:</td><td>{_v(data, "engineNr")}</td></tr>
+        </table>
+        <table>
+          <tr><th>Manufacture Year</th><td>:</td><td>{_v(data, "year")}</td></tr>
+          <tr><th>Engine Capacity</th><td>:</td><td>{_v(data, "engineCapacity")}</td></tr>
+          <tr><th>Manufacture Country</th><td>:</td><td>{_v(data, "country")}</td></tr>
+        </table>
+      </div>
       <h3>TERMS AND CONDITIONS</h3>
       <ol>
         <li>Customer will be billed after indicating acceptance of this quote</li>
@@ -553,22 +593,412 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
       <div>{_v(data, "preparedByName")} — {_v(data, "designation")}</div>
       {_sign_html(data, "signatureImage")}
     </div>
-    <img class="foot" src="{foot}" alt="">
   </div>
 </body>
 </html>"""
+
+
+def _plain(data: dict, key: str, fallback: str = "") -> str:
+    return str(data.get(key) or fallback).strip()
+
+
+def _signature_png_bytes(src: str) -> bytes | None:
+    raw_src = str(src or "").strip()
+    if not raw_src.startswith("data:image/") or "," not in raw_src:
+        return None
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        raw = base64.b64decode(raw_src.split(",", 1)[1])
+        im = Image.open(io.BytesIO(raw)).convert("RGBA")
+    except Exception:
+        return None
+    w, h = im.size
+    scale = min(1.0, 520 / max(w, 1), 180 / max(h, 1))
+    if scale < 0.999:
+        im = im.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.Resampling.LANCZOS)
+        w, h = im.size
+    original = im.copy()
+    px = im.load()
+
+    def sample(x: int, y: int) -> tuple[int, int, int]:
+        r, g, b, _a = px[max(0, min(w - 1, x)), max(0, min(h - 1, y))]
+        return r, g, b
+
+    corners = [
+        sample(2, 2), sample(w - 3, 2), sample(2, h - 3), sample(w - 3, h - 3),
+        sample(w // 2, 2), sample(w // 2, h - 3),
+    ]
+    bg = (
+        sum(p[0] for p in corners) / 6,
+        sum(p[1] for p in corners) / 6,
+        sum(p[2] for p in corners) / 6,
+    )
+    bg_luma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]
+    paper_cut = 40
+    ink_full = 88
+    min_x, min_y, max_x, max_y = w, h, 0, 0
+    kept = 0
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            dist = ((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2) ** 0.5
+            chroma = max(r, g, b) - min(r, g, b)
+            luma = 0.299 * r + 0.587 * g + 0.114 * b
+            paper = (
+                a < 16
+                or dist < paper_cut
+                or (luma > 210 and chroma < 18)
+                or (abs(luma - bg_luma) < 16 and chroma < 22)
+            )
+            if paper:
+                px[x, y] = (r, g, b, 0)
+                continue
+            t = (dist - paper_cut) / (ink_full - paper_cut)
+            t = max(0.0, min(1.0, t))
+            t = t * t * (3 - 2 * t)
+            alpha = int(max(t, chroma / 90, 0.55) * (a / 255) * 255)
+            if alpha < 18:
+                px[x, y] = (r, g, b, 0)
+                continue
+            px[x, y] = (r, g, b, alpha)
+            kept += 1
+            if x < min_x:
+                min_x = x
+            if y < min_y:
+                min_y = y
+            if x > max_x:
+                max_x = x
+            if y > max_y:
+                max_y = y
+    if kept == 0:
+        im = original
+    elif max_x >= min_x and max_y >= min_y:
+        pad = 8
+        box = (
+            max(0, min_x - pad),
+            max(0, min_y - pad),
+            min(w, max_x + 1 + pad),
+            min(h, max_y + 1 + pad),
+        )
+        im = im.crop(box)
+    out = io.BytesIO()
+    im.save(out, format="PNG")
+    return out.getvalue()
+
+
+def _wrap_pdf_text(text: str, font: str, size: float, max_w: float) -> list[str]:
+    from reportlab.pdfbase import pdfmetrics
+
+    out = []
+    for para in str(text or "").replace("\r", "").split("\n"):
+        words = para.split()
+        if not words:
+            out.append("")
+            continue
+        cur = words[0]
+        for word in words[1:]:
+            trial = f"{cur} {word}"
+            if pdfmetrics.stringWidth(trial, font, size) <= max_w:
+                cur = trial
+            else:
+                out.append(cur)
+                cur = word
+        out.append(cur)
+    return out or [""]
+
+
+def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: Path) -> None:
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfgen import canvas
+
+    font_regular = "Helvetica"
+    font_bold = "Helvetica-Bold"
+    arial = Path(r"C:\Windows\Fonts\arial.ttf")
+    arial_bold = Path(r"C:\Windows\Fonts\arialbd.ttf")
+    if arial.exists() and arial_bold.exists():
+        names = set(pdfmetrics.getRegisteredFontNames())
+        if "InvoiceSans" not in names:
+            pdfmetrics.registerFont(TTFont("InvoiceSans", str(arial)))
+        if "InvoiceSans-Bold" not in names:
+            pdfmetrics.registerFont(TTFont("InvoiceSans-Bold", str(arial_bold)))
+        font_regular = "InvoiceSans"
+        font_bold = "InvoiceSans-Bold"
+
+    page_w, page_h = A4
+    navy = HexColor("#084083")
+    ink = HexColor("#111111")
+    muted = HexColor("#6a6a6a")
+    label = HexColor("#535353")
+    c = canvas.Canvas(str(pdf_path), pagesize=A4)
+
+    header = ImageReader(str(header_path))
+    hw, hh = header.getSize()
+    header_h = min(page_w * hh / hw, 74)
+    c.drawImage(header, 0, page_h - header_h, width=page_w, height=header_h, preserveAspectRatio=True, mask="auto")
+
+    footer = ImageReader(str(footer_path))
+    fw, fh = footer.getSize()
+    footer_h = page_w * fh / fw
+
+    left = 34
+    right = page_w - 34
+    y = page_h - header_h - 18
+    sign_top = footer_h + 110
+    floor = sign_top
+    gold = HexColor("#ff6505")
+
+    c.setFillColor(navy)
+    c.setFont(font_bold, 20)
+    c.drawString(left, y, "INVOICE")
+    c.setFillColor(ink)
+    c.setFont(font_bold, 10)
+    c.drawRightString(right, y + 8, f"INV NO: {_plain(data, 'id')}")
+    c.setFont(font_regular, 10)
+    pretty = _pretty_date(_plain(data, "invoiceDate") or _plain(data, "agreementDate"))
+    c.drawRightString(right, y - 6, f"Date: {pretty}")
+    y -= 22
+
+    col_w = (right - left - 16) / 2
+    c.setFillColor(label)
+    c.setFont(font_bold, 11)
+    c.drawString(left, y, "Bill To:")
+    c.drawString(left + col_w + 16, y, "From:")
+    y -= 13
+    c.setFillColor(ink)
+    c.setFont(font_regular, 9)
+    bill_lines = _wrap_pdf_text(
+        "\n".join(x for x in (_plain(data, "customerName"), _plain(data, "address")) if x),
+        font_regular,
+        9,
+        col_w,
+    )
+    from_lines = [
+        "CarSwitch (Pvt) Ltd,",
+        "Jayanthi Mawatha, Anuradhapura",
+        "+94 25 222 9292 | +94 70 555 9292",
+    ]
+    block_h = max(len(bill_lines), len(from_lines))
+    for i in range(block_h):
+        if i < len(bill_lines) and bill_lines[i]:
+            c.drawString(left, y, bill_lines[i])
+        if i < len(from_lines):
+            c.drawString(left + col_w + 16, y, from_lines[i])
+        y -= 11
+    y -= 8
+
+    usable = []
+    for line in data.get("lines") or []:
+        desc = str((line or {}).get("description") or "").strip()
+        qty = str((line or {}).get("qty") or "").strip()
+        price = str((line or {}).get("price") or "").strip()
+        total = str((line or {}).get("total") or "").strip()
+        if desc or price or total:
+            usable.append((desc, qty, price, total))
+    n_lines = max(1, len(usable))
+    compact = 16 * (n_lines + 2) + 15 * 4 + 100
+    extra = max(0.0, y - sign_top - compact)
+    row_h = 16 + extra * 0.16 / (n_lines + 1)
+    kv_h = 15 + extra * 0.32 / 4
+    term_lh = 10 + extra * 0.30 / 6
+    after_table = 18 + extra * 0.10
+    after_vehicle = 12 + extra * 0.12
+    y -= extra * 0.08
+
+    qty_w = 46
+    amt_w = 102
+    desc_w = (right - left) - qty_w - amt_w * 2
+    cols_x = [left, left + desc_w, left + desc_w + qty_w, left + desc_w + qty_w + amt_w, right]
+    row_h = min(22, max(16, row_h))
+    kv_h = min(18, max(14, kv_h))
+
+    def draw_cell(x, y_top, w, h, text, *, fill=None, color=ink, font=font_regular, size=9, align="left"):
+        if fill is not None:
+            c.setFillColor(fill)
+            c.rect(x, y_top - h, w, h, fill=1, stroke=0)
+        c.setStrokeColor(ink)
+        c.setLineWidth(0.6)
+        c.rect(x, y_top - h, w, h, fill=0, stroke=1)
+        if text is None:
+            return
+        c.setFillColor(color)
+        c.setFont(font, size)
+        text_y = y_top - h + 6
+        pad = 6
+        if align == "center":
+            c.drawCentredString(x + w / 2, text_y, text)
+        elif align == "right":
+            c.drawRightString(x + w - pad, text_y, text)
+        else:
+            c.drawString(x + pad, text_y, text)
+
+    headers = (("Description", "left"), ("Qty", "center"), ("Price", "right"), ("Total", "right"))
+    for i, (title, align) in enumerate(headers):
+        draw_cell(
+            cols_x[i], y, cols_x[i + 1] - cols_x[i], row_h, title,
+            fill=navy, color=white, font=font_bold, size=9, align=align,
+        )
+    y -= row_h
+
+    drawn = 0
+    for desc, qty, price, total in usable:
+        wrapped = _wrap_pdf_text(desc, font_regular, 9, desc_w - 12) or [""]
+        h = max(row_h, 12 * len(wrapped) + 6)
+        if y - h < floor + 16:
+            break
+        draw_cell(cols_x[0], y, desc_w, h, None)
+        c.setFillColor(ink)
+        c.setFont(font_regular, 9)
+        text_y = y - h + 6 + 11 * (len(wrapped) - 1)
+        for part in wrapped:
+            c.drawString(left + 6, text_y, part)
+            text_y -= 11
+        draw_cell(cols_x[1], y, qty_w, h, qty, align="center")
+        draw_cell(cols_x[2], y, amt_w, h, price, align="right")
+        draw_cell(cols_x[3], y, amt_w, h, total, color=navy, align="right")
+        y -= h
+        drawn += 1
+    if drawn == 0:
+        for i in range(4):
+            draw_cell(cols_x[i], y, cols_x[i + 1] - cols_x[i], row_h, "")
+        y -= row_h
+
+    total_label_w = desc_w + qty_w + amt_w
+    draw_cell(left, y, total_label_w, row_h, "TOTAL AMOUNT", font=font_bold, size=9, align="left")
+    draw_cell(
+        cols_x[3], y, amt_w, row_h, _plain(data, "totalAmount"),
+        color=navy, font=font_bold, size=9, align="right",
+    )
+    y -= after_table
+
+    c.setFillColor(muted)
+    c.setFont(font_bold, 10)
+    c.drawString(left, y, "VEHICLE DETAILS")
+    y -= 14
+
+    kv_left = [
+        ("Make", _plain(data, "make").upper()),
+        ("Model", _plain(data, "model").upper()),
+        ("Chassis NO", _plain(data, "chassisNr")),
+        ("Engine", _plain(data, "engineNr")),
+    ]
+    kv_right = [
+        ("Manufacture Year", _plain(data, "year")),
+        ("Engine Capacity", _plain(data, "engineCapacity")),
+        ("Manufacture Country", _plain(data, "country")),
+    ]
+    gap = 12
+    box_w = (right - left - gap) / 2
+
+    def draw_kv(x0, rows):
+        colon_w = 16
+        label_w = min(118, box_w * 0.42)
+        value_w = box_w - label_w - colon_w
+        row_top = y
+        for k, v in rows:
+            draw_cell(x0, row_top, label_w, kv_h, k, font=font_bold, size=8)
+            draw_cell(x0 + label_w, row_top, colon_w, kv_h, ":", size=8, align="center")
+            draw_cell(x0 + label_w + colon_w, row_top, value_w, kv_h, v, size=8)
+            row_top -= kv_h
+        return len(rows) * kv_h
+
+    left_h = draw_kv(left, kv_left)
+    right_h = draw_kv(left + box_w + gap, kv_right)
+    y -= max(left_h, right_h) + after_vehicle
+
+    c.setFillColor(muted)
+    c.setFont(font_bold, 10)
+    c.drawString(left, y, "TERMS AND CONDITIONS")
+    y -= 13 + extra * 0.04
+    terms = [
+        "Customer will be billed after indicating acceptance of this quote",
+        "Payment will be due before delivery of the service and goods",
+        "Please fax or mail the signed price quote to the address above",
+        "Please note that all advance payments made are non-refundable under any circumstances",
+        "The above prices may change due to government policies and currency exchange rates.",
+    ]
+    c.setFillColor(muted)
+    c.setFont(font_regular, 8)
+    for i, term in enumerate(terms, 1):
+        wrapped = _wrap_pdf_text(f"{i}. {term}", font_regular, 8, right - left)
+        for part in wrapped:
+            if y < floor + 8:
+                break
+            c.drawString(left, y, part)
+            y -= term_lh
+
+    c.setFillColor(navy)
+    c.setFont(font_bold, 10)
+    c.drawString(left, footer_h + 96, "PREPARED BY")
+    c.setStrokeColor(gold)
+    c.setLineWidth(1)
+    c.line(left, footer_h + 92, right, footer_h + 92)
+    sign_right = left + (right - left) * 0.72
+    col_w = (sign_right - left) / 3
+    c.setFillColor(muted)
+    c.setFont(font_bold, 8)
+    for i, lbl in enumerate(("Name", "Designation", "Signature")):
+        c.drawString(left + i * col_w, footer_h + 80, lbl)
+    line_y = footer_h + 18
+    c.setStrokeColor(HexColor("#c5d0dc"))
+    c.setLineWidth(0.8)
+    for i in range(3):
+        c.line(left + i * col_w, line_y, left + (i + 1) * col_w - 12, line_y)
+    name_y = line_y + 8
+    c.setFillColor(ink)
+    c.setFont(font_regular, 9)
+    c.drawString(left, name_y, _plain(data, "preparedByName"))
+    c.drawString(left + col_w, name_y, _plain(data, "designation"))
+    src = str(data.get("signatureImage") or "").strip()
+    png = _signature_png_bytes(src)
+    if png:
+        try:
+            sign = ImageReader(io.BytesIO(png))
+            sw, sh = sign.getSize()
+            scale = max(28, min(56, int(data.get("signatureScale") or 40)))
+            draw_h = scale * 0.7
+            draw_w = draw_h * sw / sh if sh else draw_h * 2.4
+            x_off = max(0, min(90, int(data.get("signatureX") or 0)))
+            c.drawImage(
+                sign,
+                left + 2 * col_w + x_off,
+                line_y + 2,
+                width=min(draw_w, col_w - 10),
+                height=draw_h,
+                mask="auto",
+                preserveAspectRatio=True,
+                anchor="sw",
+            )
+        except Exception:
+            pass
+
+    c.drawImage(footer, 0, 0, width=page_w, height=footer_h, preserveAspectRatio=False, mask="auto")
+    c.save()
 
 
 def write_agreement_pdf(pdf_path: Path, data: dict, root: Path, images_dir: Path | None = None) -> None:
     header = qs._letterhead_file(root, "cs-header.jpg", images_dir)
     footer = qs._letterhead_file(root, "cs-footer.jpg", images_dir)
     kind = _kind_of(data)
+    if kind == "invoice":
+        if not header.exists() or not footer.exists():
+            raise RuntimeError("Letterhead images හොයා ගන්න බැරි වුණා")
+        tmp = pdf_path.with_name(pdf_path.stem + ".building.pdf")
+        try:
+            _invoice_reportlab_pdf(tmp, data, header, footer)
+            qs._install_pdf(tmp, pdf_path)
+        finally:
+            qs._safe_unlink(tmp)
+        return
     if kind == "preorder":
         html_fn = preorder_html
         keep_first = False
-    elif kind == "invoice":
-        html_fn = invoice_html
-        keep_first = True
     else:
         html_fn = agreement_html
         keep_first = False
@@ -618,6 +1048,10 @@ def save_agreement(root: Path, data: dict, images_dir: Path | None = None) -> di
     data["createdAt"] = (existing or {}).get("createdAt") or data.get("createdAt") or now
     data["updatedAt"] = now
     data["person"] = person
+    data["make"] = str(data.get("make") or "").strip().upper()
+    data["model"] = str(data.get("model") or "").strip().upper()
+    if data.get("make") or data.get("model"):
+        data["makeModel"] = " ".join(x for x in (data["make"], data["model"]) if x)
     for key in ("signatureImage", "buyerSignature", "buyerWitness", "sellerWitness"):
         raw = str(data.get(key) or "").strip()
         data[key] = raw if raw.startswith("data:image/") else ""
@@ -630,12 +1064,20 @@ def save_agreement(root: Path, data: dict, images_dir: Path | None = None) -> di
     json_path = store / f"{qid}.json"
     pdf_path = folder / f"{qid}.pdf"
     json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    pdf_ok = False
+    pdf_error = ""
     try:
         write_agreement_pdf(pdf_path, data, root, images_dir)
-    except Exception:
-        pass
+        pdf_ok = pdf_path.exists() and pdf_path.stat().st_size >= 800
+        if not pdf_ok:
+            pdf_error = "PDF file හැදුණේ නැහැ"
+    except Exception as err:
+        pdf_error = str(err)[:240]
     data["path"] = str(json_path)
     data["pdfPath"] = str(pdf_path)
+    data["pdfOk"] = pdf_ok
+    if pdf_error:
+        data["pdfError"] = pdf_error
     return data
 
 

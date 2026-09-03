@@ -1,5 +1,6 @@
 import base64
 import html
+import io
 import json
 import os
 import re
@@ -297,9 +298,27 @@ def _has_num(data, key):
 
 
 def apply_entered_prices(data):
-    for key in ("lcLkr", "balJpy", "balLkr", "japanCostLkr", "totalEstimatedPrice"):
-        if _has_num(data, key):
-            data[key] = str(data.get(key) or "").replace(",", "").replace(" ", "")
+    cif_jpy = _num(data, "cifJpy") if _has_num(data, "cifJpy") else None
+    lc_jpy = _num(data, "lcJpy") if _has_num(data, "lcJpy") else None
+    lc_rate = _num(data, "lcRate") if _has_num(data, "lcRate") else None
+    bal_rate = _num(data, "balRate") if _has_num(data, "balRate") else None
+    if cif_jpy is not None and lc_jpy is not None:
+        data["balJpy"] = _fmt(cif_jpy - lc_jpy)
+    if lc_jpy is not None and lc_rate is not None:
+        data["lcLkr"] = _fmt(lc_jpy * lc_rate)
+    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else None
+    if bal_jpy is not None and bal_rate is not None:
+        data["balLkr"] = _fmt(bal_jpy * bal_rate)
+    lc_lkr = _num(data, "lcLkr") if _has_num(data, "lcLkr") else 0.0
+    bal_lkr = _num(data, "balLkr") if _has_num(data, "balLkr") else 0.0
+    if _has_num(data, "lcLkr") or _has_num(data, "balLkr"):
+        data["japanCostLkr"] = _fmt(lc_lkr + bal_lkr)
+    japan = _num(data, "japanCostLkr") if _has_num(data, "japanCostLkr") else 0.0
+    duty = _num(data, "customsDuty")
+    clearing = _num(data, "clearingCharges")
+    agency = _num(data, "agencyFee")
+    if _has_num(data, "japanCostLkr") or _has_num(data, "customsDuty") or _has_num(data, "clearingCharges") or _has_num(data, "agencyFee"):
+        data["totalEstimatedPrice"] = _fmt(japan + duty + clearing + agency)
     return data
 
 
@@ -331,27 +350,28 @@ def price_breakdown(data):
     lc_jpy = _num(data, "lcJpy")
     lc_rate = _num(data, "lcRate")
     bal_rate = _num(data, "balRate")
-    lc_lkr = _num(data, "lcLkr") if _has_num(data, "lcLkr") else lc_jpy * lc_rate
-    bal_jpy = _num(data, "balJpy") if _has_num(data, "balJpy") else 0.0
-    bal_lkr = _num(data, "balLkr") if _has_num(data, "balLkr") else bal_jpy * bal_rate
-    japan = _num(data, "japanCostLkr") if _has_num(data, "japanCostLkr") else lc_lkr + bal_lkr
+    has_cif_lc = _has_num(data, "cifJpy") and _has_num(data, "lcJpy")
+    bal_jpy = (cif_jpy - lc_jpy) if has_cif_lc else (_num(data, "balJpy") if _has_num(data, "balJpy") else 0.0)
+    lc_lkr = (lc_jpy * lc_rate) if (_has_num(data, "lcJpy") and _has_num(data, "lcRate")) else (_num(data, "lcLkr") if _has_num(data, "lcLkr") else 0.0)
+    bal_lkr = (bal_jpy * bal_rate) if (has_cif_lc and _has_num(data, "balRate")) else (_num(data, "balLkr") if _has_num(data, "balLkr") else 0.0)
+    japan = lc_lkr + bal_lkr
     duty = _num(data, "customsDuty")
     clearing = _num(data, "clearingCharges")
     agency = _num(data, "agencyFee")
-    hand = _num(data, "totalEstimatedPrice") if _has_num(data, "totalEstimatedPrice") else japan + duty + clearing + agency
+    hand = japan + duty + clearing + agency
     return {
-        "cifJpy": _fmt(cif_jpy),
-        "lcRate": _fmt(lc_rate, 2) if lc_rate else "",
-        "lcJpy": _fmt(lc_jpy),
-        "lcLkr": _fmt(lc_lkr),
-        "balRate": _fmt(bal_rate, 2) if bal_rate else "",
-        "balJpy": _fmt(bal_jpy),
-        "balLkr": _fmt(bal_lkr),
-        "japanCostLkr": _fmt(japan),
-        "customsDuty": _fmt(duty),
-        "clearingCharges": _fmt(clearing),
-        "agencyFee": _fmt(agency),
-        "totalEstimatedPrice": _fmt(hand),
+        "cifJpy": _fmt(cif_jpy) if _has_num(data, "cifJpy") else "",
+        "lcRate": _fmt(lc_rate, 2) if _has_num(data, "lcRate") else "",
+        "lcJpy": _fmt(lc_jpy) if _has_num(data, "lcJpy") else "",
+        "lcLkr": _fmt(lc_lkr) if (_has_num(data, "lcJpy") and _has_num(data, "lcRate")) else "",
+        "balRate": _fmt(bal_rate, 2) if _has_num(data, "balRate") else "",
+        "balJpy": _fmt(bal_jpy) if has_cif_lc else "",
+        "balLkr": _fmt(bal_lkr) if (has_cif_lc and _has_num(data, "balRate")) else "",
+        "japanCostLkr": _fmt(japan) if (_has_num(data, "lcLkr") or has_cif_lc or _has_num(data, "lcJpy")) else "",
+        "customsDuty": _fmt(duty) if _has_num(data, "customsDuty") else "",
+        "clearingCharges": _fmt(clearing) if _has_num(data, "clearingCharges") else "",
+        "agencyFee": _fmt(agency) if _has_num(data, "agencyFee") else "",
+        "totalEstimatedPrice": _fmt(hand) if (japan or duty or clearing or agency) else "",
     }
 
 
@@ -480,6 +500,41 @@ def _keep_first_page(pdf_path: Path) -> None:
         pass
 
 
+def stamp_pdf_footer(pdf_path: Path, footer_path: Path) -> None:
+    if not pdf_path.exists() or not footer_path.exists():
+        return
+    try:
+        from pypdf import PdfReader, PdfWriter
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.utils import ImageReader
+        from reportlab.pdfgen import canvas
+    except ImportError:
+        return
+    try:
+        page_w, _page_h = A4
+        footer = ImageReader(str(footer_path))
+        fw, fh = footer.getSize()
+        footer_h = page_w * fh / fw
+        packet = io.BytesIO()
+        c = canvas.Canvas(packet, pagesize=A4)
+        c.drawImage(footer, 0, 0, width=page_w, height=footer_h, preserveAspectRatio=True, mask="auto")
+        c.save()
+        packet.seek(0)
+        overlay = PdfReader(packet)
+        reader = PdfReader(str(pdf_path))
+        writer = PdfWriter()
+        for page in reader.pages:
+            page.merge_page(overlay.pages[0])
+            writer.add_page(page)
+        tmp = pdf_path.with_name(pdf_path.stem + ".stamp.pdf")
+        with tmp.open("wb") as fh:
+            writer.write(fh)
+        _install_pdf(tmp, pdf_path)
+        _safe_unlink(tmp)
+    except Exception:
+        pass
+
+
 def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: Path) -> None:
     from reportlab.lib.colors import Color, HexColor
     from reportlab.lib.pagesizes import A4
@@ -598,8 +653,8 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
 
     heading("Vehicle Details")
     vehicle_rows = [
-        ("Make", data.get("make")),
-        ("Model", data.get("model")),
+        ("Make", str(data.get("make") or "").upper()),
+        ("Model", str(data.get("model") or "").upper()),
         ("Year", data.get("year")),
         ("Grade", data.get("grade")),
         ("Engine Capacity", data.get("engineCapacity")),
@@ -608,7 +663,7 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
         ("Mileage", data.get("mileage")),
         ("Colour", data.get("colour")),
         ("Origin", data.get("origin") or "Japan"),
-        ("Estimated Arrival", data.get("estimatedArrival")),
+        ("Estimated Arrival", data.get("estimatedArrival") or "2 Months"),
     ]
     photo = str(data.get("vehiclePhoto") or "")
     photo_w = 170
@@ -821,8 +876,8 @@ def _price_html(data: dict) -> str:
 
 def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
     rows = [
-        ("Make", _v(data, "make")),
-        ("Model", _v(data, "model")),
+        ("Make", html.escape(str(data.get("make") or "").upper())),
+        ("Model", html.escape(str(data.get("model") or "").upper())),
         ("Year", _v(data, "year")),
         ("Grade", _v(data, "grade")),
         ("Engine Capacity", _v(data, "engineCapacity")),
@@ -831,7 +886,7 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
         ("Mileage", _v(data, "mileage")),
         ("Colour", _v(data, "colour")),
         ("Origin", _v(data, "origin", "Japan")),
-        ("Estimated Arrival", _v(data, "estimatedArrival")),
+        ("Estimated Arrival", _v(data, "estimatedArrival", "2 Months")),
     ]
     vehicle = "".join(f"<tr><th>{label}</th><td>{value}</td></tr>" for label, value in rows)
     photo = str(data.get("vehiclePhoto") or "").strip()
@@ -1101,6 +1156,10 @@ def save_quote(root: Path, data: dict, images_dir: Path | None = None) -> dict:
     if not data["vehiclePhoto"].startswith("data:image/"):
         data["vehiclePhoto"] = ""
     apply_entered_prices(data)
+    data["make"] = str(data.get("make") or "").strip().upper()
+    data["model"] = str(data.get("model") or "").strip().upper()
+    if not str(data.get("estimatedArrival") or "").strip():
+        data["estimatedArrival"] = "2 Months"
 
     remove_quote_files(root, qid, keep_person=person)
     folder = root / person

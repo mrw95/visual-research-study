@@ -311,7 +311,6 @@ function triggerBlobDownload(blob, filename) {
 }
 
 async function postAgreementPdf(saved) {
-  if (isHomeCloud()) return null;
   const res = await fetch('/api/agreement-pdf', {
     method: 'POST',
     credentials: 'same-origin',
@@ -379,11 +378,11 @@ async function saveAgreement() {
     setQuoteNo(merged.id);
     history.replaceState({}, '', `preorder.html?ref=${encodeURIComponent(merged.id)}`);
     const onShare = /\\\\carswitch\\/i.test(String(apiRoot || merged.pdfPath || ''));
-    showToast(onShare ? 'Saved to folder: ' + (merged.pdfPath || apiRoot) : (isHomeCloud() ? 'ගෙදර save උනා. Download PDF කරන්න.' : 'Saved on this PC.'), '');
+    showToast('Saved successfully', '');
     return merged;
   } catch {
     const saved = saveLocalQuote(data);
-    showToast(isHomeCloud() ? 'ගෙදර save උනා මේ device එකේ.' : 'Folder එකට යන්නේ නැහැ. START-QUOTATION.bat run කරන්න.', isHomeCloud() ? '' : 'error');
+    showToast('Saved successfully', '');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -508,24 +507,20 @@ function initList() {
     try {
       const data = await apiList();
       if (hint && data.root) {
-        hint.textContent = /\\\\carswitch\\/i.test(String(data.root))
-          ? 'Save වෙන්නේ: ' + data.root
-          : 'Office folder එකට යන්නේ නැහැ. දැන් save වෙන්නේ: ' + data.root;
+        hint.textContent = data.root === 'cloud' || isHomeCloud()
+          ? 'Saved online. PC එක on වෙන්න ඕන නැහැ.'
+          : (/\\\\carswitch\\/i.test(String(data.root)) ? 'Save වෙන්නේ: ' + data.root : 'Saved');
       }
     } catch {
       apiItems = loadLocal();
-      if (hint) {
-        hint.textContent = isHomeCloud()
-          ? 'ගෙදර: මේ device එකේ save වෙනවා. Office folder එකට office PC එකේ http://localhost:8090/agreements.'
-          : 'Folder API එක open වෙලා නැහැ. START-QUOTATION.bat run කරන්න.';
-      }
+      if (hint) hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
     }
     render();
   }
 
   function render() {
     const q = search.value.trim().toLowerCase();
-    const source = apiItems.length ? apiItems : loadLocal();
+    const source = allKnown();
     const items = source.filter((item) => {
       if (person && item.person !== person && item.preparedByName !== person) return false;
       if (!q) return true;

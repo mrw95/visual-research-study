@@ -9,6 +9,7 @@ from datetime import datetime
 import quotation_store
 
 STORE_KEY = "cs-quotations-v1"
+AGREE_KEY = "cs-agreements-v1"
 
 
 def _kv_creds():
@@ -48,9 +49,8 @@ def _kv_request(path, data=None):
         return json.loads(res.read().decode("utf-8") or "{}")
 
 
-def load_items():
-    raw = _kv_request(f"/get/{STORE_KEY}")
-    result = raw.get("result")
+def _parse_items(raw):
+    result = raw.get("result") if isinstance(raw, dict) else raw
     if not result:
         return []
     if isinstance(result, list):
@@ -65,9 +65,13 @@ def load_items():
     return []
 
 
-def save_items(items):
+def load_items(key=STORE_KEY):
+    return _parse_items(_kv_request(f"/get/{key}"))
+
+
+def save_items(items, key=STORE_KEY):
     payload = json.dumps(items, ensure_ascii=False, separators=(",", ":"))
-    _kv_request(f"/set/{STORE_KEY}", payload)
+    _kv_request(f"/set/{key}", payload)
     return items
 
 
@@ -140,4 +144,97 @@ def delete_item(qid):
     if len(next_items) == len(items):
         return False
     save_items(next_items)
+    return True
+
+
+def load_agreements():
+    return load_items(AGREE_KEY)
+
+
+def next_agreement_id(items, prefix):
+    import agreement_store as ag
+
+    raw = str(prefix or "SA").upper()
+    prefix = "PO" if raw == "PO" else "INV" if raw == "INV" else "SA"
+    year = datetime.now().year
+    used = set()
+    for item in items:
+        qid = ag.safe_agreement_id(item.get("id"))
+        if not qid:
+            continue
+        parts = qid.split("-")
+        if len(parts) == 3 and parts[0] == prefix and parts[1].isdigit() and int(parts[1]) == year:
+            used.add(int(parts[2]))
+    n = 1
+    while n in used:
+        n += 1
+    return f"{prefix}-{year}-{n:04d}"
+
+
+def find_agreement(items, qid):
+    import agreement_store as ag
+
+    qid = ag.safe_agreement_id(qid)
+    if not qid:
+        return None
+    for item in items:
+        if ag.safe_agreement_id(item.get("id")) == qid:
+            data = dict(item)
+            data["id"] = qid
+            return data
+    return None
+
+
+def list_agreements(person=None):
+    wanted = quotation_store.staff_name(person) if person else None
+    items = load_agreements()
+    if wanted:
+        items = [
+            item for item in items
+            if quotation_store.staff_name(item.get("preparedByName") or item.get("person")) == wanted
+        ]
+    items.sort(key=lambda x: x.get("updatedAt") or x.get("createdAt") or "", reverse=True)
+    return items
+
+
+def save_agreement_item(data):
+    import agreement_store as ag
+
+    person = quotation_store.staff_name(data.get("preparedByName") or data.get("person"))
+    if not person:
+        raise ValueError("Prepared By name select කරන්න")
+    items = load_agreements()
+    requested = ag.safe_agreement_id(data.get("id"))
+    existing = find_agreement(items, requested) if requested else None
+    kind = ag._kind_of(data)
+    prefix = "INV" if kind == "invoice" else "PO" if kind == "preorder" else "SA"
+    qid = requested if existing else next_agreement_id(items, prefix)
+    now = datetime.now().isoformat()
+    saved = dict(data)
+    saved["id"] = qid
+    saved["kind"] = kind
+    saved["preparedByName"] = person
+    saved["designation"] = quotation_store.STAFF_ROLES[person]
+    saved["person"] = person
+    saved["createdAt"] = (existing or {}).get("createdAt") or saved.get("createdAt") or now
+    saved["updatedAt"] = now
+    saved["make"] = str(saved.get("make") or "").strip().upper()
+    saved["model"] = str(saved.get("model") or "").strip().upper()
+    next_items = [item for item in items if ag.safe_agreement_id(item.get("id")) != qid]
+    next_items.insert(0, saved)
+    save_items(next_items[:200], AGREE_KEY)
+    return saved
+
+
+def delete_agreement(qid):
+    import agreement_store as ag
+
+    qid = ag.safe_agreement_id(qid)
+    if not qid:
+        return False
+    items = load_agreements()
+    next_items = [item for item in items if ag.safe_agreement_id(item.get("id")) != qid]
+    if len(next_items) == len(items):
+        return False
+    save_items(next_items, AGREE_KEY)
     return True
