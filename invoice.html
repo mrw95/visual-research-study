@@ -6,7 +6,7 @@
   <title>CarSwitch — Invoice</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=53">
+  <link rel="stylesheet" href="static/quotation.css?v=73">
   <style>
     .inv-items td.amt,
     .inv-items th.amt { width: 12rem !important; min-width: 12rem !important; }
@@ -31,12 +31,14 @@
     <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
   </div>
   <div id="lan-hint" class="lan-hint no-print" hidden></div>
+  <p class="lan-hint no-print" id="folder-hint">Save වෙන්නේ Invoice &amp; Agreement folder එකට. Seller name select කරලා Save දාන්න.</p>
   <div id="save-toast" class="save-toast no-print" hidden></div>
   <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
 
   <main class="quote-sheet agree-sheet inv-sheet" id="invoice-sheet">
     <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
     <div class="quote-inner">
+      <div class="inv-top">
       <header class="quote-dochead inv-dochead">
         <h2 class="inv-title">INVOICE</h2>
         <div class="quote-meta">
@@ -55,12 +57,13 @@
         <div>
           <h3 class="inv-label">Bill To:</h3>
           <textarea id="customerName" rows="2" maxlength="200" placeholder="Customer name"></textarea>
-          <textarea id="address" rows="3" maxlength="240" placeholder="Address"></textarea>
+          <textarea id="address" rows="2" maxlength="240" placeholder="Address"></textarea>
         </div>
         <div>
           <h3 class="inv-label">From:</h3>
           <p class="inv-from">CarSwitch (Pvt) Ltd,<br>Jayanthi Mawatha, Anuradhapura<br>+94 25 222 9292 | +94 70 555 9292</p>
         </div>
+      </div>
       </div>
 
       <div class="inv-items-wrap">
@@ -90,21 +93,26 @@
           </tr>
         </tfoot>
       </table>
-      </div>
       <p class="no-print inv-add-wrap">
         <button type="button" class="quote-btn quote-btn-ghost" id="add-line">Add line</button>
       </p>
+      </div>
 
+      <div class="inv-mid">
       <h3 class="inv-section">VEHICLE DETAILS</h3>
-      <table class="agree-kv">
-        <tr><th>Make</th><td>:</td><td><input id="make" type="text" maxlength="40"></td></tr>
-        <tr><th>Model</th><td>:</td><td><input id="model" type="text" maxlength="40"></td></tr>
-        <tr><th>Chassis NO</th><td>:</td><td><input id="chassisNr" type="text" maxlength="40"></td></tr>
-        <tr><th>Engine</th><td>:</td><td><input id="engineNr" type="text" maxlength="40"></td></tr>
-        <tr><th>Manufacture Year</th><td>:</td><td><input id="year" type="text" maxlength="10" inputmode="numeric"></td></tr>
-        <tr><th>Engine Capacity</th><td>:</td><td><input id="engineCapacity" type="text" maxlength="20" placeholder="e.g. 1500CC"></td></tr>
-        <tr><th>Manufacture Country</th><td>:</td><td><input id="country" type="text" maxlength="40"></td></tr>
-      </table>
+      <div class="inv-vehicle">
+        <table class="agree-kv">
+          <tr><th>Make</th><td>:</td><td><input id="make" type="text" maxlength="40"></td></tr>
+          <tr><th>Model</th><td>:</td><td><input id="model" type="text" maxlength="40"></td></tr>
+          <tr><th>Chassis NO</th><td>:</td><td><input id="chassisNr" type="text" maxlength="40"></td></tr>
+          <tr><th>Engine</th><td>:</td><td><input id="engineNr" type="text" maxlength="40"></td></tr>
+        </table>
+        <table class="agree-kv">
+          <tr><th>Manufacture Year</th><td>:</td><td><input id="year" type="text" maxlength="10" inputmode="numeric"></td></tr>
+          <tr><th>Engine Capacity</th><td>:</td><td><input id="engineCapacity" type="text" maxlength="20" placeholder="e.g. 1500CC"></td></tr>
+          <tr><th>Manufacture Country</th><td>:</td><td><input id="country" type="text" maxlength="40"></td></tr>
+        </table>
+      </div>
 
       <h3 class="inv-section">TERMS AND CONDITIONS</h3>
       <ol class="inv-terms">
@@ -114,30 +122,39 @@
         <li>Please note that all advance payments made are non-refundable under any circumstances</li>
         <li>The above prices may change due to government policies and currency exchange rates.</li>
       </ol>
-
-      <p class="inv-closing">Yours Faithfully</p>
-      <div class="agree-signs inv-sign">
-        <label class="sign-field">
-          <span>CarSwitch (Pvt) Ltd</span>
-          <select id="preparedByName" required>
-            <option value="">Select name</option>
-            <option value="Nipun">Nipun</option>
-            <option value="Isuru">Isuru</option>
-            <option value="Malki">Malki</option>
-            <option value="Harshani">Harshani</option>
-            <option value="Rakitha">Rakitha</option>
-          </select>
-          <input id="designation" type="text" maxlength="60" readonly>
-          <div class="sign-pad" id="seller-pad">
-            <button type="button" class="sign-hint no-print" data-upload="seller">Upload signature</button>
-            <div class="sign-stage"><img id="sellerPreview" alt="Seller"></div>
-          </div>
-          <input id="sellerFile" type="file" accept="image/*" hidden>
-        </label>
       </div>
+
+      <section class="quote-sign inv-sign-block">
+        <h3>Prepared By</h3>
+        <div class="quote-grid three">
+          <label>
+            <span>Name</span>
+            <select id="preparedByName" required>
+              <option value="">Select name</option>
+              <option value="Nipun">Nipun</option>
+              <option value="Isuru">Isuru</option>
+              <option value="Malki">Malki</option>
+              <option value="Harshani">Harshani</option>
+              <option value="Rakitha">Rakitha</option>
+            </select>
+          </label>
+          <label>
+            <span>Designation</span>
+            <input id="designation" type="text" maxlength="60" readonly>
+          </label>
+          <div class="sign-field">
+            <span>Signature</span>
+            <div class="sign-pad" id="seller-pad">
+              <button type="button" class="sign-hint no-print" data-upload="seller">Upload signature</button>
+              <div class="sign-stage"><img id="sellerPreview" alt="Seller" draggable="false"></div>
+            </div>
+            <input id="sellerFile" type="file" accept="image/*" hidden>
+          </div>
+        </div>
+      </section>
     </div>
     <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
   </main>
-  <script src="static/invoice.js?v=51"></script>
+  <script src="static/invoice.js?v=59"></script>
 </body>
 </html>
