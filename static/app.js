@@ -1,20 +1,19 @@
 const REQUIRED = 3;
 
-const IMG_V = '14';
+const IMG_V = '15';
 
 const IMAGES = [
   { id: 1, url: `images/1.png?v=${IMG_V}`, label: 'Smart Study Area with AC / Free Wifi' },
   { id: 2, url: `images/2.png?v=${IMG_V}`, label: 'Mobile Accessories' },
-  { id: 3, url: `images/3.png?v=${IMG_V}`, label: 'Branded Decants Perfumes' },
+  { id: 3, url: `images/3.png?v=${IMG_V}`, label: 'Transport Bus Service' },
   { id: 4, url: `images/4.png?v=${IMG_V}`, label: 'Bookshop and Stationery' },
   { id: 5, url: `images/5.png?v=${IMG_V}`, label: 'Budget Price Cafe' },
-  { id: 6, url: `images/6.png?v=${IMG_V}`, label: 'Smart Cafe' },
+  { id: 6, url: `images/6.png?v=${IMG_V}`, label: 'Water Park' },
 ];
 
-const selected = new Set();
+const picks = [];
 const grid = document.getElementById('grid');
 const counter = document.getElementById('counter');
-const hint = document.getElementById('hint');
 const submitBtn = document.getElementById('submit');
 const overlay = document.getElementById('overlay');
 const selectedPicks = document.getElementById('selected-picks');
@@ -25,28 +24,13 @@ function labelFor(id) {
   return IMAGES.find(img => img.id === id)?.label || '';
 }
 
-function formatSelected(ids) {
-  return ids.map(id => labelFor(id)).join(' · ');
-}
-
 function updateUI() {
-  const count = selected.size;
-  const sorted = [...selected].sort((a, b) => a - b);
+  const count = picks.length;
   counter.textContent = `${count} / ${REQUIRED} තෝරා ඇත`;
-  const left = REQUIRED - count;
-
-  if (count === REQUIRED) {
-    hint.textContent = 'Submit කරන්න පුළුවන්.';
-    hint.classList.add('ready');
-    submitBtn.disabled = false;
-  } else {
-    hint.textContent = `තව විකල්ප ${left}ක් තෝරන්න.`;
-    hint.classList.remove('ready');
-    submitBtn.disabled = true;
-  }
+  submitBtn.disabled = count !== REQUIRED;
 
   if (count > 0) {
-    selectedPicks.innerHTML = `<strong>තෝරා ඇත:</strong><br>${formatSelected(sorted).replace(/ · /g, '<br>')}`;
+    selectedPicks.innerHTML = `<strong>තෝරා ඇත:</strong><br>${picks.map((id, i) => `${i + 1}. ${labelFor(id)}`).join('<br>')}`;
     selectedPicks.classList.remove('hidden');
   } else {
     selectedPicks.textContent = '';
@@ -55,15 +39,18 @@ function updateUI() {
 
   document.querySelectorAll('.image-item').forEach(el => {
     const id = Number(el.dataset.id);
-    const isSelected = selected.has(id);
-    el.classList.toggle('selected', isSelected);
-    el.classList.toggle('disabled', count >= REQUIRED && !isSelected);
+    const rank = picks.indexOf(id) + 1;
+    el.classList.toggle('selected', rank > 0);
+    el.classList.toggle('disabled', count >= REQUIRED && rank === 0);
+    const name = el.querySelector('.caption-name');
+    if (name) name.dataset.rank = rank ? String(rank) : '';
   });
 }
 
 function toggle(id) {
-  if (selected.has(id)) selected.delete(id);
-  else if (selected.size < REQUIRED) selected.add(id);
+  const index = picks.indexOf(id);
+  if (index >= 0) picks.splice(index, 1);
+  else if (picks.length < REQUIRED) picks.push(id);
   updateUI();
 }
 
@@ -88,70 +75,66 @@ function renderImages() {
   updateUI();
 }
 
-function saveToSheet(numbers, note, sid) {
-  if (typeof SHEET_URL !== 'string' || !SHEET_URL.trim()) return Promise.resolve(false);
-  if (!SHEET_URL.includes('/macros/s/') || !SHEET_URL.endsWith('/exec')) {
-    console.warn('SHEET_URL must be a Web App URL ending with /exec');
-    return Promise.resolve(false);
-  }
-
-  const data = { sid, note: note || '' };
+function saveToSheet(order, note, sid) {
+  const payload = {
+    sid,
+    note: note || '',
+    r1: labelFor(order[0]) || '',
+    r2: labelFor(order[1]) || '',
+    r3: labelFor(order[2]) || ''
+  };
   for (let i = 1; i <= 6; i++) {
-    data['s' + i] = numbers.includes(i) ? '1' : '0';
+    payload['s' + i] = order.includes(i) ? '1' : '0';
   }
 
-  const url = `${SHEET_URL.trim()}?data=${encodeURIComponent(JSON.stringify(data))}`;
+  const api = 'https://visual-research-study.vercel.app/api/survey';
+  const body = JSON.stringify(payload);
+  const query = `${api}?${new URLSearchParams(payload)}`;
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(true);
-    img.src = url;
-    setTimeout(() => resolve(true), 2500);
-  });
+  try {
+    navigator.sendBeacon(api, new Blob([body], { type: 'application/json' }));
+  } catch {
+    // fetch below
+  }
+  fetch(api, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    cache: 'no-store',
+    keepalive: true
+  }).catch(() => {});
+  const ping = new Image();
+  ping.src = query;
 }
 
-async function saveToEmail(numbers, note) {
+function saveToEmail(order, note) {
   const body = new FormData();
   body.append('_subject', 'Anuradhapura Survey — new response');
+  body.append('1st choice', labelFor(order[0]) || '—');
+  body.append('2nd choice', labelFor(order[1]) || '—');
+  body.append('3rd choice', labelFor(order[2]) || '—');
   IMAGES.forEach(img => {
-    body.append(img.label, numbers.includes(img.id) ? '✓' : '—');
+    body.append(img.label, order.includes(img.id) ? '✓' : '—');
   });
   body.append('Extra note', note || '—');
   body.append('_captcha', 'false');
   body.append('_template', 'table');
-  const res = await fetch(`https://formsubmit.co/ajax/${NOTIFY_EMAIL}`, { method: 'POST', body });
-  const data = await res.json();
-  if (!res.ok || !data.success) throw new Error('Submit failed');
+  fetch(`https://formsubmit.co/ajax/${NOTIFY_EMAIL}`, { method: 'POST', body, keepalive: true }).catch(() => {});
 }
 
-submitBtn.addEventListener('click', async () => {
-  if (selected.size !== REQUIRED || submitting) return;
+submitBtn.addEventListener('click', () => {
+  if (picks.length !== REQUIRED || submitting) return;
   submitting = true;
   submitBtn.disabled = true;
-  submitBtn.textContent = 'යවමින්...';
 
-  const numbers = [...selected].sort((a, b) => a - b);
+  const order = [...picks];
   const note = extraNote.value.trim();
   const sid = Date.now() + '-' + Math.random().toString(36).slice(2, 9);
 
-  try {
-    if (typeof SHEET_URL === 'string' && SHEET_URL.trim()) {
-      await saveToSheet(numbers, note, sid);
-    }
-    try {
-      await saveToEmail(numbers, note);
-    } catch {
-      // Sheet save unoth email fail unath OK
-    }
-    overlay.classList.remove('hidden');
-    document.getElementById('close-page')?.focus();
-  } catch {
-    alert('Submit වෙලා නැහැ. නැවත උත්සාහ කරන්න.');
-    submitting = false;
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Submit කරන්න';
-  }
+  saveToSheet(order, note, sid);
+  saveToEmail(order, note);
+  overlay.classList.remove('hidden');
+  document.getElementById('close-page')?.focus();
 });
 
 document.getElementById('close-page')?.addEventListener('click', () => {

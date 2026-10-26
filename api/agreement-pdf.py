@@ -43,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
 
             person = agreement_store.qs.staff_name(data.get("preparedByName") or data.get("person"))
             if not person:
-                return _send(self, 400, {"ok": False, "error": "Prepared By name select කරන්න"})
+                return _send(self, 400, {"ok": False, "error": "Select a Prepared By name"})
 
             images = ROOT / "images"
             root = agreement_store.agreement_root(ROOT)
@@ -55,13 +55,20 @@ class handler(BaseHTTPRequestHandler):
             data["id"] = qid
             data["kind"] = kind
             data["preparedByName"] = person
-            data["designation"] = agreement_store.STAFF_ROLES[person]
+            data["designation"] = agreement_store.qs.designation_for(person, kind)
 
-            pdf_path = Path(tempfile.gettempdir()) / f"{qid}.pdf"
+            copy_mode = str(data.get("pdfCopy") or "both").strip().lower()
+            suffix = "-loan" if copy_mode in ("loan", "finance", "loan-copy") else ""
+            if copy_mode in ("customer", "invoice", "customer-copy"):
+                suffix = ""
+            pdf_path = Path(tempfile.gettempdir()) / f"{qid}{suffix}-dl.pdf"
             agreement_store.write_agreement_pdf(pdf_path, data, root, images)
             if not pdf_path.exists() or pdf_path.stat().st_size < 800:
-                return _send(self, 500, {"ok": False, "error": "PDF හදන්න බැරි වුණා"})
-            _send(self, 200, pdf_path.read_bytes(), "application/pdf", f"{qid}.pdf")
+                return _send(self, 500, {"ok": False, "error": "Could not create the PDF"})
+            filename = f"{qid}{suffix}.pdf" if suffix else f"{qid}.pdf"
+            if copy_mode in ("loan", "finance", "loan-copy"):
+                filename = f"{qid}-loan.pdf"
+            _send(self, 200, pdf_path.read_bytes(), "application/pdf", filename)
         except Exception as err:
             _send(self, 500, {"ok": False, "error": str(err)})
 

@@ -43,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
 
             person = quotation_store.staff_name(data.get("preparedByName") or data.get("person"))
             if not person:
-                return _send(self, 400, {"ok": False, "error": "Prepared By name select කරන්න"})
+                return _send(self, 400, {"ok": False, "error": "Select a Prepared By name"})
 
             images = ROOT / "images"
             root = quotation_store.quotation_root(ROOT)
@@ -52,12 +52,12 @@ class handler(BaseHTTPRequestHandler):
             data = dict(data)
             data["id"] = qid
             data["preparedByName"] = person
-            data["designation"] = quotation_store.STAFF_ROLES[person]
+            data["designation"] = quotation_store.designation_for(person, data.get("kind"))
 
             pdf_path = Path(tempfile.gettempdir()) / f"{qid}.pdf"
             quotation_store.write_quote_pdf(pdf_path, data, root, images)
             if not pdf_path.exists() or pdf_path.stat().st_size < 800:
-                return _send(self, 500, {"ok": False, "error": "PDF හදන්න බැරි වුණා"})
+                return _send(self, 500, {"ok": False, "error": "Could not create the PDF"})
             _send(self, 200, pdf_path.read_bytes(), "application/pdf", f"{qid}.pdf")
         except Exception as err:
             _send(self, 500, {"ok": False, "error": str(err)})

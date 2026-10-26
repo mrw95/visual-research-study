@@ -2,18 +2,18 @@ const STORAGE_KEY = 'cs-agreements-v1';
 const PREP_KEY = 'genx-prepared-by';
 const SIG_KEY = 'genx-signature-';
 const STAFF_ROLES = {
-  Nipun: 'Sales Executive',
-  Isuru: 'Sales Executive',
-  Malki: 'Admin & Marketing',
-  Harshani: 'Director',
-  Rakitha: 'CEO'
+  'B.M.N. S.Basnayaka': 'Sales Executive',
+  'G.H.I. R.Nayanajith': 'Sales Executive',
+  'Malki Rasanga Widanagamge': 'Executive Admin and Marketing',
+  'H.M. C.Harshani Thilakarathna': 'Admin',
+  'D.A.R. N.Dissanayaka': 'Managing Director'
 };
 const STAFF = Object.keys(STAFF_ROLES);
 const TEXT_FIELDS = [
   'customerId', 'customerName', 'address', 'telephone', 'nic',
   'makeModel', 'registrationNr', 'chassisNr', 'year',
   'transfereeName', 'transfereeNic', 'warrantyYears', 'warrantyMonths',
-  'preparedByName'
+  'preparedByName', 'buyerSignNic', 'buyerWitnessNic', 'sellerWitnessRole'
 ];
 const MONEY_FIELDS = [
   'agreedAmount', 'advancePaid', 'secondPaid', 'thirdPaid', 'finalPaid',
@@ -34,6 +34,8 @@ let saving = false;
 let toastTimer = 0;
 let sellerSign = '';
 let buyerSign = '';
+let buyerWitness = '';
+let sellerWitness = '';
 
 function val(id) {
   return document.getElementById(id);
@@ -149,6 +151,8 @@ function readForm() {
     warranty: warrantyValue(),
     signatureImage: sellerSign,
     buyerSignature: buyerSign,
+    buyerWitness: buyerWitness,
+    sellerWitness: sellerWitness,
     totalAmount: val('totalAmount').value.trim(),
     totalPaid: val('totalPaid').value.trim(),
     updatedAt: new Date().toISOString()
@@ -160,10 +164,16 @@ function readForm() {
 }
 
 function setSign(kind, dataUrl) {
-  const img = val(kind === 'buyer' ? 'buyerPreview' : 'sellerPreview');
-  const pad = val(kind === 'buyer' ? 'buyer-pad' : 'seller-pad');
-  if (kind === 'buyer') buyerSign = dataUrl || '';
-  else sellerSign = dataUrl || '';
+  const map = {
+    buyer: { img: 'buyerPreview', pad: 'buyer-pad', set: (v) => { buyerSign = v; } },
+    seller: { img: 'sellerPreview', pad: 'seller-pad', set: (v) => { sellerSign = v; } },
+    buyerWitness: { img: 'buyerWitnessPreview', pad: 'buyer-w-pad', set: (v) => { buyerWitness = v; } },
+    sellerWitness: { img: 'sellerWitnessPreview', pad: 'seller-w-pad', set: (v) => { sellerWitness = v; } }
+  };
+  const spec = map[kind] || map.seller;
+  spec.set(dataUrl || '');
+  const img = val(spec.img);
+  const pad = val(spec.pad);
   if (img) img.src = dataUrl || '';
   if (pad) pad.classList.toggle('has-sign', !!dataUrl);
 }
@@ -185,8 +195,10 @@ function fillForm(data) {
     el.checked = el.value === w;
   });
   val('designation').value = STAFF_ROLES[data.preparedByName] || data.designation || '';
-  setSign('seller', data.signatureImage || (data.preparedByName ? localStorage.getItem(SIG_KEY + data.preparedByName) : '') || '');
+  setSign('seller', data.signatureImage || '');
   setSign('buyer', data.buyerSignature || '');
+  setSign('buyerWitness', data.buyerWitness || '');
+  setSign('sellerWitness', data.sellerWitness || '');
   updateTotals();
   updateIntro();
 }
@@ -252,15 +264,33 @@ async function apiFetch(path, options) {
       lastErr = err;
     }
   }
-  throw lastErr || new Error('Folder API එක open වෙලා නැහැ.');
+  throw lastErr || new Error('Save API is not available.');
+}
+
+function viewerName() {
+  return (typeof csStaffName === 'function' && csStaffName()) || '';
+}
+
+function viewerSeesAll() {
+  return typeof csIsAdmin === 'function' && csIsAdmin();
+}
+
+function belongsToViewer(item) {
+  if (viewerSeesAll()) return true;
+  const me = viewerName();
+  if (!me || !item) return false;
+  const same = typeof csSamePerson === 'function' ? csSamePerson : (a, b) => a === b;
+  return same(item.person, me) || same(item.preparedByName, me);
 }
 
 async function apiList() {
-  const res = await apiFetch('/api/agreements', { cache: 'no-store' });
+  const me = viewerName();
+  const query = !viewerSeesAll() && me ? '?person=' + encodeURIComponent(me) : '';
+  const res = await apiFetch('/api/agreements' + query, { cache: 'no-store' });
   if (!res.ok) throw new Error('API unavailable');
   const data = await res.json();
   apiRoot = data.root || '';
-  apiItems = data.items || [];
+  apiItems = (data.items || []).filter(belongsToViewer);
   return data;
 }
 
@@ -312,7 +342,7 @@ async function postAgreementPdf(saved) {
 }
 
 async function downloadPdf(saved) {
-  showToast('PDF හදනවා...', 'wait');
+  showToast('Creating PDF...', 'wait');
   try {
     const blob = await postAgreementPdf(saved);
     if (blob && blob.size > 800) {
@@ -328,7 +358,7 @@ async function downloadPdf(saved) {
 }
 
 function saveLocalQuote(data) {
-  if (!data.id) data.id = nextRef(allKnown());
+  if (!data.id) throw new Error('Type the agreement number');
   data.updatedAt = new Date().toISOString();
   data.createdAt = data.createdAt || data.updatedAt;
   data.person = data.preparedByName;
@@ -341,8 +371,14 @@ function saveLocalQuote(data) {
 
 async function saveAgreement() {
   if (saving) return null;
+  const typedId = (val('agreementNo').value || '').trim().toUpperCase();
+  if (!typedId) {
+    showToast('Type the agreement number', 'error');
+    val('agreementNo').focus();
+    return null;
+  }
   if (!STAFF.includes(val('preparedByName').value)) {
-    showToast('Seller name select කරන්න', 'error');
+    showToast('Select a seller name', 'error');
     val('preparedByName').focus();
     return null;
   }
@@ -350,6 +386,7 @@ async function saveAgreement() {
   showToast('Saving...', 'wait');
   updateTotals();
   const data = readForm();
+  data.id = typedId;
   let items = allKnown();
   try {
     const listed = await apiList();
@@ -358,7 +395,6 @@ async function saveAgreement() {
     items = allKnown();
   }
   const existing = items.find((x) => x.id === data.id);
-  if (!existing) data.id = '';
   data.createdAt = existing ? existing.createdAt : new Date().toISOString();
   try {
     const saved = await apiSave(data);
@@ -368,10 +404,11 @@ async function saveAgreement() {
     history.replaceState({}, '', `agreement.html?ref=${encodeURIComponent(merged.id)}`);
     const onShare = /\\\\carswitch\\/i.test(String(apiRoot || merged.pdfPath || ''));
     showToast('Saved successfully', '');
+    if (onShare && typeof openSavedFolder === 'function') openSavedFolder(merged.pdfPath);
     return merged;
   } catch {
     const saved = saveLocalQuote(data);
-    showToast('Saved successfully', '');
+    showToast('Saved on this device', '');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -387,6 +424,21 @@ function fileToDataUrl(file) {
   });
 }
 
+function stampSellerSign() {
+  const name = val('preparedByName').value;
+  if (!STAFF.includes(name)) {
+    showToast('Select a seller name', 'error');
+    return;
+  }
+  const stored = localStorage.getItem(SIG_KEY + name) || '';
+  if (stored && sellerSign !== stored) {
+    setSign('seller', stored);
+    return;
+  }
+  const file = val('sellerFile');
+  if (file) file.click();
+}
+
 function bindUpload(buttonId, fileId, kind) {
   const btn = val(buttonId);
   const file = val(fileId);
@@ -397,7 +449,7 @@ function bindUpload(buttonId, fileId, kind) {
     file.value = '';
     if (!picked) return;
     try {
-      const dataUrl = await fileToDataUrl(picked);
+      const dataUrl = await prepareSignatureFile(picked);
       setSign(kind, dataUrl);
       if (kind === 'seller' && val('preparedByName').value) {
         localStorage.setItem(SIG_KEY + val('preparedByName').value, dataUrl);
@@ -415,16 +467,16 @@ function initEditor() {
     updateTotals();
     const live = readForm();
     if (!STAFF.includes(live.preparedByName)) {
-      showToast('Seller name select කරන්න', 'error');
+      showToast('Select a seller name', 'error');
       return;
     }
     live.id = live.id || 'agreement';
     await downloadPdf(live);
   });
-  val('delete-btn').addEventListener('click', async () => {
+  val('delete-btn') && val('delete-btn').addEventListener('click', async () => {
     const id = val('agreementNo').value.trim() || param('ref');
     if (!id) return;
-    if (!confirm(id + ' delete කරනවද?')) return;
+    if (!confirm('Delete ' + id + '?')) return;
     await apiDelete(id);
     writeLocal(loadLocal().filter((x) => x.id !== id));
     location.href = 'agreement.html';
@@ -432,7 +484,7 @@ function initEditor() {
   val('preparedByName').addEventListener('change', () => {
     const name = val('preparedByName').value;
     val('designation').value = STAFF_ROLES[name] || '';
-    if (name) setSign('seller', localStorage.getItem(SIG_KEY + name) || sellerSign);
+    setSign('seller', '');
   });
   val('agreementDate').addEventListener('input', updateIntro);
   MONEY_FIELDS.forEach((id) => {
@@ -444,8 +496,19 @@ function initEditor() {
       updateTotals();
     });
   });
-  bindUpload('seller-upload', 'sellerFile', 'seller');
   bindUpload('buyer-upload', 'buyerFile', 'buyer');
+  bindUpload('seller-w-upload', 'sellerWitnessFile', 'sellerWitness');
+  bindUpload('buyer-w-upload', 'buyerWitnessFile', 'buyerWitness');
+  const sellerPad = val('seller-pad');
+  const sellerBtn = val('seller-upload');
+  if (sellerBtn) sellerBtn.textContent = 'Place signature';
+  function onSellerClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    stampSellerSign();
+  }
+  if (sellerBtn) sellerBtn.addEventListener('click', onSellerClick);
+  if (sellerPad) sellerPad.addEventListener('click', onSellerClick);
 
   (async () => {
     const ref = param('ref');
@@ -457,16 +520,67 @@ function initEditor() {
       saved = ref ? loadLocal().find((x) => x.id === ref) : null;
     }
     if (!saved && ref) saved = loadLocal().find((x) => x.id === ref) || null;
+    const me = viewerName();
+    if (me && !viewerSeesAll() && saved && !belongsToViewer(saved)) {
+      showToast('That document belongs to another user', 'error');
+      setTimeout(() => { location.href = 'agreements.html'; }, 900);
+      return;
+    }
     if (saved) fillForm(saved);
     else {
+      const staffDefault = (typeof csStaffName === 'function' && csStaffName())
+        || localStorage.getItem(PREP_KEY)
+        || '';
       fillForm({
         id: '',
         agreementDate: todayIso(),
-        preparedByName: localStorage.getItem(PREP_KEY) || '',
+        preparedByName: staffDefault,
         warranty: 'No'
       });
     }
+    if (me && !viewerSeesAll() && val('preparedByName')) {
+      val('preparedByName').value = me;
+      val('preparedByName').disabled = true;
+    }
   })();
+}
+
+function invoiceCompanyName(item) {
+  return String((item && item.invoiceCompany) || '').trim();
+}
+
+function invoiceMatchesCompany(item, company) {
+  const name = invoiceCompanyName(item);
+  if (company === 'Genx Importanters') return name === 'Genx Importanters';
+  if (!name) return company === 'Carswitch';
+  return name === company;
+}
+
+function invoiceOrderKey(id) {
+  const months = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+  const parts = String(id || '').toUpperCase().split('-');
+  let year = 0;
+  let month = 0;
+  let seq = 0;
+  if (parts[0] === 'INV' && parts.length >= 3) {
+    year = parseInt(parts[1], 10) || 0;
+    if (parts.length >= 4 && months[parts[2]]) {
+      month = months[parts[2]];
+      seq = parseInt(parts[3], 10) || 0;
+    } else {
+      seq = parseInt(parts[2], 10) || 0;
+    }
+  }
+  return [year, month, seq];
+}
+
+function compareInvoiceOrder(a, b) {
+  const ka = invoiceOrderKey(a);
+  const kb = invoiceOrderKey(b);
+  for (let i = 0; i < 3; i += 1) {
+    if (ka[i] !== kb[i]) return kb[i] - ka[i];
+  }
+  return String(b || '').localeCompare(String(a || ''));
 }
 
 function formatWhen(iso) {
@@ -482,35 +596,63 @@ function initList() {
   const list = val('agree-list');
   const hint = val('folder-hint');
   const staffFilters = val('staff-filters');
-  let person = '';
+  const seeAll = viewerSeesAll();
+  let person = seeAll ? '' : viewerName();
+  if (!seeAll && staffFilters) {
+    staffFilters.hidden = true;
+    staffFilters.classList.add('is-locked');
+  }
 
   async function refresh() {
     try {
       const data = await apiList();
       if (hint && data.root) {
         hint.textContent = data.root === 'cloud' || isHomeCloud()
-          ? 'Saved online. PC එක on වෙන්න ඕන නැහැ.'
-          : (/\\\\carswitch\\/i.test(String(data.root)) ? 'Save වෙන්නේ: ' + data.root : 'Saved');
+          ? 'Saved online'
+          : (/\\\\carswitch\\/i.test(String(data.root)) ? 'Saved to: ' + data.root : 'Saved');
       }
     } catch {
       apiItems = loadLocal();
-      if (hint) hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
+      if (hint) hint.textContent = 'Saved on this device. Download PDF here.';
     }
     render();
   }
 
   function render() {
     const q = search.value.trim().toLowerCase();
-    const source = allKnown();
+    if (!viewerSeesAll()) person = viewerName();
+    const source = allKnown().filter(belongsToViewer);
+    const kindFilter = (new URLSearchParams(location.search).get('kind') || '').toLowerCase();
+    const titles = {
+      invoice: 'Saved Invoice',
+      sales: 'Saved Sales Agreement',
+      preorder: 'Saved Pre-Order Agreement'
+    };
+    const heading = document.querySelector('.list-header h1');
+    if (heading && titles[kindFilter]) heading.textContent = titles[kindFilter];
+    const companyFilter = new URLSearchParams(location.search).get('company') || '';
     const items = source.filter((item) => {
-      if (person && item.person !== person && item.preparedByName !== person) return false;
+      const same = typeof csSamePerson === 'function' ? csSamePerson : (a, b) => a === b;
+      if (person && !same(item.person, person) && !same(item.preparedByName, person)) return false;
+      const id = String(item.id || '');
+      const kind = String(item.kind || '');
+      const isInv = kind === 'invoice' || id.startsWith('INV-');
+      const isPre = kind === 'preorder' || id.startsWith('PO-');
+      if (kindFilter === 'invoice' && !isInv) return false;
+      if (kindFilter === 'sales' && (isInv || isPre)) return false;
+      if (kindFilter === 'preorder' && !isPre) return false;
+      if (companyFilter && isInv && !invoiceMatchesCompany(item, companyFilter)) return false;
       if (!q) return true;
       return [item.id, item.kind, item.customerName, item.telephone, item.nic, item.makeModel, item.make, item.model, item.chassisNr, item.preparedByName]
         .join(' ').toLowerCase().includes(q);
     });
-    summary.textContent = `${items.length} / ${source.length} agreements`;
+    if (kindFilter === 'invoice') items.sort((a, b) => compareInvoiceOrder(a.id, b.id));
+    const countLabels = { invoice: 'invoices', preorder: 'pre-order', sales: 'sales' };
+    summary.textContent = countLabels[kindFilter]
+      ? `${items.length} ${countLabels[kindFilter]}`
+      : `${items.length}`;
     if (!items.length) {
-      list.innerHTML = '<section class="quote-card"><p>Saved agreements නැහැ. Seller name select කරලා Save කරන්න.</p></section>';
+      list.innerHTML = '<section class="quote-card"><p>No saved agreements. Select a seller name and Save.</p></section>';
       return;
     }
     list.innerHTML = items.map((item) => {
@@ -522,6 +664,8 @@ function initList() {
       const label = inv ? 'Invoice' : pre ? 'Pre-Order' : 'Sales';
       const vehicle = item.makeModel || [item.make, item.model].filter(Boolean).join(' ');
       const when = item.invoiceDate || item.agreementDate || '';
+      const genxDelete = inv && companyFilter === 'Genx Importanters' && invoiceCompanyName(item) === 'Genx Importanters';
+      const openHref = page + '?ref=' + encodeURIComponent(item.id) + (inv && companyFilter ? '&company=' + encodeURIComponent(companyFilter) : '');
       return `
       <article class="quote-card">
         <div class="quote-card-top">
@@ -531,9 +675,9 @@ function initList() {
         <p>${item.customerName || '—'} · ${vehicle || ''}</p>
         <p>Total: LKR ${item.totalAmount || '—'} · ${formatWhen(item.updatedAt)}</p>
         <div class="quote-card-actions">
-          <a class="quote-btn quote-btn-save" href="${page}?ref=${encodeURIComponent(item.id)}">Open</a>
+          <a class="quote-btn quote-btn-save" href="${openHref}">Open</a>
           <button type="button" class="quote-btn quote-btn-ghost" data-pdf="${item.id}">PDF</button>
-          <button type="button" class="quote-btn quote-btn-danger" data-del="${item.id}">Delete</button>
+          ${genxDelete ? `<button type="button" class="quote-btn quote-btn-ghost" data-delete="${item.id}">Delete</button>` : ''}
         </div>
       </article>`;
     }).join('');
@@ -544,25 +688,37 @@ function initList() {
         if (item) await downloadPdf(item);
       });
     });
-    list.querySelectorAll('[data-del]').forEach((btn) => {
+    list.querySelectorAll('[data-delete]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-del');
-        if (!confirm(id + ' delete කරනවද?')) return;
-        await apiDelete(id);
+        const id = btn.getAttribute('data-delete');
+        const item = source.find((x) => x.id === id);
+        if (!id || !item || invoiceCompanyName(item) !== 'Genx Importanters') return;
+        if (!confirm('Delete ' + id + '?')) return;
+        btn.disabled = true;
+        const removed = await apiDelete(id);
+        if (!removed) {
+          btn.disabled = false;
+          showToast('Could not delete', 'error');
+          return;
+        }
+        apiItems = apiItems.filter((x) => x.id !== id);
         writeLocal(loadLocal().filter((x) => x.id !== id));
-        await refresh();
+        showToast('Deleted', '');
+        render();
       });
     });
   }
 
-  staffFilters.querySelectorAll('.staff-chip').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      person = btn.getAttribute('data-person') || '';
-      staffFilters.querySelectorAll('.staff-chip').forEach((el) => el.classList.toggle('selected', el === btn));
-      render();
-    });
-  });
   search.addEventListener('input', render);
+  if (seeAll && staffFilters) {
+    staffFilters.querySelectorAll('.staff-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        person = btn.getAttribute('data-person') || '';
+        staffFilters.querySelectorAll('.staff-chip').forEach((el) => el.classList.toggle('selected', el === btn));
+        render();
+      });
+    });
+  }
   refresh();
 }
 
@@ -587,4 +743,10 @@ function initPhoneShare() {
 
 if (val('agree-sheet')) initEditor();
 if (val('agree-list')) initList();
+(function () {
+  const el = document.getElementById('year');
+  if (!el) return;
+  el.removeAttribute('inputmode');
+  el.setAttribute('maxlength', '20');
+})();
 initPhoneShare();

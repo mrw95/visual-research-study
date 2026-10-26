@@ -7,6 +7,11 @@
     { "source": "/agreements", "destination": "/agreements.html" },
     { "source": "/preorder", "destination": "/preorder.html" },
     { "source": "/invoice", "destination": "/invoice.html" },
+    { "source": "/invoice-pick", "destination": "/invoice-pick.html" },
+    { "source": "/invoice-menu", "destination": "/invoice-menu.html" },
+    { "source": "/quote-pick", "destination": "/quote-pick.html" },
+    { "source": "/agree-pick", "destination": "/agree-pick.html" },
+    { "source": "/preorder-pick", "destination": "/preorder-pick.html" },
     { "source": "/desk", "destination": "/desk.html" },
     { "source": "/quote-login", "destination": "/quote-login.html" }
   ],
@@ -17,7 +22,7 @@
     },
     "api/agreement-pdf.py": {
       "maxDuration": 30,
-      "includeFiles": "images/cs-*.jpg"
+      "includeFiles": "images/cs-*.jpg,images/genx-header.*,images/invoice-footer.png,images/harshani-signature.png"
     },
     "api/quotation.py": {
       "maxDuration": 15
@@ -134,6 +139,18 @@
     },
     {
       "source": "/invoice.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/invoice-pick",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/invoice-pick.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
       ]

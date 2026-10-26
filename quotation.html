@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Pre-Order Vehicle Quotation</title>
+  <title>CS Docs — Quotation</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=49">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=82">
+  <style>.lan-hint{display:none!important}</style>
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
-    <a class="quote-tool-link quote-tool-home" href="desk.html">Desk</a>
+    <a class="quote-tool-brand" href="desk.html"><img src="images/cs-docs-icon.png?v=3" alt=""> CS Docs</a>
     <a class="quote-tool-link" href="quotations.html">Saved quotations</a>
     <a class="quote-tool-link" href="quotation.html">New quotation</a>
     <a class="quote-tool-link" href="agreement.html">Sales agreement</a>
@@ -18,15 +21,12 @@
     <a class="quote-tool-link" href="invoice.html">Invoice</a>
     <span class="quote-tool-ref" id="toolbar-ref">New</span>
     <span class="quote-tool-status" id="save-status"></span>
+    <button type="button" class="quote-btn quote-btn-ghost" data-back="/quotations">Back</button>
     <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
     <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
     <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
-    <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
-    <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
   </div>
-  <div id="lan-hint" class="lan-hint no-print" hidden></div>
   <div id="save-toast" class="save-toast no-print" hidden></div>
-  <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
 
   <main class="quote-sheet" id="quote-sheet">
     <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
@@ -78,7 +78,7 @@
           </tr>
           <tr>
             <th>Year</th>
-            <td><input id="year" type="text" inputmode="numeric" maxlength="4"></td>
+            <td><input id="year" type="text" maxlength="20" placeholder="e.g. 2023/2024" autocomplete="off"></td>
           </tr>
           <tr>
             <th>Grade</th>
@@ -174,7 +174,7 @@
             <td class="amount empty-amt"></td>
             <td class="amount"><input id="japanCostLkr" class="money" type="text" readonly></td>
           </tr>
-          <tr>
+          <tr class="japan-cost">
             <td>Customs Duty - LKR</td>
             <td class="amount empty-amt"></td>
             <td class="amount empty-amt"></td>
@@ -221,11 +221,11 @@
           <span>Name</span>
           <select id="preparedByName" required>
             <option value="">Select name</option>
-            <option value="Nipun">Nipun</option>
-            <option value="Isuru">Isuru</option>
-            <option value="Malki">Malki</option>
-            <option value="Harshani">Harshani</option>
-            <option value="Rakitha">Rakitha</option>
+            <option value="B.M.N. S.Basnayaka">B.M.N. S.Basnayaka</option>
+            <option value="G.H.I. R.Nayanajith">G.H.I. R.Nayanajith</option>
+            <option value="Malki Rasanga Widanagamge">Malki Rasanga Widanagamge</option>
+            <option value="H.M. C.Harshani Thilakarathna">H.M. C.Harshani Thilakarathna</option>
+            <option value="D.A.R. N.Dissanayaka">D.A.R. N.Dissanayaka</option>
           </select>
         </label>
         <label>
@@ -276,6 +276,9 @@
     <option value="Blue"></option>
   </datalist>
 
-  <script src="static/quotation.js?v=50"></script>
+  <script src="static/staff-auth.js?v=4"></script>
+  <script>csRequireStaff();</script>
+  <script src="static/signature.js?v=1"></script>
+  <script src="static/quotation.js?v=69"></script>
 </body>
 </html>

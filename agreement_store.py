@@ -12,6 +12,12 @@ import quotation_store as qs
 STAFF = qs.STAFF
 STAFF_ROLES = qs.STAFF_ROLES
 NETWORK_AGREEMENTS = Path(r"\\Carswitch\CarSwitch Document\Related Documents\CarSwitch\Invoice & Agreement")
+NETWORK_SALES = NETWORK_AGREEMENTS / "Sales Agreement"
+NETWORK_PREORDER = NETWORK_AGREEMENTS / "Pre-Order Agreement"
+NETWORK_INVOICE_ROOTS = {
+    "Carswitch": Path(r"\\Carswitch\CarSwitch Document\Related Documents\CarSwitch\Invoice"),
+    "Genx Importanters": Path(r"\\Carswitch\CarSwitch Document\Related Documents\Genx Imp\Invoice"),
+}
 ID_RE = re.compile(r"^(SA|PO|INV)-\d{4}-\d{4}$")
 DATA_DIR = "_data"
 
@@ -21,29 +27,80 @@ TEXT_KEYS = (
     "trim", "mileage", "auctionGrade", "deliveryWeeks", "exchangeRate",
     "transfereeName", "transfereeNic", "warrantyYears", "warrantyMonths",
     "warranty", "docMta2", "docVrc", "docMta6", "docInsurance", "docEmission", "docRevenue",
-    "payBeforeShipment", "payAfterBl", "kind",
+    "payBeforeShipment", "payAfterBl", "kind", "invoiceCompany",
     "make", "model", "engineNr", "engineCapacity", "country", "invoiceDate",
+    "loanBillTo",
 )
 MONEY_KEYS = (
     "agreedAmount", "advanceAmount", "advancePaid", "secondPaid", "thirdPaid", "finalPaid",
     "vehicleCost", "vehiclePaid", "importCharges", "importPaid", "otherCharges", "otherPaid",
+    "vehiclePrice", "vehiclePriceTotal",
+    "japanCostLkr", "customsDuty", "clearingCharges", "agencyFee", "totalEstimatedPrice",
     "additionalFee", "additionalPaid", "registrationFee", "registrationPaid",
     "valuationFee", "valuationPaid", "salesTax", "salesTaxPaid",
     "totalAmount", "totalPaid", "balancePayment",
+    "loanAmount",
 )
 
 
-def agreement_root(project_root: Path) -> Path:
+def agreement_root(project_root: Path, company: str = "") -> Path:
     env = os.environ.get("AGREEMENT_DIR")
     base = Path(project_root)
-    for candidate in (Path(env) if env else None, NETWORK_AGREEMENTS, base / "agreements"):
+    company = str(company or "").strip()
+    preferred = []
+    if company in NETWORK_INVOICE_ROOTS:
+        preferred.append(NETWORK_INVOICE_ROOTS[company])
+    preferred.extend([Path(env) if env else None, NETWORK_AGREEMENTS, base / "agreements"])
+    for candidate in preferred:
         if candidate is None:
             continue
         if qs._writable(candidate):
             return candidate
     fallback = project_root / "agreements"
+    if company:
+        fallback = project_root / "agreements" / company.replace(" ", "-")
     fallback.mkdir(parents=True, exist_ok=True)
     return fallback
+
+
+def agreement_kind_root(project_root: Path, kind: str) -> Path:
+    folder_name = "Pre-Order Agreement" if str(kind or "").lower() == "preorder" else "Sales Agreement"
+    local = Path(project_root) / "agreements" / folder_name
+    target = NETWORK_PREORDER if folder_name.startswith("Pre-") else NETWORK_SALES
+    for candidate in (target, local):
+        if qs._writable(candidate):
+            return candidate
+    local.mkdir(parents=True, exist_ok=True)
+    return local
+
+
+def invoice_roots(project_root: Path) -> list[Path]:
+    roots = []
+    seen = set()
+    for company, path in NETWORK_INVOICE_ROOTS.items():
+        if qs._writable(path):
+            key = str(path).lower()
+            if key not in seen:
+                roots.append(path)
+                seen.add(key)
+        else:
+            local = project_root / "agreements" / company.replace(" ", "-")
+            local.mkdir(parents=True, exist_ok=True)
+            key = str(local).lower()
+            if key not in seen:
+                roots.append(local)
+                seen.add(key)
+    for kind in ("sales", "preorder"):
+        path = agreement_kind_root(project_root, kind)
+        key = str(path).lower()
+        if key not in seen:
+            roots.append(path)
+            seen.add(key)
+    agree = agreement_root(project_root)
+    key = str(agree).lower()
+    if key not in seen:
+        roots.append(agree)
+    return roots
 
 
 def ensure_layout(root: Path, images_dir: Path) -> None:
@@ -55,31 +112,71 @@ def ensure_layout(root: Path, images_dir: Path) -> None:
     qs.ensure_layout(root, images_dir)
 
 
+INV_MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+
+
 def safe_agreement_id(raw: str) -> str:
     qid = str(raw or "").strip().upper()
-    return qid if ID_RE.match(qid) else ""
+    if not qid or len(qid) > 40:
+        return ""
+    if re.search(r'[<>:"\\|?*\x00-\x1f]', qid):
+        return ""
+    return qid
+
+
+def _invoice_when(raw: str):
+    text = str(raw or "").strip()
+    if text:
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(text[:10], fmt)
+            except ValueError:
+                continue
+    return datetime.now()
+
+
+def invoice_seq_parts(qid: str):
+    parts = str(qid or "").upper().split("-")
+    if not parts or parts[0] != "INV" or len(parts) < 3 or not parts[1].isdigit():
+        return None
+    year = int(parts[1])
+    if len(parts) == 3 and parts[2].isdigit():
+        return year, int(parts[2])
+    if len(parts) >= 4 and parts[2] in INV_MONTHS and parts[3].isdigit():
+        return year, int(parts[3])
+    return None
+
+
+def invoice_company_match(item_company: str, company: str) -> bool:
+    name = str(item_company or "").strip()
+    wanted = str(company or "").strip()
+    if wanted == "Genx Importanters":
+        return name == "Genx Importanters"
+    if not name:
+        return wanted in ("", "Carswitch")
+    return name == wanted or (wanted == "Carswitch" and name == "Carswitch")
+
+
+def next_invoice_id(items, company: str = "", when: str = "") -> str:
+    dt = _invoice_when(when)
+    year = dt.year
+    mon = INV_MONTHS[dt.month - 1]
+    used = set()
+    for item in items or []:
+        if not invoice_company_match((item or {}).get("invoiceCompany"), company):
+            continue
+        parsed = invoice_seq_parts(safe_agreement_id((item or {}).get("id")))
+        if not parsed:
+            continue
+        # Keep a single running sequence for the company (do not refill gaps).
+        if parsed[0] == year or parsed[0] == year - 1:
+            used.add(parsed[1])
+    n = (max(used) + 1) if used else 1
+    return f"INV-{year}-{mon}-{n:04d}"
 
 
 def next_agreement_id(root: Path, prefix: str = "SA") -> str:
-    raw = str(prefix).upper()
-    prefix = "PO" if raw == "PO" else "INV" if raw == "INV" else "SA"
-    year = datetime.now().year
-    used = set()
-    folders = [root / DATA_DIR / name for name in STAFF]
-    folders.extend(root / name for name in STAFF)
-    for folder in folders:
-        if not folder.exists():
-            continue
-        for path in folder.iterdir():
-            match = ID_RE.match(path.stem.upper()) if path.is_file() else None
-            if match:
-                parts = path.stem.upper().split("-")
-                if len(parts) == 3 and parts[0] == prefix and parts[1].isdigit() and int(parts[1]) == year:
-                    used.add(int(parts[2]))
-    n = 1
-    while n in used:
-        n += 1
-    return f"{prefix}-{year}-{n:04d}"
+    raise ValueError("Type the reference number")
 
 
 def pdf_path_for(root: Path, person: str, qid: str) -> Path:
@@ -121,7 +218,7 @@ def list_agreements(root: Path, person=None):
         for folder in (root / DATA_DIR / name, root / name):
             if not folder.exists():
                 continue
-            for path in list(folder.glob("SA-*.json")) + list(folder.glob("PO-*.json")) + list(folder.glob("INV-*.json")):
+            for path in list(folder.glob("*.json")):
                 if not path.is_file():
                     continue
                 try:
@@ -143,6 +240,27 @@ def list_agreements(root: Path, person=None):
 
 def _v(data, key, fallback=""):
     return html.escape(str(data.get(key) or fallback).strip())
+
+
+def _draw_ordinal_date(c, right, y, raw, font, size) -> None:
+    text = _pretty_date(raw)
+    match = re.match(r"(\d+)(st|nd|rd|th)(.*)$", text)
+    if not match:
+        c.drawRightString(right, y, f"Date: {text}")
+        return
+    day, suf, rest = match.group(1), match.group(2), match.group(3)
+    label = "Date: " + day
+    suf_size = max(6, size * 0.62)
+    w_label = c.stringWidth(label, font, size)
+    w_suf = c.stringWidth(suf, font, suf_size)
+    w_rest = c.stringWidth(rest, font, size)
+    x = right - (w_label + w_suf + w_rest)
+    c.setFont(font, size)
+    c.drawString(x, y, label)
+    c.setFont(font, suf_size)
+    c.drawString(x + w_label, y + size * 0.38, suf)
+    c.setFont(font, size)
+    c.drawString(x + w_label + w_suf, y, rest)
 
 
 def _pretty_date(raw: str) -> str:
@@ -251,11 +369,27 @@ def agreement_html(data: dict, header_uri: str = "", footer_uri: str = "") -> st
         <div>
           <div>Customer’s Signature (Buyer)</div>
           {buyer_html}
+          <div>NIC Number</div>
+          <div>{_v(data, "buyerSignNic")}</div>
         </div>
         <div>
-          <div>CarSwitch (Pvt) Ltd (Seller)</div>
-          <div>{_v(data, "preparedByName")} — {_v(data, "designation")}</div>
+          <div>CarSwitch Pvt Ltd (Seller)</div>
+          <div>{_v(data, "preparedByName")}</div>
           {seller_html}
+          <div>Designation</div>
+          <div>{_v(data, "designation")}</div>
+        </div>
+        <div>
+          <div>Witnesses (For Buyer)</div>
+          {_sign_html(data, "buyerWitness")}
+          <div>NIC Number</div>
+          <div>{_v(data, "buyerWitnessNic")}</div>
+        </div>
+        <div>
+          <div>Witnesses (For Seller)</div>
+          {_sign_html(data, "sellerWitness")}
+          <div>Designation</div>
+          <div>{_v(data, "sellerWitnessRole")}</div>
         </div>
       </div>
       <h3>Annexure 1</h3>
@@ -315,8 +449,6 @@ def preorder_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str
     pretty = _pretty_date(_v(data, "agreementDate"))
     rate = _v(data, "exchangeRate", "2.17")
     weeks = _v(data, "deliveryWeeks", "10")
-    before = "Yes" if str(data.get("payBeforeShipment") or "") in ("1", "true", "Yes", "on") else "No"
-    after_bl = "Yes" if str(data.get("payAfterBl") or "") in ("1", "true", "Yes", "on") else "No"
     intro = (
         f'This agreement (“Agreement”) is entered into on this {pretty}, between the undersigned Buyer '
         "and the Seller/Facilitator (CarSwitch (Pvt) Ltd), collectively referred to as the “Parties.” "
@@ -380,23 +512,18 @@ def preorder_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str
         <tr><th>Trim / Mileage / Auction Grade</th><td>:</td><td>{_v(data, "trim")} / {_v(data, "mileage")} / {_v(data, "auctionGrade")}</td></tr>
       </table>
       <table>
-        <tr><th class="bar" colspan="3">Price and Payment Terms</th></tr>
-        <tr><th></th><th class="amt">Amount</th><th class="amt">Paid</th></tr>
-        <tr><th>Advance Payment</th><td class="amt">{money("advanceAmount")}</td><td class="amt">{money("advancePaid")}</td></tr>
-        <tr><th>Vehicle Cost</th><td class="amt">{money("vehicleCost")}</td><td class="amt">{money("vehiclePaid")}</td></tr>
-        <tr><th>Import Charges</th><td class="amt">{money("importCharges")}</td><td class="amt">{money("importPaid")}</td></tr>
-        <tr><th>Other Charges</th><td class="amt">{money("otherCharges")}</td><td class="amt">{money("otherPaid")}</td></tr>
-        <tr><th>Total Estimated Amount</th><td class="amt">{money("totalAmount")}</td><td class="amt">{money("totalPaid")}</td></tr>
-        <tr><th>Balance Payment</th><td class="amt">{money("balancePayment")}</td><td class="amt"></td></tr>
+        <tr><th class="bar" colspan="2">Cost Summary</th></tr>
+        <tr><th>Total Japan Cost - LKR</th><td class="amt">{money("japanCostLkr")}</td></tr>
+        <tr><th>Customs Duty - LKR</th><td class="amt">{money("customsDuty")}</td></tr>
+        <tr><th>Customs Clearing &amp; Other Charges - LKR</th><td class="amt">{money("clearingCharges")}</td></tr>
+        <tr><th>Agency Fee - LKR</th><td class="amt">{money("agencyFee")}</td></tr>
+        <tr><th>Total Up to Hand – LKR (Estimated Amount)</th><td class="amt">{money("totalEstimatedPrice")}</td></tr>
       </table>
-      <p><strong>Payment No. 01</strong> - The “Advance payment” is to be made by the Customer to the Facilitator, to the Company Bank Account, or through another instrument acceptable to the Facilitator.</p>
-      <p><strong>Payment No. 02</strong> - LC open funds should be arranged by the Customer when the LC opens on his bank account.</p>
-      <p><strong>Payment No. 03</strong> - All Other Charges should be paid by the Customer to the facilitator as below:</p>
-      <ul>
-        <li>Before Shipment: {before}</li>
-        <li>After receiving the Bill of Lading (BL): {after_bl}</li>
-      </ul>
-      <p><strong>Payment No. 03</strong> - Customer Holder should be directly paid to the customs of Sri Lanka. <strong>Payment No. 04</strong> - Facilitator’s Fee, before handing over the vehicle to the Customer.</p>
+      <p><strong>Total Japan Cost – LKR.</strong> Total cost incurred in Japan for the purchase, export processing and shipment preparation of the vehicle.</p>
+      <p><strong>Customs Duty – LKR.</strong> Applicable Customs Duty and government taxes payable upon the arrival of the vehicle in Sri Lanka.</p>
+      <p><strong>Customs Clearing &amp; Other Charges – LKR.</strong> Charges related to customs clearance, port handling and other applicable clearance expenses.</p>
+      <p><strong>Agency Fee – LKR.</strong> Fee charged for the agency/facilitation services provided in connection with the vehicle import process.</p>
+      <p><strong>Total Up to Hand – LKR.</strong> Total amount payable up to the point of handing over the vehicle to the Customer, including the above applicable costs and charges.</p>
       <p><strong>Note:</strong> The final total price is subject to revision based on:</p>
       <ul>
         <li>Changes in Sri Lankan government tax and VAT initiatives</li>
@@ -411,19 +538,27 @@ def preorder_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str
         <div>
           <div>Customer’s Signature (Buyer)</div>
           {_sign_html(data, "buyerSignature")}
+          <div>NIC Number</div>
+          <div>{_v(data, "buyerSignNic")}</div>
         </div>
         <div>
           <div>CarSwitch Pvt Ltd (Seller)</div>
-          <div>{_v(data, "preparedByName")} — {_v(data, "designation")}</div>
+          <div>{_v(data, "preparedByName")}</div>
           {_sign_html(data, "signatureImage")}
+          <div>Designation</div>
+          <div>{_v(data, "designation")}</div>
         </div>
         <div>
           <div>Witnesses (For Buyer)</div>
           {_sign_html(data, "buyerWitness")}
+          <div>NIC Number</div>
+          <div>{_v(data, "buyerWitnessNic")}</div>
         </div>
         <div>
           <div>Witnesses (For Seller)</div>
           {_sign_html(data, "sellerWitness")}
+          <div>Designation</div>
+          <div>{_v(data, "sellerWitnessRole")}</div>
         </div>
       </div>
       <h3>Annexure 1</h3>
@@ -434,7 +569,7 @@ def preorder_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str
       <p><strong>Exchange Rate Risk and Adjustments.</strong> Prices are based on the exchange rate of 1 LKR = {rate} JPY at the time of this agreement. Any fluctuations in currency value at the time of settlement or clearance shall be borne by the Customer.</p>
       <p><strong>Cancellation Policy.</strong> Cancellation After to Company’s overseas purchase: Pre-order advance is non-refundable. If the Company fails to procure or ship the vehicle within 60 days from the agreed deadline (except for Force Majeure and governmental initiatives), the Customer may cancel and receive a refund of the advance paid.</p>
       <p><strong>Governing Law and Jurisdiction.</strong> This Agreement shall be governed by the laws of the Democratic Socialist Republic of Sri Lanka, and any disputes shall be subject to the jurisdiction of the courts of Colombo.</p>
-      <p><strong>Delivery.</strong> The Vehicle, including all tools, accessories, keys, and applicable documentation, has been physically handed over to the Buyer in good condition as of the date of this Agreement.</p>
+      <p><strong>Delivery.</strong> The Vehicle, including all tools, accessories, keys, and applicable documentation, shall be physically handed over to the Buyer in good condition on the actual date of delivery of the Vehicle.</p>
       <p><strong>Default.</strong> In the event of default by either party, the non-defaulting party may pursue legal remedies to enforce the terms of this Agreement.</p>
       <h3>Annexure 2</h3>
       <p>If the Vehicle is to be registered or transferred under a party other than the Customer, the following details shall apply:</p>
@@ -442,6 +577,7 @@ def preorder_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str
         <tr><th>Name of the Registered/Transferee Party</th><td>:</td><td>{_v(data, "transfereeName")}</td></tr>
         <tr><th>National Identity Card (NIC) Number</th><td>:</td><td>{_v(data, "transfereeNic")}</td></tr>
       </table>
+      <p><strong>Account Details</strong><br>CarSwitch (Pvt Ltd) Commercial Bank<br>New Town, Anuradhapura<br>Account Number: 1000902264</p>
     </div>
     <img class="foot" src="{foot}" alt="">
   </div>
@@ -451,6 +587,34 @@ def preorder_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str
 
 def _nl(text: str) -> str:
     return html.escape(str(text or "").strip()).replace("\n", "<br>")
+
+
+def _invoice_pay(data: dict) -> tuple[str, str, str]:
+    price = _plain(data, "vehiclePrice") or _plain(data, "vehiclePriceTotal")
+    advance = _plain(data, "advanceAmount")
+    balance = _plain(data, "balancePayment")
+
+    def from_lines(*names: str) -> str:
+        for line in data.get("lines") or []:
+            desc = str((line or {}).get("description") or "").strip().lower()
+            if any(name in desc for name in names):
+                return str((line or {}).get("total") or (line or {}).get("price") or "").strip()
+        return ""
+
+    if not price:
+        price = from_lines("price", "full")
+    if not advance:
+        advance = from_lines("advance", "advanced")
+    if not balance:
+        balance = from_lines("balance")
+    lines = [line for line in (data.get("lines") or []) if isinstance(line, dict)]
+    if not price and lines:
+        price = str(lines[0].get("total") or lines[0].get("price") or "").strip()
+    if not advance and len(lines) > 1:
+        advance = str(lines[1].get("price") or lines[1].get("total") or "").strip()
+    if not balance and len(lines) > 2:
+        balance = str(lines[2].get("total") or lines[2].get("price") or "").strip()
+    return price, advance, balance
 
 
 def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
@@ -472,6 +636,8 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
     if not rows:
         rows.append("<tr><td>&nbsp;</td><td class='qty'></td><td class='amt'></td><td class='amt'></td></tr>")
     lines_html = "\n".join(rows)
+    total_label = html.escape(_plain(data, "totalLabel") or "TOTAL AMOUNT")
+    total_amt = html.escape(_plain(data, "totalAmount") or _plain(data, "balancePayment"))
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -553,10 +719,6 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
           <h3 class="label">Bill To:</h3>
           <p class="bill">{_nl(data.get("customerName"))}<br>{_nl(data.get("address"))}</p>
         </div>
-        <div>
-          <h3 class="label">From:</h3>
-          <p class="from">CarSwitch (Pvt) Ltd,<br>Jayanthi Mawatha, Anuradhapura<br>+94 25 222 9292 | +94 70 555 9292</p>
-        </div>
       </div>
       <table>
         <thead>
@@ -564,7 +726,7 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
         </thead>
         <tbody>
           {lines_html}
-          <tr><th colspan="3">TOTAL AMOUNT</th><td class="amt">{_v(data, "totalAmount")}</td></tr>
+          <tr><th colspan="3">{total_label}</th><td class="amt">{total_amt}</td></tr>
         </tbody>
       </table>
       <h3>VEHICLE DETAILS</h3>
@@ -579,6 +741,7 @@ def invoice_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
           <tr><th>Manufacture Year</th><td>:</td><td>{_v(data, "year")}</td></tr>
           <tr><th>Engine Capacity</th><td>:</td><td>{_v(data, "engineCapacity")}</td></tr>
           <tr><th>Manufacture Country</th><td>:</td><td>{_v(data, "country")}</td></tr>
+          <tr><th>Vehicle Colour</th><td>:</td><td>{html.escape(str(data.get("colour") or "").upper())}</td></tr>
         </table>
       </div>
       <h3>TERMS AND CONDITIONS</h3>
@@ -615,78 +778,124 @@ def _signature_png_bytes(src: str) -> bytes | None:
         im = Image.open(io.BytesIO(raw)).convert("RGBA")
     except Exception:
         return None
+    im = _knock_out_signature(im)
+    out = io.BytesIO()
+    im.save(out, format="PNG")
+    return out.getvalue()
+
+
+def _knock_out_signature(im):
+    """Keep the original pen colour and drop the paper behind it."""
+    from PIL import Image
+
+    im = im.convert("RGBA")
     w, h = im.size
-    scale = min(1.0, 520 / max(w, 1), 180 / max(h, 1))
-    if scale < 0.999:
+    px = im.load()
+    step = max(1, (w * h) // 6000)
+    samples = clear = 0
+    for y in range(0, h, step):
+        for x in range(0, w, step):
+            samples += 1
+            if px[x, y][3] < 16:
+                clear += 1
+    if samples and clear / samples > 0.08:
+        return _crop_ink(im)
+
+    long_side = max(w, h)
+    if long_side > 1400:
+        scale = 1400 / long_side
         im = im.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.Resampling.LANCZOS)
         w, h = im.size
-    original = im.copy()
+        px = im.load()
+
+    pts = []
+    step_b = max(1, min(w, h) // 50)
+    inset = 2
+    for x in range(0, w, step_b):
+        for y in (min(h - 1, inset), max(0, h - 1 - inset)):
+            r, g, b, a = px[x, y]
+            if a > 200:
+                pts.append((r, g, b))
+    for y in range(0, h, step_b):
+        for x in (min(w - 1, inset), max(0, w - 1 - inset)):
+            r, g, b, a = px[x, y]
+            if a > 200:
+                pts.append((r, g, b))
+    if len(pts) < 8:
+        return _crop_ink(im)
+
+    def median(ch: int) -> int:
+        vals = sorted(p[ch] for p in pts)
+        return vals[len(vals) // 2]
+
+    paper = (median(0), median(1), median(2))
+
+    def dist(c) -> float:
+        return ((c[0] - paper[0]) ** 2 + (c[1] - paper[1]) ** 2 + (c[2] - paper[2]) ** 2) ** 0.5
+
+    dists = sorted(dist(p) for p in pts)
+    noise = dists[int(len(dists) * 0.9)]
+    paper_cut = max(16.0, noise * 2.4 + 8)
+    ink_full = paper_cut + 42
+    out = Image.new("RGBA", (w, h))
+    op = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 16:
+                op[x, y] = (0, 0, 0, 0)
+                continue
+            delta = dist((r, g, b))
+            if delta <= paper_cut:
+                op[x, y] = (0, 0, 0, 0)
+                continue
+            t = (delta - paper_cut) / (ink_full - paper_cut)
+            t = max(0.0, min(1.0, t))
+            t = t * t * (3 - 2 * t)
+            if t < 0.04:
+                op[x, y] = (0, 0, 0, 0)
+                continue
+            ir = max(0, min(255, int(round((r - paper[0] * (1 - t)) / t))))
+            ig = max(0, min(255, int(round((g - paper[1] * (1 - t)) / t))))
+            ib = max(0, min(255, int(round((b - paper[2] * (1 - t)) / t))))
+            op[x, y] = (ir, ig, ib, int(round(t * (a / 255) * 255)))
+
+    for y in range(h):
+        for x in range(w):
+            if op[x, y][3] < 20:
+                continue
+            friends = 0
+            for yy in range(max(0, y - 1), min(h, y + 2)):
+                for xx in range(max(0, x - 1), min(w, x + 2)):
+                    if (xx != x or yy != y) and op[xx, yy][3] > 40:
+                        friends += 1
+            if friends < 1:
+                op[x, y] = (0, 0, 0, 0)
+    return _crop_ink(out)
+
+
+def _crop_ink(im):
+    w, h = im.size
     px = im.load()
-
-    def sample(x: int, y: int) -> tuple[int, int, int]:
-        r, g, b, _a = px[max(0, min(w - 1, x)), max(0, min(h - 1, y))]
-        return r, g, b
-
-    corners = [
-        sample(2, 2), sample(w - 3, 2), sample(2, h - 3), sample(w - 3, h - 3),
-        sample(w // 2, 2), sample(w // 2, h - 3),
-    ]
-    bg = (
-        sum(p[0] for p in corners) / 6,
-        sum(p[1] for p in corners) / 6,
-        sum(p[2] for p in corners) / 6,
-    )
-    bg_luma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]
-    paper_cut = 40
-    ink_full = 88
     min_x, min_y, max_x, max_y = w, h, 0, 0
     kept = 0
     for y in range(h):
         for x in range(w):
-            r, g, b, a = px[x, y]
-            dist = ((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2) ** 0.5
-            chroma = max(r, g, b) - min(r, g, b)
-            luma = 0.299 * r + 0.587 * g + 0.114 * b
-            paper = (
-                a < 16
-                or dist < paper_cut
-                or (luma > 210 and chroma < 18)
-                or (abs(luma - bg_luma) < 16 and chroma < 22)
-            )
-            if paper:
-                px[x, y] = (r, g, b, 0)
-                continue
-            t = (dist - paper_cut) / (ink_full - paper_cut)
-            t = max(0.0, min(1.0, t))
-            t = t * t * (3 - 2 * t)
-            alpha = int(max(t, chroma / 90, 0.55) * (a / 255) * 255)
-            if alpha < 18:
-                px[x, y] = (r, g, b, 0)
-                continue
-            px[x, y] = (r, g, b, alpha)
-            kept += 1
-            if x < min_x:
-                min_x = x
-            if y < min_y:
-                min_y = y
-            if x > max_x:
-                max_x = x
-            if y > max_y:
-                max_y = y
-    if kept == 0:
-        im = original
-    elif max_x >= min_x and max_y >= min_y:
-        pad = 8
-        box = (
-            max(0, min_x - pad),
-            max(0, min_y - pad),
-            min(w, max_x + 1 + pad),
-            min(h, max_y + 1 + pad),
-        )
-        im = im.crop(box)
-    out = io.BytesIO()
-    im.save(out, format="PNG")
-    return out.getvalue()
+            if px[x, y][3] > 18:
+                kept += 1
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    if not kept or max_x < min_x or max_y < min_y:
+        return im
+    pad = 10
+    return im.crop((
+        max(0, min_x - pad),
+        max(0, min_y - pad),
+        min(w, max_x + 1 + pad),
+        min(h, max_y + 1 + pad),
+    ))
 
 
 def _wrap_pdf_text(text: str, font: str, size: float, max_w: float) -> list[str]:
@@ -710,7 +919,7 @@ def _wrap_pdf_text(text: str, font: str, size: float, max_w: float) -> list[str]
     return out or [""]
 
 
-def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: Path) -> None:
+def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: Path, copy_label: str = "CUSTOMER COPY") -> None:
     from reportlab.lib.colors import HexColor, white
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.utils import ImageReader
@@ -732,6 +941,9 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
         font_bold = "InvoiceSans-Bold"
 
     page_w, page_h = A4
+    # Printers cannot mark the outer edge of A4. Phone numbers are at the
+    # top of the header art and the footer bar is at the bottom of the footer art.
+    safe = 18
     navy = HexColor("#084083")
     ink = HexColor("#111111")
     muted = HexColor("#6a6a6a")
@@ -741,16 +953,21 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
     header = ImageReader(str(header_path))
     hw, hh = header.getSize()
     header_h = min(page_w * hh / hw, 74)
-    c.drawImage(header, 0, page_h - header_h, width=page_w, height=header_h, preserveAspectRatio=True, mask="auto")
+    c.drawImage(
+        header, 0, page_h - header_h - safe,
+        width=page_w, height=header_h,
+        preserveAspectRatio=True, mask="auto", anchor="n",
+    )
 
     footer = ImageReader(str(footer_path))
     fw, fh = footer.getSize()
     footer_h = page_w * fh / fw
+    footer_top = safe + footer_h
 
     left = 34
     right = page_w - 34
-    y = page_h - header_h - 18
-    sign_top = footer_h + 110
+    y = page_h - header_h - safe - 16
+    sign_top = footer_top + 100
     floor = sign_top
     gold = HexColor("#ff6505")
 
@@ -761,35 +978,27 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
     c.setFont(font_bold, 10)
     c.drawRightString(right, y + 8, f"INV NO: {_plain(data, 'id')}")
     c.setFont(font_regular, 10)
-    pretty = _pretty_date(_plain(data, "invoiceDate") or _plain(data, "agreementDate"))
-    c.drawRightString(right, y - 6, f"Date: {pretty}")
+    _draw_ordinal_date(c, right, y - 6, _plain(data, "invoiceDate") or _plain(data, "agreementDate"), font_regular, 10)
     y -= 22
 
-    col_w = (right - left - 16) / 2
     c.setFillColor(label)
     c.setFont(font_bold, 11)
     c.drawString(left, y, "Bill To:")
-    c.drawString(left + col_w + 16, y, "From:")
+    is_loan = str(copy_label or "").upper().startswith("LOAN")
     y -= 13
     c.setFillColor(ink)
     c.setFont(font_regular, 9)
-    bill_lines = _wrap_pdf_text(
-        "\n".join(x for x in (_plain(data, "customerName"), _plain(data, "address")) if x),
-        font_regular,
-        9,
-        col_w,
-    )
-    from_lines = [
-        "CarSwitch (Pvt) Ltd,",
-        "Jayanthi Mawatha, Anuradhapura",
-        "+94 25 222 9292 | +94 70 555 9292",
-    ]
-    block_h = max(len(bill_lines), len(from_lines))
+    if is_loan:
+        bill_src = "\n".join(x for x in (_plain(data, "loanBillTo"),) if str(x).strip()) or "\n".join(
+            x for x in (_plain(data, "customerName"), _plain(data, "address"), _plain(data, "nic")) if str(x).strip()
+        )
+    else:
+        bill_src = "\n".join(x for x in (_plain(data, "customerName"), _plain(data, "address"), _plain(data, "nic")) if str(x).strip())
+    bill_lines = _wrap_pdf_text(bill_src, font_regular, 9, right - left)
+    block_h = max(len(bill_lines), 1)
     for i in range(block_h):
         if i < len(bill_lines) and bill_lines[i]:
             c.drawString(left, y, bill_lines[i])
-        if i < len(from_lines):
-            c.drawString(left + col_w + 16, y, from_lines[i])
         y -= 11
     y -= 8
 
@@ -838,7 +1047,12 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
         else:
             c.drawString(x + pad, text_y, text)
 
-    headers = (("Description", "left"), ("Qty", "center"), ("Price", "right"), ("Total", "right"))
+    headers = (("Description", "left"), ("Qty", "center"), ("Total", "right")) if is_loan else (
+        ("Description", "left"), ("Qty", "center"), ("Price", "right"), ("Total", "right")
+    )
+    if is_loan:
+        desc_w = (right - left) - qty_w - amt_w
+        cols_x = [left, left + desc_w, left + desc_w + qty_w, right]
     for i, (title, align) in enumerate(headers):
         draw_cell(
             cols_x[i], y, cols_x[i + 1] - cols_x[i], row_h, title,
@@ -846,35 +1060,49 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
         )
     y -= row_h
 
-    drawn = 0
-    for desc, qty, price, total in usable:
-        wrapped = _wrap_pdf_text(desc, font_regular, 9, desc_w - 12) or [""]
-        h = max(row_h, 12 * len(wrapped) + 6)
-        if y - h < floor + 16:
-            break
-        draw_cell(cols_x[0], y, desc_w, h, None)
-        c.setFillColor(ink)
-        c.setFont(font_regular, 9)
-        text_y = y - h + 6 + 11 * (len(wrapped) - 1)
-        for part in wrapped:
-            c.drawString(left + 6, text_y, part)
-            text_y -= 11
-        draw_cell(cols_x[1], y, qty_w, h, qty, align="center")
-        draw_cell(cols_x[2], y, amt_w, h, price, align="right")
-        draw_cell(cols_x[3], y, amt_w, h, total, color=navy, align="right")
-        y -= h
-        drawn += 1
-    if drawn == 0:
-        for i in range(4):
-            draw_cell(cols_x[i], y, cols_x[i + 1] - cols_x[i], row_h, "")
+    if is_loan:
+        price_desc = _plain(data, "loanLineDesc") or "Price"
+        price_qty = _plain(data, "loanLineQty") or "1"
+        price_total = _plain(data, "loanLineTotal")
+        draw_cell(cols_x[0], y, desc_w, row_h, price_desc)
+        draw_cell(cols_x[1], y, qty_w, row_h, price_qty, align="center")
+        draw_cell(cols_x[2], y, amt_w, row_h, price_total, color=navy, align="right")
+        y -= row_h
+        label_w = desc_w + qty_w
+        draw_cell(left, y, label_w, row_h, "Loan Amount", font=font_bold, size=9)
+        draw_cell(cols_x[2], y, amt_w, row_h, _plain(data, "loanAmount"), color=navy, font=font_bold, size=9, align="right")
+        y -= row_h
+    else:
+        drawn = 0
+        for desc, qty, price, total in usable:
+            wrapped = _wrap_pdf_text(desc, font_regular, 9, desc_w - 12) or [""]
+            h = max(row_h, 12 * len(wrapped) + 6)
+            if y - h < floor + 16:
+                break
+            draw_cell(cols_x[0], y, desc_w, h, None)
+            c.setFillColor(ink)
+            c.setFont(font_regular, 9)
+            text_y = y - h + 6 + 11 * (len(wrapped) - 1)
+            for part in wrapped:
+                c.drawString(left + 6, text_y, part)
+                text_y -= 11
+            draw_cell(cols_x[1], y, qty_w, h, qty, align="center")
+            draw_cell(cols_x[2], y, amt_w, h, price, align="right")
+            draw_cell(cols_x[3], y, amt_w, h, total, color=navy, align="right")
+            y -= h
+            drawn += 1
+        if drawn == 0:
+            for i in range(4):
+                draw_cell(cols_x[i], y, cols_x[i + 1] - cols_x[i], row_h, "")
+            y -= row_h
+
+        total_label = _plain(data, "totalLabel") or "TOTAL AMOUNT"
+        total_amt = _plain(data, "totalAmount") or _plain(data, "balancePayment")
+        total_label_w = desc_w + qty_w + amt_w
+        draw_cell(left, y, total_label_w, row_h, total_label, font=font_bold, size=9, align="left")
+        draw_cell(cols_x[3], y, amt_w, row_h, total_amt, color=navy, font=font_bold, size=9, align="right")
         y -= row_h
 
-    total_label_w = desc_w + qty_w + amt_w
-    draw_cell(left, y, total_label_w, row_h, "TOTAL AMOUNT", font=font_bold, size=9, align="left")
-    draw_cell(
-        cols_x[3], y, amt_w, row_h, _plain(data, "totalAmount"),
-        color=navy, font=font_bold, size=9, align="right",
-    )
     y -= after_table
 
     c.setFillColor(muted)
@@ -892,6 +1120,7 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
         ("Manufacture Year", _plain(data, "year")),
         ("Engine Capacity", _plain(data, "engineCapacity")),
         ("Manufacture Country", _plain(data, "country")),
+        ("Vehicle Colour", _plain(data, "colour").upper()),
     ]
     gap = 12
     box_w = (right - left - gap) / 2
@@ -912,6 +1141,23 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
     right_h = draw_kv(left + box_w + gap, kv_right)
     y -= max(left_h, right_h) + after_vehicle
 
+    if is_loan:
+        c.setFillColor(muted)
+        c.setFont(font_bold, 10)
+        c.drawString(left, y, "CUSTOMER DETAILS")
+        y -= 14
+        cust_rows = [
+            ("Name", _plain(data, "customerName")),
+            ("Address", _plain(data, "address")),
+            ("ID Number", _plain(data, "nic")),
+        ]
+        for k, v in cust_rows:
+            draw_cell(left, y, 110, kv_h, k, font=font_bold, size=8)
+            draw_cell(left + 110, y, 16, kv_h, ":", size=8, align="center")
+            draw_cell(left + 126, y, right - left - 126, kv_h, v, size=8)
+            y -= kv_h
+        y -= 16
+
     c.setFillColor(muted)
     c.setFont(font_bold, 10)
     c.drawString(left, y, "TERMS AND CONDITIONS")
@@ -922,10 +1168,12 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
         "Please fax or mail the signed price quote to the address above",
         "Please note that all advance payments made are non-refundable under any circumstances",
         "The above prices may change due to government policies and currency exchange rates.",
+        "The vehicle will be delivered only after full settlement of this invoice.",
     ]
     c.setFillColor(muted)
     c.setFont(font_regular, 8)
-    for i, term in enumerate(terms, 1):
+    start_no = 1
+    for i, term in enumerate(terms, start_no):
         wrapped = _wrap_pdf_text(f"{i}. {term}", font_regular, 8, right - left)
         for part in wrapped:
             if y < floor + 8:
@@ -935,39 +1183,56 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
 
     c.setFillColor(navy)
     c.setFont(font_bold, 10)
-    c.drawString(left, footer_h + 96, "PREPARED BY")
+    c.drawString(left, footer_top + 86, "PREPARED BY")
     c.setStrokeColor(gold)
     c.setLineWidth(1)
-    c.line(left, footer_h + 92, right, footer_h + 92)
-    sign_right = left + (right - left) * 0.72
-    col_w = (sign_right - left) / 3
+    c.line(left, footer_top + 82, right, footer_top + 82)
+    col_w = (right - left) / 4
     c.setFillColor(muted)
     c.setFont(font_bold, 8)
-    for i, lbl in enumerate(("Name", "Designation", "Signature")):
-        c.drawString(left + i * col_w, footer_h + 80, lbl)
-    line_y = footer_h + 18
+    for i, lbl in enumerate(("Name", "Designation", "Signature", "Customer Signature")):
+        c.drawString(left + i * col_w, footer_top + 70, lbl)
+    line_y = footer_top + 14
     c.setStrokeColor(HexColor("#c5d0dc"))
     c.setLineWidth(0.8)
-    for i in range(3):
+    for i in (2, 3):
         c.line(left + i * col_w, line_y, left + (i + 1) * col_w - 12, line_y)
     name_y = line_y + 8
-    c.setFillColor(ink)
-    c.setFont(font_regular, 9)
-    c.drawString(left, name_y, _plain(data, "preparedByName"))
-    c.drawString(left + col_w, name_y, _plain(data, "designation"))
+    c.setFillColor(HexColor("#1d5aaa"))
+    prepared = _plain(data, "preparedByName")
+    if prepared in ("Harshani", "H.M.C.Harshani Thilakarathna"):
+        prepared = "H.M. C.Harshani Thilakarathna"
+    c.setFont(font_bold, 9)
+    c.drawString(left, name_y, prepared)
+    c.setFont(font_bold, 9)
+    c.drawString(left + col_w, name_y, _plain(data, "designation") or ("Admin" if prepared == "H.M. C.Harshani Thilakarathna" else ""))
+    buyer_png = _signature_png_bytes(str(data.get("buyerSignature") or "").strip())
+    if buyer_png:
+        try:
+            sign = ImageReader(io.BytesIO(buyer_png))
+            sw, sh = sign.getSize()
+            draw_h = 28
+            draw_w = draw_h * sw / sh if sh else draw_h * 2.4
+            c.drawImage(sign, left + 3 * col_w, line_y + 2, width=min(draw_w, col_w - 10), height=draw_h, mask="auto", preserveAspectRatio=True, anchor="sw")
+        except Exception:
+            pass
     src = str(data.get("signatureImage") or "").strip()
     png = _signature_png_bytes(src)
+    sign = None
     if png:
         try:
             sign = ImageReader(io.BytesIO(png))
+        except Exception:
+            sign = None
+    if sign is not None:
+        try:
             sw, sh = sign.getSize()
             scale = max(28, min(56, int(data.get("signatureScale") or 40)))
             draw_h = scale * 0.7
             draw_w = draw_h * sw / sh if sh else draw_h * 2.4
-            x_off = max(0, min(90, int(data.get("signatureX") or 0)))
             c.drawImage(
                 sign,
-                left + 2 * col_w + x_off,
+                left + 2 * col_w,
                 line_y + 2,
                 width=min(draw_w, col_w - 10),
                 height=draw_h,
@@ -978,23 +1243,53 @@ def _invoice_reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer
         except Exception:
             pass
 
-    c.drawImage(footer, 0, 0, width=page_w, height=footer_h, preserveAspectRatio=False, mask="auto")
+    c.drawImage(
+        footer, 0, safe,
+        width=page_w, height=footer_h,
+        preserveAspectRatio=True, mask="auto", anchor="s",
+    )
     c.save()
 
 
 def write_agreement_pdf(pdf_path: Path, data: dict, root: Path, images_dir: Path | None = None) -> None:
-    header = qs._letterhead_file(root, "cs-header.jpg", images_dir)
-    footer = qs._letterhead_file(root, "cs-footer.jpg", images_dir)
+    company = str(data.get("invoiceCompany") or "").strip()
     kind = _kind_of(data)
+    if kind == "invoice" and company == "Genx Importanters":
+        header = qs._letterhead_file(root, "genx-header.png", images_dir)
+        if not header.exists():
+            header = qs._letterhead_file(root, "genx-header.jpg", images_dir)
+    elif kind == "invoice":
+        header = qs._letterhead_file(root, "cs-invoice-header.jpg", images_dir)
+    else:
+        header = qs._letterhead_file(root, "cs-header.jpg", images_dir)
+    if kind == "invoice":
+        footer = qs._letterhead_file(root, "invoice-footer.png", images_dir)
+    else:
+        footer = qs._letterhead_file(root, "cs-footer.jpg", images_dir)
     if kind == "invoice":
         if not header.exists() or not footer.exists():
             raise RuntimeError("Letterhead images හොයා ගන්න බැරි වුණා")
-        tmp = pdf_path.with_name(pdf_path.stem + ".building.pdf")
+        from pypdf import PdfReader, PdfWriter
+        copy_mode = str(data.get("pdfCopy") or "both").strip().lower()
+        if copy_mode in ("customer", "invoice", "customer-copy"):
+            copies = [("CUSTOMER COPY", ".p1.pdf")]
+        elif copy_mode in ("loan", "finance", "loan-copy"):
+            copies = [("LOAN COPY", ".p2.pdf")]
+        else:
+            copies = [("CUSTOMER COPY", ".p1.pdf"), ("LOAN COPY", ".p2.pdf")]
+        temps = []
         try:
-            _invoice_reportlab_pdf(tmp, data, header, footer)
-            qs._install_pdf(tmp, pdf_path)
+            writer = PdfWriter()
+            for label, suffix in copies:
+                tmp = pdf_path.with_name(pdf_path.stem + suffix)
+                temps.append(tmp)
+                _invoice_reportlab_pdf(tmp, data, header, footer, label)
+                writer.append(PdfReader(str(tmp)))
+            with open(pdf_path, "wb") as fh:
+                writer.write(fh)
         finally:
-            qs._safe_unlink(tmp)
+            for tmp in temps:
+                qs._safe_unlink(tmp)
         return
     if kind == "preorder":
         html_fn = preorder_html
@@ -1033,18 +1328,26 @@ def remove_agreement_files(root: Path, qid: str, keep_person: str | None = None)
 def save_agreement(root: Path, data: dict, images_dir: Path | None = None) -> dict:
     person = qs.staff_name(data.get("preparedByName") or data.get("person"))
     if not person:
-        raise ValueError("Prepared By name select කරන්න")
+        raise ValueError("Select a Prepared By name")
+    kind = _kind_of(data)
     requested = safe_agreement_id(data.get("id"))
     existing = find_agreement(root, requested) if requested else None
-    kind = _kind_of(data)
-    prefix = "INV" if kind == "invoice" else "PO" if kind == "preorder" else "SA"
-    qid = requested or next_agreement_id(root, prefix)
+    if not requested:
+        if kind != "invoice":
+            raise ValueError("Type the reference number")
+        qid = next_invoice_id(
+            list_agreements(root),
+            data.get("invoiceCompany") or "",
+            data.get("invoiceDate") or data.get("agreementDate") or "",
+        )
+    else:
+        qid = requested
     now = datetime.now().isoformat()
     data = dict(data)
     data["id"] = qid
     data["kind"] = kind
     data["preparedByName"] = person
-    data["designation"] = STAFF_ROLES[person]
+    data["designation"] = qs.designation_for(person, kind)
     data["createdAt"] = (existing or {}).get("createdAt") or data.get("createdAt") or now
     data["updatedAt"] = now
     data["person"] = person

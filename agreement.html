@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Sales Agreement</title>
+  <title>CS Docs — Sales Agreement</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=51">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=93">
+  <style>.lan-hint{display:none!important}</style>
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
-    <a class="quote-tool-link quote-tool-home" href="desk.html">Desk</a>
+    <a class="quote-tool-brand" href="desk.html"><img src="images/cs-docs-icon.png?v=3" alt=""> CS Docs</a>
     <a class="quote-tool-link" href="agreements.html">Saved agreements</a>
     <a class="quote-tool-link" href="agreement.html">New agreement</a>
     <a class="quote-tool-link" href="preorder.html">Pre-order</a>
@@ -18,15 +21,12 @@
     <a class="quote-tool-link" href="quotation.html">Quotations</a>
     <span class="quote-tool-ref" id="toolbar-ref">New</span>
     <span class="quote-tool-status" id="save-status"></span>
+    <button type="button" class="quote-btn quote-btn-ghost" data-back="/agree-pick">Back</button>
     <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
     <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
     <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
-    <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
-    <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
   </div>
-  <div id="lan-hint" class="lan-hint no-print" hidden></div>
   <div id="save-toast" class="save-toast no-print" hidden></div>
-  <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
 
   <main class="quote-sheet agree-sheet" id="agree-sheet">
     <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
@@ -36,7 +36,7 @@
         <div class="quote-meta">
           <label>
             <span>Agreement Ref No:</span>
-            <input id="agreementNo" type="text" readonly placeholder="Assigned on save">
+            <input id="agreementNo" type="text" maxlength="40" placeholder="Type agreement number">
           </label>
           <label>
             <span>Date:</span>
@@ -61,7 +61,7 @@
         <tr><th>Make &amp; Model</th><td>:</td><td><input id="makeModel" type="text" maxlength="80"></td></tr>
         <tr><th>Vehicle Registration Nr</th><td>:</td><td><input id="registrationNr" type="text" maxlength="40"></td></tr>
         <tr><th>Chassis Nr</th><td>:</td><td><input id="chassisNr" type="text" maxlength="40"></td></tr>
-        <tr><th>Manufact. Year</th><td>:</td><td><input id="year" type="text" maxlength="10" inputmode="numeric"></td></tr>
+        <tr><th>Manufact. Year</th><td>:</td><td><input id="year" type="text" maxlength="20" placeholder="e.g. 2023/2024" autocomplete="off"></td></tr>
       </table>
 
       <table class="agree-pay">
@@ -134,30 +134,49 @@
           <span>Customer’s Signature (Buyer)</span>
           <div class="sign-pad" id="buyer-pad">
             <button type="button" class="sign-hint no-print" id="buyer-upload">Upload signature</button>
-            <div class="sign-stage">
-              <img id="buyerPreview" alt="Buyer signature">
-            </div>
+            <div class="sign-stage"><img id="buyerPreview" alt="Buyer signature"></div>
           </div>
           <input id="buyerFile" type="file" accept="image/*" hidden>
+          <span>NIC Number</span>
+          <input id="buyerSignNic" type="text" maxlength="20" placeholder="NIC Number">
         </label>
         <label class="sign-field">
-          <span>CarSwitch (Pvt) Ltd (Seller)</span>
+          <span>CarSwitch Pvt Ltd (Seller)</span>
           <select id="preparedByName" required>
             <option value="">Select name</option>
-            <option value="Nipun">Nipun</option>
-            <option value="Isuru">Isuru</option>
-            <option value="Malki">Malki</option>
-            <option value="Harshani">Harshani</option>
-            <option value="Rakitha">Rakitha</option>
+            <option value="B.M.N. S.Basnayaka">B.M.N. S.Basnayaka</option>
+            <option value="G.H.I. R.Nayanajith">G.H.I. R.Nayanajith</option>
+            <option value="Malki Rasanga Widanagamge">Malki Rasanga Widanagamge</option>
+            <option value="H.M. C.Harshani Thilakarathna">H.M. C.Harshani Thilakarathna</option>
+            <option value="D.A.R. N.Dissanayaka">D.A.R. N.Dissanayaka</option>
           </select>
-          <input id="designation" type="text" maxlength="60" readonly>
           <div class="sign-pad" id="seller-pad">
             <button type="button" class="sign-hint no-print" id="seller-upload">Upload signature</button>
-            <div class="sign-stage">
-              <img id="sellerPreview" alt="Seller signature">
-            </div>
+            <div class="sign-stage"><img id="sellerPreview" alt="Seller signature"></div>
           </div>
           <input id="sellerFile" type="file" accept="image/*" hidden>
+          <span>Designation</span>
+          <input id="designation" type="text" maxlength="60" readonly>
+        </label>
+        <label class="sign-field">
+          <span>Witnesses (For Buyer)</span>
+          <div class="sign-pad" id="buyer-w-pad">
+            <button type="button" class="sign-hint no-print" id="buyer-w-upload">Upload signature</button>
+            <div class="sign-stage"><img id="buyerWitnessPreview" alt="Buyer witness"></div>
+          </div>
+          <input id="buyerWitnessFile" type="file" accept="image/*" hidden>
+          <span>NIC Number</span>
+          <input id="buyerWitnessNic" type="text" maxlength="20">
+        </label>
+        <label class="sign-field">
+          <span>Witnesses (For Seller)</span>
+          <div class="sign-pad" id="seller-w-pad">
+            <button type="button" class="sign-hint no-print" id="seller-w-upload">Upload signature</button>
+            <div class="sign-stage"><img id="sellerWitnessPreview" alt="Seller witness"></div>
+          </div>
+          <input id="sellerWitnessFile" type="file" accept="image/*" hidden>
+          <span>Designation</span>
+          <input id="sellerWitnessRole" type="text" maxlength="60">
         </label>
       </div>
 
@@ -232,6 +251,9 @@
     </div>
     <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
   </main>
-  <script src="static/agreement.js?v=52"></script>
+  <script src="static/staff-auth.js?v=4"></script>
+  <script src="static/signature.js?v=1"></script>
+  <script>csRequireStaff();</script>
+  <script src="static/agreement.js?v=68"></script>
 </body>
 </html>

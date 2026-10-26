@@ -3,25 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Quotations login</title>
+  <title>CS Docs — Login</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="static/quotation.css?v=47">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=85">
 </head>
 <body class="quote-body login-body">
-  <form class="login-card" method="post" action="/quote-unlock">
-    <img class="list-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
-    <h1>CarSwitch Desk</h1>
-    <p>ගෙදර / laptop එකෙන් open කරනවා නම් staff PIN එක දාන්න.</p>
-    <input type="hidden" name="next" id="next" value="/desk">
-    <label for="pin">Staff PIN</label>
-    <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" autofocus>
-    <p class="login-error" id="login-error" hidden>PIN එක වැරදියි.</p>
+  <form class="login-card" id="login-form">
+    <img class="cs-docs-icon" src="images/cs-docs-icon.png?v=3" alt="CS Docs">
+    <h1>CS Docs</h1>
+    <p>Select your name and enter your PIN.</p>
+    <label for="staff">Name</label>
+    <select id="staff" name="staff" required>
+      <option value="">Select name</option>
+      <option value="B.M.N. S.Basnayaka">B.M.N. S.Basnayaka</option>
+      <option value="G.H.I. R.Nayanajith">G.H.I. R.Nayanajith</option>
+      <option value="Malki Rasanga Widanagamge">Malki Rasanga Widanagamge</option>
+      <option value="H.M. C.Harshani Thilakarathna">H.M. C.Harshani Thilakarathna (Admin)</option>
+      <option value="D.A.R. N.Dissanayaka">D.A.R. N.Dissanayaka</option>
+    </select>
+    <label for="pin">Your PIN</label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" autofocus required>
+    <p class="login-error" id="login-error" hidden>Wrong name or PIN.</p>
     <button class="quote-btn quote-btn-save" type="submit">Open</button>
   </form>
+  <script src="static/staff-auth.js?v=3"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    document.getElementById('next').value = params.get('next') || '/desk';
+    const next = params.get('next') || '/desk';
     if (params.get('err') === '1') document.getElementById('login-error').hidden = false;
+    const saved = csStaffName();
+    if (saved) document.getElementById('staff').value = saved;
+
+    document.getElementById('login-form').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const staff = document.getElementById('staff').value;
+      const pin = document.getElementById('pin').value.trim();
+      const err = document.getElementById('login-error');
+      if (!csCheckPin(staff, pin)) {
+        err.hidden = false;
+        return;
+      }
+      csSetStaff(staff);
+      try {
+        const body = new URLSearchParams({ pin, staff, next });
+        await fetch('/quote-unlock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+          redirect: 'manual'
+        });
+      } catch (_) {}
+      location.href = next.startsWith('/') ? next : '/' + next;
+    });
   </script>
 </body>
 </html>

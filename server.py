@@ -177,11 +177,26 @@ def quote_unlock():
     if not nxt.startswith("/"):
         nxt = "/desk"
     pin = str(request.form.get("pin") or "").strip()
-    if pin != QUOTE_PIN:
+    staff = quotation_store.staff_name(request.form.get("staff"))
+    if pin != QUOTE_PIN or not staff:
         return redirect("/quote-login?err=1&next=" + nxt)
     resp = redirect(nxt)
     resp.set_cookie("cs_quote", QUOTE_TOKEN, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 30)
+    resp.set_cookie("cs_staff", staff, httponly=False, samesite="Lax", max_age=60 * 60 * 24 * 30)
     return resp
+
+
+@app.get("/api/session")
+def api_session():
+    staff = quotation_store.staff_name(request.cookies.get("cs_staff"))
+    role = quotation_store.STAFF_ROLES.get(staff or "", "")
+    is_admin = role == "Admin"
+    return jsonify({
+        "ok": True,
+        "staff": staff or "",
+        "role": role,
+        "isAdmin": is_admin,
+    })
 
 
 def _lan_ips():
@@ -340,6 +355,36 @@ def invoice_page():
     return send_from_directory(ROOT, "invoice.html")
 
 
+@app.get("/invoice-pick")
+@app.get("/invoice-pick.html")
+def invoice_pick_page():
+    return send_from_directory(ROOT, "invoice-pick.html")
+
+
+@app.get("/invoice-menu")
+@app.get("/invoice-menu.html")
+def invoice_menu_page():
+    return send_from_directory(ROOT, "invoice-menu.html")
+
+
+@app.get("/quote-pick")
+@app.get("/quote-pick.html")
+def quote_pick_page():
+    return send_from_directory(ROOT, "quote-pick.html")
+
+
+@app.get("/agree-pick")
+@app.get("/agree-pick.html")
+def agree_pick_page():
+    return send_from_directory(ROOT, "agree-pick.html")
+
+
+@app.get("/preorder-pick")
+@app.get("/preorder-pick.html")
+def preorder_pick_page():
+    return send_from_directory(ROOT, "preorder-pick.html")
+
+
 @app.get("/desk")
 @app.get("/desk.html")
 def desk_page():
@@ -356,13 +401,27 @@ def quotes_dir():
 def api_quotations():
     root = quotes_dir()
     person = request.args.get("person", "")
+    items = quotation_store.list_quotes(root, person)
+    try:
+        import quote_cloud
+        if quote_cloud.cloud_enabled():
+            quote_cloud.merge_local_items(quotation_store.list_quotes(root))
+            seen = {item.get("id") for item in items}
+            for item in quote_cloud.list_items(person):
+                qid = item.get("id")
+                if qid and qid not in seen:
+                    items.append(item)
+                    seen.add(qid)
+            items.sort(key=lambda x: x.get("updatedAt") or x.get("createdAt") or "", reverse=True)
+    except Exception:
+        pass
     return jsonify({
         "ok": True,
         "root": str(root),
         "network": str(quotation_store.NETWORK_QUOTES),
         "usingNetwork": quotation_store.using_network_share(root),
         "staff": quotation_store.STAFF,
-        "items": quotation_store.list_quotes(root, person),
+        "items": items,
     })
 
 
@@ -383,6 +442,12 @@ def api_quotation():
         qid = request.args.get("id") or request.args.get("ref") or ""
         item = quotation_store.find_quote(root, qid)
         if not item:
+            try:
+                import quote_cloud
+                item = quote_cloud.find_item(quote_cloud.load_items(), qid)
+            except Exception:
+                item = None
+        if not item:
             return jsonify({"ok": False, "error": "Not found"}), 404
         return jsonify({"ok": True, "root": str(root), "item": item})
 
@@ -402,14 +467,14 @@ def api_quotation():
     except PermissionError:
         return jsonify({
             "ok": False,
-            "error": "PDF එක open වෙලා තියෙනවා. File එක close කරලා ආයෙත් Save කරන්න."
+            "error": "The PDF is open. Close the file and try Save again."
         }), 500
     except OSError as err:
         msg = str(err)
         if getattr(err, "errno", None) == 13 or "Permission denied" in msg or getattr(err, "winerror", None) == 5:
             return jsonify({
                 "ok": False,
-                "error": "PDF එක open වෙලා තියෙනවා. File එක close කරලා ආයෙත් Save කරන්න."
+                "error": "The PDF is open. Close the file and try Save again."
             }), 500
         return jsonify({"ok": False, "error": f"Folder save failed: {err}"}), 500
     return jsonify({
@@ -420,23 +485,49 @@ def api_quotation():
     })
 
 
-def agreements_dir():
-    root = agreement_store.agreement_root(ROOT)
+def agreements_dir(company: str = "", kind: str = ""):
+    if kind in ("sales", "preorder"):
+        root = agreement_store.agreement_kind_root(ROOT, kind)
+    else:
+        root = agreement_store.agreement_root(ROOT, company)
     agreement_store.ensure_layout(root, IMAGES_DIR)
     return root
 
 
+def find_agreement_any(qid: str):
+    for root in agreement_store.invoice_roots(ROOT):
+        agreement_store.ensure_layout(root, IMAGES_DIR)
+        item = agreement_store.find_agreement(root, qid)
+        if item:
+            return item, root
+    return None, None
+
+
 @app.get("/api/agreements")
 def api_agreements():
-    root = agreements_dir()
     person = request.args.get("person", "")
+    items = []
+    seen = set()
+    roots = []
+    for root in agreement_store.invoice_roots(ROOT):
+        agreement_store.ensure_layout(root, IMAGES_DIR)
+        roots.append(str(root))
+        for item in agreement_store.list_agreements(root, person):
+            key = str(item.get("id") or "")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            items.append(item)
+    items.sort(key=lambda x: x.get("updatedAt") or x.get("createdAt") or "", reverse=True)
+    primary = agreements_dir()
     return jsonify({
         "ok": True,
-        "root": str(root),
+        "root": str(primary),
+        "roots": roots,
         "network": str(agreement_store.NETWORK_AGREEMENTS),
-        "usingNetwork": quotation_store.using_network_share(root),
+        "usingNetwork": quotation_store.using_network_share(primary),
         "staff": agreement_store.STAFF,
-        "items": agreement_store.list_agreements(root, person),
+        "items": items,
     })
 
 
@@ -444,21 +535,40 @@ def api_agreements():
 def api_agreement():
     if request.method == "OPTIONS":
         return jsonify({"ok": True})
-    root = agreements_dir()
     if request.method == "GET":
         qid = request.args.get("id") or request.args.get("ref") or ""
-        item = agreement_store.find_agreement(root, qid)
+        item, root = find_agreement_any(qid)
         if not item:
             return jsonify({"ok": False, "error": "Not found"}), 404
         return jsonify({"ok": True, "root": str(root), "item": item})
     if request.method == "DELETE":
         qid = request.args.get("id") or (request.get_json(silent=True) or {}).get("id") or ""
-        if not agreement_store.delete_agreement(root, qid):
+        deleted = False
+        for root in agreement_store.invoice_roots(ROOT):
+            if agreement_store.delete_agreement(root, qid):
+                deleted = True
+        if not deleted:
             return jsonify({"ok": False, "error": "Not found"}), 404
         return jsonify({"ok": True})
     data = request.get_json(silent=True) or {}
+    kind = agreement_store._kind_of(data)
+    company = str(data.get("invoiceCompany") or "").strip() if kind == "invoice" else ""
+    if kind == "invoice" and company not in agreement_store.NETWORK_INVOICE_ROOTS:
+        return jsonify({"ok": False, "error": "Select Carswitch or Genx Importanters"}), 400
+    if kind == "preorder":
+        root = agreements_dir(kind="preorder")
+    elif kind == "sales":
+        root = agreements_dir(kind="sales")
+    else:
+        root = agreements_dir(company)
     try:
         saved = agreement_store.save_agreement(root, data, IMAGES_DIR)
+        qid = agreement_store.safe_agreement_id(saved.get("id"))
+        if qid:
+            for other in agreement_store.invoice_roots(ROOT):
+                if Path(other) == Path(root):
+                    continue
+                agreement_store.remove_agreement_files(other, qid)
     except ValueError as err:
         return jsonify({"ok": False, "error": str(err)}), 400
     except Exception as err:
@@ -471,29 +581,49 @@ def api_agreement():
     })
 
 
+@app.post("/api/open-invoice-folders")
+def api_open_invoice_folders():
+    opened = []
+    for company, path in agreement_store.NETWORK_INVOICE_ROOTS.items():
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        if path.exists():
+            try:
+                os.startfile(str(path))  # type: ignore[attr-defined]
+                opened.append(company)
+            except OSError:
+                pass
+    return jsonify({"ok": True, "opened": opened})
+
+
 @app.post("/api/agreement-pdf")
 def api_agreement_pdf():
     data = request.get_json(silent=True) or {}
     person = quotation_store.staff_name(data.get("preparedByName") or data.get("person"))
     if not person:
-        return jsonify({"ok": False, "error": "Seller name select කරන්න"}), 400
+        return jsonify({"ok": False, "error": "Select a seller name"}), 400
     data = dict(data)
     data["preparedByName"] = person
-    data["designation"] = quotation_store.STAFF_ROLES[person]
+    data["designation"] = quotation_store.designation_for(person, data.get("kind"))
     qid = agreement_store.safe_agreement_id(data.get("id")) or "agreement"
     data["id"] = qid
-    pdf_path = Path(tempfile.gettempdir()) / f"{qid}-download.pdf"
+    company = str(data.get("invoiceCompany") or "").strip() if agreement_store._kind_of(data) == "invoice" else ""
+    copy_mode = str(data.get("pdfCopy") or "both").strip().lower()
+    download_name = f"{qid}-loan.pdf" if copy_mode in ("loan", "finance", "loan-copy") else f"{qid}.pdf"
+    pdf_path = Path(tempfile.gettempdir()) / f"{qid}-{copy_mode or 'both'}-download.pdf"
     try:
-        agreement_store.write_agreement_pdf(pdf_path, data, agreements_dir(), IMAGES_DIR)
+        agreement_store.write_agreement_pdf(pdf_path, data, agreements_dir(company), IMAGES_DIR)
     except Exception as err:
         return jsonify({"ok": False, "error": str(err)}), 500
     if not pdf_path.exists() or pdf_path.stat().st_size < 800:
-        return jsonify({"ok": False, "error": "PDF හදන්න බැරි වුණා"}), 500
+        return jsonify({"ok": False, "error": "Could not create the PDF"}), 500
     return send_file(
         pdf_path,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{qid}.pdf",
+        download_name=download_name,
         max_age=0,
     )
 
@@ -509,7 +639,7 @@ def _allowed_office_path(raw: str) -> Path | None:
     except OSError:
         resolved = str(target)
     allowed = []
-    for root in (agreements_dir(), quotes_dir(), agreement_store.NETWORK_AGREEMENTS, quotation_store.NETWORK_QUOTES):
+    for root in (agreements_dir(), quotes_dir(), agreement_store.NETWORK_AGREEMENTS, quotation_store.NETWORK_QUOTES, *agreement_store.NETWORK_INVOICE_ROOTS.values()):
         try:
             allowed.append(str(Path(root).resolve()))
         except OSError:
@@ -526,7 +656,7 @@ def api_open_folder():
     data = request.get_json(silent=True) or {}
     folder = _allowed_office_path(data.get("path") or "")
     if folder is None:
-        return jsonify({"ok": False, "error": "Folder එක open කරන්න බැරි වුණා"}), 400
+        return jsonify({"ok": False, "error": "Could not open that folder"}), 400
     try:
         os.startfile(folder)
     except OSError as err:
@@ -539,10 +669,10 @@ def api_quote_pdf():
     data = request.get_json(silent=True) or {}
     person = quotation_store.staff_name(data.get("preparedByName") or data.get("person"))
     if not person:
-        return jsonify({"ok": False, "error": "Prepared By name select කරන්න"}), 400
+        return jsonify({"ok": False, "error": "Select a Prepared By name"}), 400
     data = dict(data)
     data["preparedByName"] = person
-    data["designation"] = quotation_store.STAFF_ROLES[person]
+    data["designation"] = quotation_store.designation_for(person, data.get("kind"))
     qid = quotation_store.safe_quote_id(data.get("id")) or "quotation"
     data["id"] = qid
     pdf_path = Path(tempfile.gettempdir()) / f"{qid}-download.pdf"
@@ -551,7 +681,7 @@ def api_quote_pdf():
     except Exception as err:
         return jsonify({"ok": False, "error": str(err)}), 500
     if not pdf_path.exists() or pdf_path.stat().st_size < 800:
-        return jsonify({"ok": False, "error": "PDF හදන්න බැරි වුණා"}), 500
+        return jsonify({"ok": False, "error": "Could not create the PDF"}), 500
     return send_file(
         pdf_path,
         mimetype="application/pdf",
@@ -576,7 +706,7 @@ def api_quotation_pdf():
         except Exception as err:
             return jsonify({"ok": False, "error": str(err)}), 500
     if not pdf_path.exists():
-        return jsonify({"ok": False, "error": "PDF හදන්න බැරි වුණා"}), 404
+        return jsonify({"ok": False, "error": "Could not create the PDF"}), 404
     return send_file(
         pdf_path,
         mimetype="application/pdf",

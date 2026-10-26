@@ -11,13 +11,27 @@ from datetime import datetime
 from pathlib import Path
 
 STAFF_ROLES = {
-    "Nipun": "Sales Executive",
-    "Isuru": "Sales Executive",
-    "Malki": "Admin & Marketing",
-    "Harshani": "Director",
-    "Rakitha": "CEO",
+    "B.M.N. S.Basnayaka": "Sales Executive",
+    "G.H.I. R.Nayanajith": "Sales Executive",
+    "Malki Rasanga Widanagamge": "Executive Admin and Marketing",
+    "H.M. C.Harshani Thilakarathna": "Admin",
+    "D.A.R. N.Dissanayaka": "Managing Director",
+}
+STAFF_ALIASES = {
+    "nipun": "B.M.N. S.Basnayaka",
+    "isuru": "G.H.I. R.Nayanajith",
+    "malki": "Malki Rasanga Widanagamge",
+    "harshani": "H.M. C.Harshani Thilakarathna",
+    "h.m.c.harshani thilakarathna": "H.M. C.Harshani Thilakarathna",
+    "rakitha": "D.A.R. N.Dissanayaka",
 }
 STAFF = list(STAFF_ROLES.keys())
+
+
+def designation_for(person: str, kind: str = "") -> str:
+    if person == "D.A.R. N.Dissanayaka" and str(kind or "") == "invoice":
+        return "Director"
+    return STAFF_ROLES.get(person or "", "")
 QUOTE_ID_RE = re.compile(r"^CS-\d{4}-\d{4}$")
 LEGACY_ID_RE = re.compile(r"^GENX-(\d{4}-\d{4})$")
 ID_NUM_RE = re.compile(r"^(?:CS|GENX)-(\d{4})-(\d+)$")
@@ -126,7 +140,7 @@ def staff_name(raw: str):
     for name in STAFF:
         if name.lower() == key.lower():
             return name
-    return None
+    return STAFF_ALIASES.get(key.lower())
 
 
 def safe_quote_id(raw: str) -> str:
@@ -157,8 +171,8 @@ def pdf_path_for(root: Path, person: str, qid: str) -> Path:
     return root / person / qid / f"{qid}.pdf"
 
 
-def next_quote_id(root: Path) -> str:
-    year = datetime.now().year
+def used_quote_numbers(root: Path, year: int | None = None) -> set[int]:
+    year = year or datetime.now().year
     used = set()
     folders = [data_folder(root, name) for name in STAFF]
     folders.extend(root / name for name in STAFF)
@@ -171,6 +185,12 @@ def next_quote_id(root: Path) -> str:
             match = ID_NUM_RE.match(path.stem)
             if match and int(match.group(1)) == year:
                 used.add(int(match.group(2)))
+    return used
+
+
+def next_quote_id(root: Path) -> str:
+    year = datetime.now().year
+    used = used_quote_numbers(root, year)
     n = 1
     while n in used:
         n += 1
@@ -288,6 +308,30 @@ def _fmt(n, places=2):
     return f"{n:,.{places}f}"
 
 
+def _fmt_rate(data, key):
+    raw = str(data.get(key) or "").replace(",", "").strip()
+    if not raw:
+        return ""
+    n = _num(data, key)
+    if not _has_num(data, key):
+        return ""
+    if "." in raw:
+        whole, frac = raw.split(".", 1)
+        frac = "".join(ch for ch in frac if ch.isdigit())[:4].rstrip("0")
+        if not frac:
+            frac = "00"
+        elif len(frac) == 1:
+            frac += "0"
+        sign = "-" if raw.startswith("-") else ""
+        digits = "".join(ch for ch in whole if ch.isdigit()) or "0"
+        try:
+            whole_s = f"{int(digits):,}"
+        except ValueError:
+            whole_s = digits
+        return f"{sign}{whole_s}.{frac}"
+    return _fmt(n, 2)
+
+
 def _money(data, key):
     n = _num(data, key)
     return _fmt(n)
@@ -327,7 +371,7 @@ def price_display(data):
         return _fmt(_num(data, key)) if _has_num(data, key) else ""
 
     def rate(key):
-        return _fmt(_num(data, key), 2) if _has_num(data, key) else ""
+        return _fmt_rate(data, key)
 
     return {
         "cifJpy": money("cifJpy"),
@@ -361,10 +405,10 @@ def price_breakdown(data):
     hand = japan + duty + clearing + agency
     return {
         "cifJpy": _fmt(cif_jpy) if _has_num(data, "cifJpy") else "",
-        "lcRate": _fmt(lc_rate, 2) if _has_num(data, "lcRate") else "",
+        "lcRate": _fmt_rate(data, "lcRate"),
         "lcJpy": _fmt(lc_jpy) if _has_num(data, "lcJpy") else "",
         "lcLkr": _fmt(lc_lkr) if (_has_num(data, "lcJpy") and _has_num(data, "lcRate")) else "",
-        "balRate": _fmt(bal_rate, 2) if _has_num(data, "balRate") else "",
+        "balRate": _fmt_rate(data, "balRate"),
         "balJpy": _fmt(bal_jpy) if has_cif_lc else "",
         "balLkr": _fmt(bal_lkr) if (has_cif_lc and _has_num(data, "balRate")) else "",
         "japanCostLkr": _fmt(japan) if (_has_num(data, "lcLkr") or has_cif_lc or _has_num(data, "lcJpy")) else "",
@@ -707,7 +751,7 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
 
     cif_rows = [
         ("Total Cost CIF JPY", "", p["cifJpy"], "", "plain"),
-        ("LC Amount", p["lcRate"], p["lcJpy"], p["lcLkr"], "lkrblue"),
+        ("LC Amount", p["lcRate"], p["lcJpy"], p["lcLkr"], "plain"),
         ("CIF Balance Amount - JPY", p["balRate"], p["balJpy"], p["balLkr"], "plain"),
     ]
 
@@ -747,7 +791,7 @@ def _reportlab_pdf(pdf_path: Path, data: dict, header_path: Path, footer_path: P
     c.line(left, y + 8, right, y + 8)
     y -= 2
     draw_price_row("Total Japan Cost - LKR", "", "", p["japanCostLkr"], "blue")
-    draw_price_row("Customs Duty - LKR", "", "", p["customsDuty"], "plain")
+    draw_price_row("Customs Duty - LKR", "", "", p["customsDuty"], "blue")
     draw_price_row("Customs Clearing & Other Charges - LKR", "", "", p["clearingCharges"], "plain")
     draw_price_row("Agency Fee", "", "", p["agencyFee"], "plain")
     draw_price_row("Total Upto Hand - LKR", "", "", p["totalEstimatedPrice"], "total")
@@ -853,7 +897,7 @@ def _price_html(data: dict) -> str:
         <thead><tr><th></th><th class="amt">Ex. Rate</th><th class="amt">AMOUNT JPY</th><th class="amt">AMOUNT LKR</th></tr></thead>
         <tbody>
           <tr><td>Total Cost CIF JPY</td><td class="amt"></td><td class="amt">{p["cifJpy"]}</td><td class="amt"></td></tr>
-          <tr><td>LC Amount</td><td class="amt">{p["lcRate"]}</td><td class="amt">{p["lcJpy"]}</td><td class="amt navy">{p["lcLkr"]}</td></tr>
+          <tr><td>LC Amount</td><td class="amt">{p["lcRate"]}</td><td class="amt">{p["lcJpy"]}</td><td class="amt">{p["lcLkr"]}</td></tr>
           <tr><td>CIF Balance Amount - JPY</td><td class="amt">{p["balRate"]}</td><td class="amt">{p["balJpy"]}</td><td class="amt">{p["balLkr"]}</td></tr>
         </tbody>
       </table>
@@ -866,7 +910,7 @@ def _price_html(data: dict) -> str:
         </colgroup>
         <tbody>
           <tr class="japan"><td>Total Japan Cost - LKR</td><td></td><td></td><td class="amt navy">{p["japanCostLkr"]}</td></tr>
-          <tr><td>Customs Duty - LKR</td><td></td><td></td><td class="amt">{p["customsDuty"]}</td></tr>
+          <tr class="japan"><td>Customs Duty - LKR</td><td></td><td></td><td class="amt navy">{p["customsDuty"]}</td></tr>
           <tr><td>Customs Clearing &amp; Other Charges - LKR</td><td></td><td></td><td class="amt">{p["clearingCharges"]}</td></tr>
           <tr><td>Agency Fee</td><td></td><td></td><td class="amt">{p["agencyFee"]}</td></tr>
           <tr class="hand"><td>Total Upto Hand - LKR</td><td></td><td></td><td class="amt">{p["totalEstimatedPrice"]}</td></tr>
@@ -1136,16 +1180,32 @@ def quote_html(data: dict, header_uri: str = "", footer_uri: str = "") -> str:
 def save_quote(root: Path, data: dict, images_dir: Path | None = None) -> dict:
     person = staff_name(data.get("preparedByName") or data.get("person"))
     if not person:
-        raise ValueError("Prepared By name select කරන්න")
+        raise ValueError("Select a Prepared By name")
 
     requested = safe_quote_id(data.get("id"))
     existing = find_quote(root, requested) if requested else None
-    qid = requested or next_quote_id(root)
+    qid = requested if existing else ""
+    if not qid:
+        cloud_on = False
+        try:
+            import quote_cloud
+            cloud_on = quote_cloud.cloud_enabled()
+            if cloud_on:
+                cloud_items = quote_cloud.merge_local_items(list_quotes(root))
+                extra = quote_cloud._used_numbers(cloud_items, datetime.now().year)
+                extra.update(used_quote_numbers(root))
+                qid = quote_cloud.next_quote_id(cloud_items, extra)
+        except Exception:
+            qid = ""
+        if not qid:
+            if cloud_on:
+                raise RuntimeError("Could not get the next quotation number. Try Save again.")
+            qid = next_quote_id(root)
     now = datetime.now().isoformat()
     data = dict(data)
     data["id"] = qid
     data["preparedByName"] = person
-    data["designation"] = STAFF_ROLES[person]
+    data["designation"] = designation_for(person, data.get("kind"))
     data["createdAt"] = (existing or {}).get("createdAt") or data.get("createdAt") or now
     data["updatedAt"] = now
     data["person"] = person
@@ -1173,6 +1233,12 @@ def save_quote(root: Path, data: dict, images_dir: Path | None = None) -> dict:
     json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     try:
         write_quote_pdf(pdf_path, data, root, images_dir)
+    except Exception:
+        pass
+    try:
+        import quote_cloud
+        if quote_cloud.cloud_enabled():
+            quote_cloud.save_item(data)
     except Exception:
         pass
     data["path"] = str(json_path)

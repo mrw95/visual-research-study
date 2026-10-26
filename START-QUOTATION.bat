@@ -1,5 +1,5 @@
 @echo off
-title CarSwitch Quotations
+title CS Docs
 cd /d "%~dp0"
 set PORT=8090
 set QUOTE_PIN=9292

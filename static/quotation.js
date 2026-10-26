@@ -1,5 +1,4 @@
 const STORAGE_KEY = 'genx-quotations';
-const STORAGE_RESET = 'cs-start-1';
 const PREP_KEY = 'genx-prepared-by';
 const SIG_KEY = 'genx-signature-';
 const SIG_SCALE_KEY = 'genx-signature-scale-';
@@ -8,11 +7,11 @@ const SIGN_MIN = 28;
 const SIGN_MAX = 96;
 const SIGN_DEFAULT = 48;
 const STAFF_ROLES = {
-  Nipun: 'Sales Executive',
-  Isuru: 'Sales Executive',
-  Malki: 'Admin & Marketing',
-  Harshani: 'Director',
-  Rakitha: 'CEO'
+  'B.M.N. S.Basnayaka': 'Sales Executive',
+  'G.H.I. R.Nayanajith': 'Sales Executive',
+  'Malki Rasanga Widanagamge': 'Executive Admin and Marketing',
+  'H.M. C.Harshani Thilakarathna': 'Admin',
+  'D.A.R. N.Dissanayaka': 'Managing Director'
 };
 const STAFF = Object.keys(STAFF_ROLES);
 
@@ -175,7 +174,7 @@ function initVehiclePhoto() {
     try {
       setVehiclePhoto(await compressVehiclePhoto(picked));
     } catch {
-      showToast('Vehicle photo upload failed. Image එකක් select කරන්න.', 'error');
+      showToast('Vehicle photo upload failed. Select an image.', 'error');
     }
   });
 }
@@ -212,110 +211,7 @@ function loadPersonSignature() {
 }
 
 function compressSignature(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const scale = Math.min(1, 520 / img.width, 180 / img.height);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      resolve(knockOutSignatureBackground(canvas).toDataURL('image/png'));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Signature image read failed'));
-    };
-    img.src = url;
-  });
-}
-
-function knockOutSignatureBackground(canvas) {
-  const ctx = canvas.getContext('2d');
-  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const d = image.data;
-  const w = canvas.width;
-  const h = canvas.height;
-
-  function sample(x, y) {
-    const i = (Math.max(0, Math.min(h - 1, y)) * w + Math.max(0, Math.min(w - 1, x))) * 4;
-    return [d[i], d[i + 1], d[i + 2]];
-  }
-
-  const corners = [
-    ...sample(2, 2), ...sample(w - 3, 2), ...sample(2, h - 3), ...sample(w - 3, h - 3),
-    ...sample(Math.floor(w / 2), 2), ...sample(Math.floor(w / 2), h - 3)
-  ];
-  const bg = [
-    (corners[0] + corners[3] + corners[6] + corners[9] + corners[12] + corners[15]) / 6,
-    (corners[1] + corners[4] + corners[7] + corners[10] + corners[13] + corners[16]) / 6,
-    (corners[2] + corners[5] + corners[8] + corners[11] + corners[14] + corners[17]) / 6
-  ];
-
-  let minX = w;
-  let minY = h;
-  let maxX = 0;
-  let maxY = 0;
-  const paperCut = 40;
-  const inkFull = 88;
-  const bgLuma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2];
-
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i];
-    const g = d[i + 1];
-    const b = d[i + 2];
-    const a = d[i + 3];
-    const dist = Math.sqrt((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2);
-    const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    const paperLike = a < 16
-      || dist < paperCut
-      || (luma > 188 && chroma < 24)
-      || (Math.abs(luma - bgLuma) < 20 && chroma < 30);
-
-    if (paperLike) {
-      d[i + 3] = 0;
-      continue;
-    }
-
-    let t = (dist - paperCut) / (inkFull - paperCut);
-    t = Math.max(0, Math.min(1, t));
-    t = t * t * (3 - 2 * t);
-    const alpha = Math.round(Math.max(t, chroma / 90) * (a / 255) * 255);
-    if (alpha < 18) {
-      d[i + 3] = 0;
-      continue;
-    }
-
-    d[i] = r;
-    d[i + 1] = g;
-    d[i + 2] = b;
-    d[i + 3] = alpha;
-
-    const px = (i / 4) % w;
-    const py = Math.floor(i / 4 / w);
-    if (px < minX) minX = px;
-    if (py < minY) minY = py;
-    if (px > maxX) maxX = px;
-    if (py > maxY) maxY = py;
-  }
-
-  ctx.putImageData(image, 0, 0);
-  if (maxX < minX || maxY < minY) return canvas;
-
-  const pad = 8;
-  const x = Math.max(0, minX - pad);
-  const y = Math.max(0, minY - pad);
-  const cw = Math.min(w - x, maxX - minX + 1 + pad * 2);
-  const ch = Math.min(h - y, maxY - minY + 1 + pad * 2);
-  const cropped = document.createElement('canvas');
-  cropped.width = cw;
-  cropped.height = ch;
-  cropped.getContext('2d').drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
-  return cropped;
+  return prepareSignatureFile(file);
 }
 
 function initSignatureUpload() {
@@ -345,7 +241,7 @@ function initSignatureUpload() {
       const name = val('preparedByName').value;
       if (name) localStorage.setItem(SIG_KEY + name, dataUrl);
     } catch {
-      setStatus('Signature upload failed. Image එකක් select කරන්න.');
+      setStatus('Signature upload failed. Select an image.');
     }
   });
 
@@ -483,7 +379,7 @@ async function apiFetch(path, options) {
       lastErr = err;
     }
   }
-  throw lastErr || new Error('Save API එක open වෙලා නැහැ.');
+  throw lastErr || new Error('Save API is not available.');
 }
 
 function currentQuotePath() {
@@ -535,7 +431,7 @@ function fillPhoneSheet(sheet, data) {
   sheet.innerHTML = `
     <div class="phone-sheet-inner">
       <h2>Phone / Tab</h2>
-      <p><strong>Lifetime share link</strong> — මේක කවදාවත් change වෙන්නේ නැහැ. අනිත් අයට මේකම දෙන්න.</p>
+      <p>Open this link on a phone or tablet.</p>
       ${qr}
       ${urls.map((url) => `<a class="phone-url" href="${url}">${url}</a>`).join('')}
       <div class="phone-sheet-actions">
@@ -562,7 +458,7 @@ function initPhoneShare() {
   const btn = document.getElementById('phone-btn');
   const sheet = document.getElementById('phone-sheet');
   const hint = document.getElementById('lan-hint');
-  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (hint) hint.hidden = true;
 
   if (isHomeCloud() && btn) {
     btn.addEventListener('click', async () => {
@@ -573,34 +469,17 @@ function initPhoneShare() {
         showToast(location.href, '');
       }
     });
-    if (hint) {
-      hint.hidden = false;
-      hint.innerHTML = 'මේක lifetime link එක. PC එක on වෙන්න ඕන නැහැ. Save සහ Download PDF මෙතනින්ම කරන්න.';
-    }
     return;
-  }
-
-  async function refreshHint() {
-    if (!hint || !local) return;
-    try {
-      const data = await loadAccessUrls();
-      const url = lifetimeShareUrls(data)[0];
-      if (!url) return;
-      hint.hidden = false;
-      hint.innerHTML = `Phone / Tab: <a href="${url}">${url}</a>`;
-    } catch {
-      hint.hidden = true;
-    }
   }
 
   if (btn && sheet) {
     btn.addEventListener('click', async () => {
       sheet.hidden = false;
-      sheet.innerHTML = '<div class="phone-sheet-inner"><p>Link හදනවා...</p></div>';
+      sheet.innerHTML = '<div class="phone-sheet-inner"><p>Preparing link...</p></div>';
       try {
         fillPhoneSheet(sheet, await loadAccessUrls());
       } catch {
-        sheet.innerHTML = '<div class="phone-sheet-inner"><p>Link copy කරන්න බැරි උනා. <a href="https://visual-research-study.vercel.app/desk">https://visual-research-study.vercel.app/desk</a></p><button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button></div>';
+        sheet.innerHTML = '<div class="phone-sheet-inner"><p>Could not copy the link. <a href="https://visual-research-study.vercel.app/desk">https://visual-research-study.vercel.app/desk</a></p><button type="button" class="quote-btn quote-btn-ghost" id="phone-close">Close</button></div>';
         const closeBtn = sheet.querySelector('#phone-close');
         if (closeBtn) closeBtn.addEventListener('click', () => { sheet.hidden = true; });
       }
@@ -609,17 +488,12 @@ function initPhoneShare() {
       if (ev.target === sheet) sheet.hidden = true;
     });
   }
-  refreshHint();
 }
 
 function loadLocal() {
   try {
-    if (localStorage.getItem('genx-quotations-reset') !== STORAGE_RESET) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.setItem('genx-quotations-reset', STORAGE_RESET);
-      return [];
-    }
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(items) ? items : [];
   } catch {
     return [];
   }
@@ -661,15 +535,22 @@ function formatMoney(raw) {
 }
 
 function formatRate(raw) {
-  const n = parseNum(raw);
+  const text = String(raw == null ? '' : raw).replace(/,/g, '').trim();
+  if (!text) return '';
+  const n = parseNum(text);
   if (!n) return '';
-  const text = String(n);
-  if (text.indexOf('.') === -1) return text + '.00';
-  const parts = text.split('.');
-  const frac = (parts[1] || '').slice(0, 4).replace(/0+$/, '');
-  if (!frac) return parts[0] + '.00';
-  if (frac.length === 1) return parts[0] + '.' + frac + '0';
-  return parts[0] + '.' + frac;
+  const minus = text.charAt(0) === '-' ? '-' : '';
+  const core = minus ? text.slice(1) : text;
+  const dot = core.indexOf('.');
+  if (dot === -1) {
+    const whole = core.replace(/\D/g, '') || '0';
+    return minus + whole + '.00';
+  }
+  const whole = (core.slice(0, dot).replace(/\D/g, '') || '0');
+  let frac = core.slice(dot + 1).replace(/\D/g, '').slice(0, 4).replace(/0+$/, '');
+  if (!frac) return minus + whole + '.00';
+  if (frac.length === 1) frac += '0';
+  return minus + whole + '.' + frac;
 }
 
 function formatLkr(raw) {
@@ -1054,13 +935,13 @@ async function makeQuotePdfBlob(saved) {
 
   row(['', 'Ex. Rate', 'AMOUNT JPY', 'AMOUNT LKR'], 'head');
   row(['Total Cost CIF JPY', '', shownAmount(savedData, 'cifJpy'), '']);
-  row(['LC Amount', shownRate(savedData, 'lcRate'), shownAmount(savedData, 'lcJpy'), shownAmount(savedData, 'lcLkr')], 'lkrblue');
+  row(['LC Amount', shownRate(savedData, 'lcRate'), shownAmount(savedData, 'lcJpy'), shownAmount(savedData, 'lcLkr')]);
   row(['CIF Balance Amount - JPY', shownRate(savedData, 'balRate'), shownAmount(savedData, 'balJpy'), shownAmount(savedData, 'balLkr')]);
   y -= 5;
   cmds.push('0.11 0.35 0.67 RG ' + left + ' ' + y.toFixed(1) + ' m ' + right + ' ' + y.toFixed(1) + ' l S 0 0 0 rg');
   y -= 2;
   row(['Total Japan Cost - LKR', '', '', shownAmount(savedData, 'japanCostLkr')], 'blue');
-  row(['Customs Duty - LKR', '', '', shownAmount(savedData, 'customsDuty')]);
+  row(['Customs Duty - LKR', '', '', shownAmount(savedData, 'customsDuty')], 'blue');
   row(['Customs Clearing & Other Charges - LKR', '', '', shownAmount(savedData, 'clearingCharges')]);
   row(['Agency Fee', '', '', shownAmount(savedData, 'agencyFee')]);
   row(['Total Upto Hand - LKR', '', '', shownAmount(savedData, 'totalEstimatedPrice')], 'total');
@@ -1206,19 +1087,19 @@ async function downloadQuotePdf(saved) {
     data.id = (saved && saved.id) || live.id;
   }
   if (!data.id) return false;
-  showToast('PDF හදනවා...', 'wait');
+  showToast('Creating PDF...', 'wait');
   try {
     await downloadClientPdf(data);
     showToast('PDF downloaded', '');
     return true;
   } catch {
-    showToast('PDF download failed. Page refresh කරලා ආයෙත් try කරන්න.', 'error');
+    showToast('PDF download failed. Refresh the page and try again.', 'error');
     return false;
   }
 }
 
 function saveLocalQuote(data) {
-  if (!data.id) data.id = nextRef(allKnown());
+  if (!data.id) return null;
   data.updatedAt = new Date().toISOString();
   data.createdAt = data.createdAt || data.updatedAt;
   data.person = data.preparedByName;
@@ -1278,6 +1159,22 @@ function setStatus(text) {
   if (el) el.textContent = text;
 }
 
+function viewerName() {
+  return (typeof csStaffName === 'function' && csStaffName()) || '';
+}
+
+function canonicalStaff(name) {
+  if (typeof csCanonical === 'function') {
+    const canon = csCanonical(name);
+    if (canon) return canon;
+  }
+  return String(name || '').trim();
+}
+
+function viewerSeesAll() {
+  return typeof csIsAdmin === 'function' && csIsAdmin();
+}
+
 async function apiList() {
   const res = await apiFetch('/api/quotations', { cache: 'no-store' });
   if (!res.ok) throw new Error('API unavailable');
@@ -1322,7 +1219,7 @@ function allKnown() {
 function saveLocalCopy(data) {
   const next = loadLocal().filter((x) => x.id !== data.id);
   next.unshift(data);
-  writeLocal(next.slice(0, 80));
+  writeLocal(next.slice(0, 200));
   localStorage.setItem(PREP_KEY, data.preparedByName || '');
   if (data.preparedByName && data.signatureImage) {
     localStorage.setItem(SIG_KEY + data.preparedByName, data.signatureImage);
@@ -1334,7 +1231,7 @@ function saveLocalCopy(data) {
 async function saveQuote() {
   if (saving) return null;
   if (!STAFF.includes(val('preparedByName').value)) {
-    showToast('Prepared By name select කරන්න', 'error');
+    showToast('Select a Prepared By name', 'error');
     val('preparedByName').focus();
     return null;
   }
@@ -1344,15 +1241,14 @@ async function saveQuote() {
   updateTotal();
   const data = readForm();
 
-  let items = allKnown();
+  let online = false;
   try {
-    const listed = await apiList();
-    items = listed.items || items;
+    await apiList();
+    online = true;
   } catch {
-    items = allKnown();
+    /* keep quotations already on this device */
   }
-
-  const existing = items.find((x) => x.id === data.id);
+  const existing = (online ? apiItems : allKnown()).find((x) => x.id === data.id);
   if (!existing) {
     data.id = '';
   }
@@ -1374,7 +1270,15 @@ async function saveQuote() {
     setStatus(apiRoot === 'cloud' ? 'Saved online' : (onShare ? 'Folder: ' + folder : 'Saved'));
     return merged;
   } catch (err) {
+    if (!data.id) {
+      showToast('Could not get the next number. Try Save again.', 'error');
+      return null;
+    }
     const saved = saveLocalQuote(data);
+    if (!saved) {
+      showToast('Could not save. Check the connection and try Save again.', 'error');
+      return null;
+    }
     showToast('Saved successfully', '');
     setStatus('Saved');
     return saved;
@@ -1443,17 +1347,17 @@ function initEditor() {
       updateTotal();
       const live = readForm();
       if (!STAFF.includes(live.preparedByName)) {
-        showToast('Prepared By name select කරන්න', 'error');
+        showToast('Select a Prepared By name', 'error');
         val('preparedByName').focus();
         return;
       }
       live.id = live.id || val('quotationNo').value.trim() || 'quotation';
-      showToast('PDF හදනවා...', 'wait');
+      showToast('Creating PDF...', 'wait');
       try {
         await downloadClientPdf(live);
         showToast('PDF downloaded', '');
       } catch {
-        showToast('PDF download failed. Page refresh කරලා ආයෙත් try කරන්න.', 'error');
+        showToast('PDF download failed. Refresh the page and try again.', 'error');
       }
     });
   }
@@ -1463,7 +1367,7 @@ function initEditor() {
     deleteBtn.addEventListener('click', async () => {
       const id = val('quotationNo').value.trim() || param('ref');
       if (!id) return;
-      if (!confirm(id + ' delete කරනවද? Number එක ඊළඟ quotation එකට ආයෙත් යනවා.')) return;
+      if (!confirm('Delete ' + id + '? The number can be used again on the next quotation.')) return;
       await apiDelete(id);
       writeLocal(loadLocal().filter((x) => x.id !== id));
       location.href = 'quotation.html';
@@ -1488,20 +1392,37 @@ function initEditor() {
     }
     if (!saved && ref) saved = loadLocal().find((x) => x.id === ref) || null;
 
+    const me = viewerName();
     if (saved) {
       fillForm(saved);
+      const owner = canonicalStaff(saved.preparedByName || saved.person);
+      if (owner && val('preparedByName')) {
+        val('preparedByName').value = owner;
+        setDesignation();
+      }
     } else {
+      const staffDefault = (typeof csStaffName === 'function' && csStaffName())
+        || localStorage.getItem(PREP_KEY)
+        || '';
       fillForm({
         id: '',
         quoteDate: todayIso(),
         origin: 'Japan',
         estimatedArrival: '2 Months',
-        preparedByName: '',
-        designation: '',
+        preparedByName: staffDefault,
+        designation: STAFF_ROLES[staffDefault] || '',
         signatureImage: '',
         vehiclePhoto: ''
       });
       if (ref) setStatus('That reference was not found. New quotation opened.');
+    }
+
+    if (me && !viewerSeesAll() && val('preparedByName')) {
+      if (!saved) {
+        val('preparedByName').value = me;
+        if (val('designation')) val('designation').value = STAFF_ROLES[me] || '';
+      }
+      val('preparedByName').disabled = true;
     }
 
     if (param('print') === '1') {
@@ -1529,6 +1450,7 @@ function initList() {
   const hint = document.getElementById('folder-hint');
   const staffFilters = document.getElementById('staff-filters');
   let person = '';
+  if (staffFilters) staffFilters.hidden = false;
 
   async function refresh() {
     try {
@@ -1536,12 +1458,12 @@ function initList() {
       if (hint && data.root) {
         const onShare = /\\\\carswitch\\/i.test(String(data.root));
         hint.textContent = data.root === 'cloud'
-          ? 'Saved online. PC එක on වෙන්න ඕන නැහැ.'
-          : (onShare ? 'Save වෙන්නේ: ' + data.root : 'Saved');
+          ? 'Saved online'
+          : (onShare ? 'Saved to: ' + data.root : 'Saved');
       }
     } catch {
       apiItems = loadLocal();
-      if (hint) hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
+      if (hint) hint.textContent = 'Saved on this device. Download PDF here.';
     }
     render();
   }
@@ -1550,7 +1472,8 @@ function initList() {
     const q = search.value.trim().toLowerCase();
     const source = allKnown();
     const items = source.filter((item) => {
-      if (person && item.person !== person && item.preparedByName !== person) return false;
+      const same = typeof csSamePerson === 'function' ? csSamePerson : (a, b) => a === b;
+      if (person && !same(item.person, person) && !same(item.preparedByName, person)) return false;
       if (!q) return true;
       return [item.id, item.customerName, item.contactNo, item.email, item.make, item.model, item.year, item.preparedByName, item.person]
         .join(' ')
@@ -1560,7 +1483,7 @@ function initList() {
 
     summary.textContent = `${items.length} / ${source.length} quotations`;
     if (!items.length) {
-      list.innerHTML = `<section class="quote-card"><p>Saved quotations නැහැ. Prepared By name select කරලා Save කරන්න.</p></section>`;
+      list.innerHTML = `<section class="quote-card"><p>No saved quotations. Select a Prepared By name and Save.</p></section>`;
       return;
     }
 
@@ -1579,7 +1502,6 @@ function initList() {
           <a class="quote-btn quote-btn-save" href="quotation.html?ref=${encodeURIComponent(item.id)}">Open</a>
           <button type="button" class="quote-btn quote-btn-ghost" data-pdf="${item.id}">Download PDF</button>
           <a class="quote-btn quote-btn-ghost" href="quotation.html?ref=${encodeURIComponent(item.id)}&print=1">Print</a>
-          <button type="button" class="quote-btn quote-btn-danger" data-del="${item.id}">Delete</button>
         </div>
       </article>
     `).join('');
@@ -1594,7 +1516,7 @@ function initList() {
           loadLocal().find((x) => x.id === id) || {}
         );
         if (!item.id) {
-          showToast('Quotation එක හොයා ගන්න බැරි වුණා', 'error');
+          showToast('Could not find that quotation', 'error');
           return;
         }
         await downloadQuotePdf(item);
@@ -1604,7 +1526,7 @@ function initList() {
     list.querySelectorAll('[data-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-del');
-        if (!confirm(id + ' delete කරනවද? Number එක ඊළඟ quotation එකට ආයෙත් යනවා.')) return;
+        if (!confirm('Delete ' + id + '? The number can be used again on the next quotation.')) return;
         await apiDelete(id);
         writeLocal(loadLocal().filter((x) => x.id !== id));
         await refresh();
@@ -1612,18 +1534,30 @@ function initList() {
     });
   }
 
-  staffFilters.querySelectorAll('.staff-chip').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      person = btn.getAttribute('data-person') || '';
-      staffFilters.querySelectorAll('.staff-chip').forEach((el) => el.classList.toggle('selected', el === btn));
-      render();
+  if (staffFilters) {
+    staffFilters.querySelectorAll('.staff-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        person = btn.getAttribute('data-person') || '';
+        staffFilters.querySelectorAll('.staff-chip').forEach((el) => el.classList.toggle('selected', el === btn));
+        render();
+      });
     });
-  });
+  }
 
   search.addEventListener('input', render);
   refresh();
 }
 
+function unlockYearField() {
+  const el = document.getElementById('year');
+  if (!el) return;
+  el.removeAttribute('inputmode');
+  el.setAttribute('maxlength', '20');
+  if (!el.getAttribute('placeholder')) el.setAttribute('placeholder', 'e.g. 2023/2024');
+}
+
 if (document.getElementById('quote-sheet')) initEditor();
 if (document.getElementById('list')) initList();
+unlockYearField();
+document.querySelectorAll('.lan-hint').forEach((el) => el.remove());
 initPhoneShare();

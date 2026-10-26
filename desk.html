@@ -3,67 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Desk</title>
+  <title>CS Docs</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=50">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=87">
 </head>
 <body class="quote-body desk-body">
   <div class="desk-page">
     <header class="desk-hero">
-      <img class="list-logo desk-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
-      <h1>CarSwitch Desk</h1>
-      <p class="desk-phone">
-        <strong>Lifetime link</strong> (PC on වෙන්න ඕන නැහැ · ගෙදර / phone):
-        <a href="https://visual-research-study.vercel.app/desk">https://visual-research-study.vercel.app/desk</a>
-        <button type="button" class="quote-btn quote-btn-save" id="copy-home">Copy</button>
+      <img class="cs-docs-icon desk-brand-icon" src="images/cs-docs-icon.png?v=3" alt="CS Docs">
+      <h1>CS Docs</h1>
+      <p>Quotations, invoices and agreements</p>
+      <p class="desk-user" id="desk-user" hidden></p>
+      <p class="desk-user-actions no-print">
+        <button type="button" class="quote-btn quote-btn-ghost" id="pin-btn">Change PIN</button>
+        <a class="quote-btn quote-btn-ghost" href="quote-login.html?next=/desk">Switch user</a>
       </p>
     </header>
 
     <section class="desk-grid">
-      <a class="desk-card" href="/quotation">
+      <a class="desk-card" href="/quote-pick" id="desk-quote">
         <span class="desk-kicker">Quote</span>
         <h2>Quotation</h2>
-        <p>Pre-order vehicle quotation හදන්න.</p>
+        <p>New quotation or saved quotations.</p>
       </a>
-      <a class="desk-card" href="/invoice">
+      <a class="desk-card" href="/invoice-pick" id="desk-invoice">
         <span class="desk-kicker">Bill</span>
         <h2>Invoice</h2>
-        <p>Customer invoice හදන්න.</p>
+        <p>Choose Genx Importanters or Carswitch.</p>
       </a>
-      <a class="desk-card" href="/agreement">
+      <a class="desk-card" href="/agree-pick" id="desk-agree">
         <span class="desk-kicker">Sales</span>
         <h2>Sales Agreement</h2>
-        <p>Local sales agreement fill කරන්න.</p>
+        <p>New agreement or saved agreements.</p>
       </a>
-      <a class="desk-card" href="/preorder">
+      <a class="desk-card" href="/preorder-pick" id="desk-pre">
         <span class="desk-kicker">Import</span>
         <h2>Pre-Order Agreement</h2>
-        <p>Japan / import pre-order agreement.</p>
-      </a>
-      <a class="desk-card is-list" href="/quotations">
-        <span class="desk-kicker">Saved</span>
-        <h2>Saved Quotations</h2>
-      </a>
-      <a class="desk-card is-list" href="/agreements">
-        <span class="desk-kicker">Saved</span>
-        <h2>Invoices &amp; Agreements</h2>
+        <p>New agreement or saved agreements.</p>
       </a>
     </section>
   </div>
+
+  <div class="pin-modal" id="pin-modal" hidden>
+    <form class="pin-card" id="pin-form">
+      <h2>Change PIN</h2>
+      <p class="pin-hint">Each person can set their own PIN (4–8 digits). Default is 9292 until changed.</p>
+      <label for="pin-target">User</label>
+      <select id="pin-target" required></select>
+      <label for="pin-current">Your current PIN</label>
+      <input id="pin-current" type="password" inputmode="numeric" autocomplete="current-password" required>
+      <label for="pin-new">New PIN</label>
+      <input id="pin-new" type="password" inputmode="numeric" autocomplete="new-password" required maxlength="8">
+      <label for="pin-confirm">Confirm new PIN</label>
+      <input id="pin-confirm" type="password" inputmode="numeric" autocomplete="new-password" required maxlength="8">
+      <p class="login-error" id="pin-error" hidden></p>
+      <p class="pin-ok" id="pin-ok" hidden>PIN updated.</p>
+      <div class="pin-actions">
+        <button type="button" class="quote-btn quote-btn-ghost" id="pin-cancel">Cancel</button>
+        <button type="submit" class="quote-btn quote-btn-save">Save PIN</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="static/staff-auth.js?v=3"></script>
   <script>
-    const HOME = 'https://visual-research-study.vercel.app/desk';
-    const btn = document.getElementById('copy-home');
-    if (btn) {
-      btn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(HOME);
-          btn.textContent = 'Copied';
-        } catch {
-          btn.textContent = 'Copy failed';
+    (async function () {
+      if (!csRequireStaff()) return;
+      const session = await csSession();
+      const el = document.getElementById('desk-user');
+      if (el && session.staff) {
+        el.hidden = false;
+        el.textContent = session.staff + (session.isAdmin ? ' · Admin (all staff work visible)' : ' · ' + (session.role || '') + ' · only your saves');
+      }
+
+      const modal = document.getElementById('pin-modal');
+      const target = document.getElementById('pin-target');
+      const err = document.getElementById('pin-error');
+      const ok = document.getElementById('pin-ok');
+      const names = session.isAdmin ? Object.keys(CS_STAFF_ROLES) : [session.staff];
+      target.innerHTML = names.map((n) => {
+        const label = n === CS_ADMIN_NAME ? n + ' (Admin)' : n;
+        return '<option value="' + n + '">' + label + '</option>';
+      }).join('');
+      target.value = session.staff;
+
+      function openPin() {
+        err.hidden = true;
+        ok.hidden = true;
+        document.getElementById('pin-form').reset();
+        target.value = session.staff;
+        modal.hidden = false;
+        document.getElementById('pin-current').focus();
+      }
+      function closePin() {
+        modal.hidden = true;
+      }
+
+      document.getElementById('pin-btn').addEventListener('click', openPin);
+      document.getElementById('pin-cancel').addEventListener('click', closePin);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closePin(); });
+
+      document.getElementById('pin-form').addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        err.hidden = true;
+        ok.hidden = true;
+        const who = target.value;
+        const current = document.getElementById('pin-current').value.trim();
+        const neu = document.getElementById('pin-new').value.trim();
+        const conf = document.getElementById('pin-confirm').value.trim();
+        if (neu !== conf) {
+          err.textContent = 'New PIN and confirm do not match';
+          err.hidden = false;
+          return;
         }
+        const result = csChangePin(who, current, neu);
+        if (!result.ok) {
+          err.textContent = result.error || 'Could not change PIN';
+          err.hidden = false;
+          return;
+        }
+        ok.hidden = false;
+        document.getElementById('pin-current').value = '';
+        document.getElementById('pin-new').value = '';
+        document.getElementById('pin-confirm').value = '';
       });
-    }
+
+    })();
   </script>
 </body>
 </html>

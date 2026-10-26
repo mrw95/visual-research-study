@@ -3,52 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Invoice</title>
+  <title>CS Docs — Invoice</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-store">
-  <link rel="stylesheet" href="static/quotation.css?v=73">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=97">
+  <style>.lan-hint{display:none!important}</style>
   <style>
     .inv-items td.amt,
     .inv-items th.amt { width: 12rem !important; min-width: 12rem !important; }
     .inv-items td.amt input,
-    .inv-items #totalAmount { width: 100% !important; min-width: 100% !important; box-sizing: border-box !important; }
+    .inv-items #totalAmount,
+    .inv-items #totalLabel { width: 100% !important; min-width: 100% !important; box-sizing: border-box !important; }
   </style>
 </head>
 <body class="quote-body">
   <div class="quote-toolbar no-print">
-    <a class="quote-tool-link quote-tool-home" href="desk.html">Desk</a>
+    <a class="quote-tool-brand" href="desk.html"><img src="images/cs-docs-icon.png?v=3" alt=""> CS Docs</a>
     <a class="quote-tool-link" href="agreements.html">Saved invoices</a>
-    <a class="quote-tool-link" href="invoice.html">New invoice</a>
+    <a class="quote-tool-link" id="new-invoice-link" href="invoice.html">New invoice</a>
     <a class="quote-tool-link" href="agreement.html">Sales agreement</a>
     <a class="quote-tool-link" href="preorder.html">Pre-order</a>
     <a class="quote-tool-link" href="quotation.html">Quotations</a>
     <span class="quote-tool-ref" id="toolbar-ref">New</span>
     <span class="quote-tool-status" id="save-status"></span>
+    <button type="button" class="quote-btn quote-btn-ghost" data-back>Back</button>
     <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
     <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
     <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
-    <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
-    <button type="button" class="quote-btn quote-btn-danger" id="delete-btn" disabled>Delete</button>
+    <button type="button" class="quote-btn quote-btn-ghost" id="loan-pdf-btn">Download Loan PDF</button>
   </div>
-  <div id="lan-hint" class="lan-hint no-print" hidden></div>
-  <p class="lan-hint no-print" id="folder-hint">Save වෙන්නේ Invoice &amp; Agreement folder එකට. Seller name select කරලා Save දාන්න.</p>
   <div id="save-toast" class="save-toast no-print" hidden></div>
-  <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
 
   <main class="quote-sheet agree-sheet inv-sheet" id="invoice-sheet">
-    <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
+    <img class="quote-head-img" id="inv-header-img" src="images/cs-invoice-header.jpg?v=1" alt="">
     <div class="quote-inner">
       <div class="inv-top">
       <header class="quote-dochead inv-dochead">
         <h2 class="inv-title">INVOICE</h2>
         <div class="quote-meta">
+          <label class="no-print">
+            <span>Company:</span>
+            <select id="invoiceCompany" required>
+              <option value="">Select company</option>
+              <option value="Carswitch">Carswitch</option>
+              <option value="Genx Importanters">Genx Importanters</option>
+            </select>
+          </label>
           <label>
             <span>INV NO:</span>
-            <input id="invoiceNo" type="text" readonly placeholder="Assigned on save">
+            <input id="invoiceNo" type="text" maxlength="40" placeholder="Assigned on save" readonly>
           </label>
           <label>
             <span>Date:</span>
             <input id="invoiceDate" type="date">
+            <span class="inv-pretty-date" id="pretty-date"></span>
           </label>
         </div>
       </header>
@@ -58,10 +68,10 @@
           <h3 class="inv-label">Bill To:</h3>
           <textarea id="customerName" rows="2" maxlength="200" placeholder="Customer name"></textarea>
           <textarea id="address" rows="2" maxlength="240" placeholder="Address"></textarea>
-        </div>
-        <div>
-          <h3 class="inv-label">From:</h3>
-          <p class="inv-from">CarSwitch (Pvt) Ltd,<br>Jayanthi Mawatha, Anuradhapura<br>+94 25 222 9292 | +94 70 555 9292</p>
+          <label class="inv-nic">
+            <span>NIC / ID</span>
+            <input id="nic" type="text" maxlength="20" placeholder="NIC number">
+          </label>
         </div>
       </div>
       </div>
@@ -73,7 +83,6 @@
           <col class="inv-col-qty">
           <col class="inv-col-amt">
           <col class="inv-col-amt">
-          <col class="inv-col-act">
         </colgroup>
         <thead>
           <tr>
@@ -81,15 +90,13 @@
             <th class="qty">Qty</th>
             <th class="amt">Price</th>
             <th class="amt">Total</th>
-            <th class="inv-row-act no-print"></th>
           </tr>
         </thead>
         <tbody id="invoice-lines"></tbody>
         <tfoot>
           <tr class="agree-total">
-            <th colspan="3">TOTAL AMOUNT</th>
-            <td class="amt"><input id="totalAmount" class="money" type="text" readonly></td>
-            <td class="no-print"></td>
+            <td colspan="3"><input id="totalLabel" type="text" maxlength="80" value="TOTAL AMOUNT"></td>
+            <td class="amt"><input id="totalAmount" class="money" type="text" inputmode="decimal" readonly></td>
           </tr>
         </tfoot>
       </table>
@@ -108,9 +115,10 @@
           <tr><th>Engine</th><td>:</td><td><input id="engineNr" type="text" maxlength="40"></td></tr>
         </table>
         <table class="agree-kv">
-          <tr><th>Manufacture Year</th><td>:</td><td><input id="year" type="text" maxlength="10" inputmode="numeric"></td></tr>
+          <tr><th>Manufacture Year</th><td>:</td><td><input id="year" type="text" maxlength="20" placeholder="e.g. 2023/2024" autocomplete="off"></td></tr>
           <tr><th>Engine Capacity</th><td>:</td><td><input id="engineCapacity" type="text" maxlength="20" placeholder="e.g. 1500CC"></td></tr>
           <tr><th>Manufacture Country</th><td>:</td><td><input id="country" type="text" maxlength="40"></td></tr>
+          <tr><th>Vehicle Colour</th><td>:</td><td><input id="colour" type="text" maxlength="40" placeholder="e.g. Bronze"></td></tr>
         </table>
       </div>
 
@@ -121,40 +129,162 @@
         <li>Please fax or mail the signed price quote to the address above</li>
         <li>Please note that all advance payments made are non-refundable under any circumstances</li>
         <li>The above prices may change due to government policies and currency exchange rates.</li>
+        <li>The vehicle will be delivered only after full settlement of this invoice.</li>
       </ol>
       </div>
 
       <section class="quote-sign inv-sign-block">
-        <h3>Prepared By</h3>
-        <div class="quote-grid three">
-          <label>
-            <span>Name</span>
+        <h3>PREPARED BY</h3>
+        <div class="inv-prep-row">
+          <label class="prep-name">
+            <span class="prep-label">Name</span>
             <select id="preparedByName" required>
               <option value="">Select name</option>
-              <option value="Nipun">Nipun</option>
-              <option value="Isuru">Isuru</option>
-              <option value="Malki">Malki</option>
-              <option value="Harshani">Harshani</option>
-              <option value="Rakitha">Rakitha</option>
+              <option value="B.M.N. S.Basnayaka">B.M.N. S.Basnayaka</option>
+              <option value="G.H.I. R.Nayanajith">G.H.I. R.Nayanajith</option>
+              <option value="Malki Rasanga Widanagamge">Malki Rasanga Widanagamge</option>
+              <option value="H.M. C.Harshani Thilakarathna">H.M. C.Harshani Thilakarathna</option>
+              <option value="D.A.R. N.Dissanayaka">D.A.R. N.Dissanayaka</option>
             </select>
           </label>
-          <label>
-            <span>Designation</span>
+          <label class="prep-role">
+            <span class="prep-label">Designation</span>
             <input id="designation" type="text" maxlength="60" readonly>
           </label>
-          <div class="sign-field">
-            <span>Signature</span>
+          <div class="sign-field prep-sign">
+            <span class="prep-label">Signature <button type="button" class="sign-clear-btn no-print" data-clear="seller">Clear</button></span>
             <div class="sign-pad" id="seller-pad">
-              <button type="button" class="sign-hint no-print" data-upload="seller">Upload signature</button>
+              <button type="button" class="sign-hint no-print" data-upload="seller">Place signature</button>
               <div class="sign-stage"><img id="sellerPreview" alt="Seller" draggable="false"></div>
             </div>
             <input id="sellerFile" type="file" accept="image/*" hidden>
           </div>
+          <div class="sign-field prep-buyer">
+            <span class="prep-label">Customer Signature <button type="button" class="sign-clear-btn no-print" data-clear="buyer">Clear</button></span>
+            <div class="sign-pad" id="buyer-pad">
+              <button type="button" class="sign-hint no-print" data-upload="buyer">Upload signature</button>
+              <div class="sign-stage"><img id="buyerPreview" alt="Customer" draggable="false"></div>
+            </div>
+            <input id="buyerFile" type="file" accept="image/*" hidden>
+          </div>
         </div>
       </section>
     </div>
-    <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
+    <img class="quote-foot-img" id="inv-footer-img" src="images/invoice-footer.png?v=1" alt="">
   </main>
-  <script src="static/invoice.js?v=59"></script>
+
+  <!-- Page 2 — same layout as genx.docx and caRSWITCH (2).docx -->
+  <main class="quote-sheet agree-sheet inv-sheet inv-loan-copy" id="invoice-loan-sheet">
+    <img class="quote-head-img" id="loan-header-img" src="images/cs-invoice-header.jpg?v=1" alt="">
+    <div class="quote-inner">
+      <header class="quote-dochead inv-dochead">
+        <h2 class="inv-title">INVOICE</h2>
+        <div class="quote-meta">
+          <label>
+            <span>INV NO:</span>
+            <input id="loanInvoiceNo" type="text" maxlength="40" readonly>
+          </label>
+          <label>
+            <span>Date:</span>
+            <input id="loanInvoiceDate" type="date" readonly>
+            <span class="inv-pretty-date" id="loan-pretty-date"></span>
+          </label>
+        </div>
+      </header>
+
+      <div class="inv-split">
+        <div>
+          <h3 class="inv-label">Bill To:</h3>
+          <textarea id="loanBillTo" rows="3" maxlength="300" placeholder="Finance / bank (e.g. The Manager, …)"></textarea>
+        </div>
+      </div>
+
+      <div class="inv-items-wrap">
+      <table class="inv-items">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="qty">Qty</th>
+            <th class="amt">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input id="loanLineDesc" type="text" maxlength="80" value="Price"></td>
+            <td class="qty"><input id="loanLineQty" type="text" maxlength="12" value="1"></td>
+            <td class="amt"><input id="loanLineTotal" class="money" type="text" inputmode="decimal" placeholder="0.00"></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2"><strong>Loan Amount</strong></td>
+            <td class="amt"><input id="loanAmount" class="money" type="text" inputmode="decimal" placeholder="0.00"></td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+
+      <h3 class="inv-section">VEHICLE DETAILS</h3>
+      <div class="inv-vehicle">
+        <table class="agree-kv">
+          <tr><th>Make</th><td>:</td><td><span id="loanMake"></span></td></tr>
+          <tr><th>Model</th><td>:</td><td><span id="loanModel"></span></td></tr>
+          <tr><th>Chassis NO</th><td>:</td><td><span id="loanChassisNr"></span></td></tr>
+          <tr><th>Engine</th><td>:</td><td><span id="loanEngineNr"></span></td></tr>
+        </table>
+        <table class="agree-kv">
+          <tr><th>Manufacture Year</th><td>:</td><td><span id="loanYear"></span></td></tr>
+          <tr><th>Engine Capacity</th><td>:</td><td><span id="loanEngineCapacity"></span></td></tr>
+          <tr><th>Manufacture Country</th><td>:</td><td><span id="loanCountry"></span></td></tr>
+          <tr><th>Vehicle Colour</th><td>:</td><td><span id="loanColour"></span></td></tr>
+        </table>
+      </div>
+
+      <h3 class="inv-section">CUSTOMER DETAILS</h3>
+      <table class="agree-kv inv-customer-details">
+        <tr><th>Name</th><td>:</td><td><span id="loanCustomerName"></span></td></tr>
+        <tr><th>Address</th><td>:</td><td><span id="loanCustomerAddress"></span></td></tr>
+        <tr><th>ID Number</th><td>:</td><td><span id="loanNic"></span></td></tr>
+      </table>
+
+      <h3 class="inv-section">TERMS AND CONDITIONS</h3>
+      <ol class="inv-terms">
+        <li>Customer will be billed after indicating acceptance of this quote</li>
+        <li>Payment will be due before delivery of the service and goods</li>
+        <li>Please fax or mail the signed price quote to the address above</li>
+        <li>Please note that all advance payments made are non-refundable under any circumstances</li>
+        <li>The above prices may change due to government policies and currency exchange rates.</li>
+        <li>The vehicle will be delivered only after full settlement of this invoice.</li>
+      </ol>
+
+      <section class="quote-sign inv-sign-block">
+        <h3>PREPARED BY</h3>
+        <div class="inv-prep-row">
+          <div class="prep-name">
+            <span class="prep-label">Name</span>
+            <p id="loanPreparedName" class="inv-prepared-label"></p>
+          </div>
+          <div class="prep-role">
+            <span class="prep-label">Designation</span>
+            <p id="loanPreparedRole" class="inv-prepared-label"></p>
+          </div>
+          <div class="sign-field prep-sign">
+            <span class="prep-label">Signature</span>
+            <div class="sign-pad"><div class="sign-stage"><img id="loanSellerPreview" alt="Seller" draggable="false"></div></div>
+          </div>
+          <div class="sign-field prep-buyer">
+            <span class="prep-label">Customer Signature</span>
+            <div class="sign-pad"><div class="sign-stage"><img id="loanBuyerPreview" alt="Customer" draggable="false"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <img class="quote-foot-img" id="loan-footer-img" src="images/invoice-footer.png?v=1" alt="">
+  </main>
+
+  <script src="static/staff-auth.js?v=4"></script>
+  <script>csRequireStaff();</script>
+  <script src="static/signature.js?v=1"></script>
+  <script src="static/invoice.js?v=83"></script>
 </body>
 </html>

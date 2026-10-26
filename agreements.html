@@ -3,25 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CarSwitch — Saved Invoices &amp; Agreements</title>
+  <title>CS Docs — Saved Invoices &amp; Agreements</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="static/quotation.css?v=47">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=92">
 </head>
 <body class="quote-body list-body">
-  <div id="lan-hint" class="lan-hint no-print" hidden></div>
-  <div id="phone-sheet" class="phone-sheet no-print" hidden></div>
   <div class="quote-list-page">
     <header class="list-header">
       <div>
-        <img class="list-logo" src="images/car2witch-logo.jpg" alt="CarSwitch">
+        <img class="cs-docs-icon" src="images/cs-docs-icon.png?v=3" alt="CS Docs">
         <h1>Saved Invoices &amp; Agreements</h1>
-        <p class="list-sub" id="folder-hint">Save වෙන්නේ Invoice &amp; Agreement folder එකට.</p>
+        <p class="list-sub" id="folder-hint">Saved to the Invoice &amp; Agreement folder.</p>
       </div>
       <div class="list-header-actions">
+        <button type="button" class="quote-btn quote-btn-ghost" data-back>Back</button>
         <a class="quote-btn quote-btn-save" href="desk.html">Desk</a>
         <a class="quote-btn quote-btn-ghost" href="quotations.html">Quotations</a>
-        <button type="button" class="quote-btn quote-btn-ghost" id="phone-btn">Phone / Tab</button>
-        <a class="quote-btn quote-btn-ghost" href="invoice.html">New invoice</a>
+        <a class="quote-btn quote-btn-ghost" href="invoice-pick.html">New invoice</a>
         <a class="quote-btn quote-btn-ghost" href="preorder.html">New pre-order</a>
         <a class="quote-btn quote-btn-save" href="agreement.html">New sales agreement</a>
       </div>
@@ -32,17 +32,20 @@
       <input id="search" type="search" placeholder="INV / SA / PO, customer, chassis, model...">
       <div class="staff-chips" id="staff-filters">
         <button type="button" class="staff-chip selected" data-person="">All</button>
-        <button type="button" class="staff-chip" data-person="Nipun">Nipun</button>
-        <button type="button" class="staff-chip" data-person="Isuru">Isuru</button>
-        <button type="button" class="staff-chip" data-person="Malki">Malki</button>
-        <button type="button" class="staff-chip" data-person="Harshani">Harshani</button>
-        <button type="button" class="staff-chip" data-person="Rakitha">Rakitha</button>
+        <button type="button" class="staff-chip" data-person="B.M.N. S.Basnayaka">B.M.N. S.Basnayaka</button>
+        <button type="button" class="staff-chip" data-person="G.H.I. R.Nayanajith">G.H.I. R.Nayanajith</button>
+        <button type="button" class="staff-chip" data-person="Malki Rasanga Widanagamge">Malki Rasanga Widanagamge</button>
+        <button type="button" class="staff-chip" data-person="H.M. C.Harshani Thilakarathna">H.M. C.Harshani Thilakarathna</button>
+        <button type="button" class="staff-chip" data-person="D.A.R. N.Dissanayaka">D.A.R. N.Dissanayaka</button>
       </div>
     </section>
 
-    <p class="list-count" id="summary">0 agreements</p>
+    <p class="list-count" id="summary">0</p>
     <div id="agree-list"></div>
   </div>
-  <script src="static/agreement.js?v=52"></script>
+  <script src="static/staff-auth.js?v=4"></script>
+  <script>csRequireStaff();</script>
+  <script src="static/signature.js?v=1"></script>
+  <script src="static/agreement.js?v=68"></script>
 </body>
 </html>

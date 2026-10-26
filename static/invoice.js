@@ -3,17 +3,34 @@ const PREP_KEY = 'genx-prepared-by';
 const SIG_KEY = 'genx-signature-';
 const SIG_SCALE_KEY = 'genx-signature-scale-';
 const STAFF_ROLES = {
-  Nipun: 'Sales Executive',
-  Isuru: 'Sales Executive',
-  Malki: 'Admin & Marketing',
-  Harshani: 'Director',
-  Rakitha: 'CEO'
+  'B.M.N. S.Basnayaka': 'Sales Executive',
+  'G.H.I. R.Nayanajith': 'Sales Executive',
+  'Malki Rasanga Widanagamge': 'Executive Admin and Marketing',
+  'H.M. C.Harshani Thilakarathna': 'Admin',
+  'D.A.R. N.Dissanayaka': 'Director'
+};
+const STAFF_DISPLAY = {};
+const STAFF_SIGNS = {
+  'H.M. C.Harshani Thilakarathna': 'images/harshani-signature.png?v=1'
 };
 const STAFF = Object.keys(STAFF_ROLES);
 const TEXT_FIELDS = [
   'customerName', 'address', 'make', 'model', 'chassisNr',
-  'engineNr', 'year', 'engineCapacity', 'country', 'preparedByName'
+  'engineNr', 'year', 'engineCapacity', 'country', 'colour', 'preparedByName', 'invoiceCompany',
+  'nic', 'loanBillTo', 'loanLineDesc', 'loanLineQty'
 ];
+const COMPANY_BRAND = {
+  Carswitch: {
+    header: 'images/cs-invoice-header.jpg?v=1',
+    footer: 'images/invoice-footer.png?v=1',
+    title: 'CS Docs — Carswitch Invoice'
+  },
+  'Genx Importanters': {
+    header: 'images/genx-header.png?v=3',
+    footer: 'images/invoice-footer.png?v=1',
+    title: 'CS Docs — Genx Invoice'
+  }
+};
 
 let apiItems = [];
 let apiRoot = '';
@@ -22,6 +39,7 @@ let apiBase = '';
 let saving = false;
 let toastTimer = 0;
 let sellerSign = '';
+let buyerSign = '';
 let lines = [emptyLine(), emptyLine()];
 
 function emptyLine() {
@@ -125,30 +143,82 @@ function setSaveBusy(on) {
   }
 }
 
+let invoiceLockedId = '';
+
 function setQuoteNo(id) {
   if (val('invoiceNo')) val('invoiceNo').value = id || '';
+  if (val('loanInvoiceNo')) val('loanInvoiceNo').value = id || '';
   const toolbar = document.getElementById('toolbar-ref');
   if (toolbar) toolbar.textContent = id || 'New';
   const del = val('delete-btn');
   if (del) del.disabled = !id;
 }
 
+async function previewNextInvoiceNo() {
+  if (invoiceLockedId) return;
+  const company = val('invoiceCompany') && val('invoiceCompany').value;
+  if (!company) {
+    setQuoteNo('');
+    return;
+  }
+  let items = allKnown();
+  try {
+    const listed = await apiList();
+    items = listed.items || items;
+  } catch {
+    /* local preview */
+  }
+  const when = (val('invoiceDate') && val('invoiceDate').value) || todayIso();
+  setQuoteNo(nextRef(items, company, when));
+}
+
 function lineAmount(line) {
   return parseNum(line && line.qty) * parseNum(line && line.price);
 }
 
-function updateTotals() {
-  const sum = lines.reduce((total, line) => total + lineAmount(line), 0);
-  lines.forEach((line) => {
-    line.total = formatMoneyValue(lineAmount(line));
+function lineIsAdvance(line, index) {
+  const desc = String((line && line.description) || '').trim().toLowerCase();
+  if (desc.includes('advance')) return true;
+  const firstPrice = parseNum(lines[0] && lines[0].price);
+  return index === 1 && !desc && firstPrice > 0 && parseNum(line && line.price) > 0;
+}
+
+function lineIsFinance(line) {
+  const desc = String((line && line.description) || '').trim().toLowerCase();
+  return desc.includes('finance');
+}
+
+function syncGrandTotal() {
+  let net = 0;
+  let finance = 0;
+  let any = false;
+  lines.forEach((line, index) => {
+    const amount = parseNum(line.total);
+    if (!amount) return;
+    if (lineIsFinance(line)) {
+      finance += Math.abs(amount);
+      return;
+    }
+    any = true;
+    net += lineIsAdvance(line, index) ? -Math.abs(amount) : amount;
   });
-  if (val('totalAmount')) val('totalAmount').value = formatMoneyValue(sum);
-  const tbody = val('invoice-lines');
-  if (!tbody) return;
-  tbody.querySelectorAll('tr').forEach((row, i) => {
-    const totalEl = row.querySelector('[data-field="total"]');
-    if (totalEl && lines[i]) totalEl.value = lines[i].total || '';
-  });
+  const el = val('totalAmount');
+  if (el) el.value = any ? (net ? formatMoneyValue(net) : '0.00') : '';
+  const loanTotal = val('loanLineTotal');
+  if (loanTotal && loanTotal.dataset.touched !== '1' && any) loanTotal.value = el.value;
+  const loanAmt = val('loanAmount');
+  if (loanAmt && loanAmt.dataset.touched !== '1' && finance) loanAmt.value = formatMoneyValue(finance);
+}
+
+function ordinalDateHtml(iso) {
+  const text = String(iso || '').slice(0, 10);
+  const d = new Date(text + 'T00:00:00');
+  if (!text || Number.isNaN(d.getTime())) return '';
+  const day = d.getDate();
+  const teen = day % 100;
+  const suf = (teen >= 11 && teen <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
+  const month = d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+  return day + '<sup>' + suf + '</sup> ' + month;
 }
 
 function renderLines() {
@@ -159,10 +229,10 @@ function renderLines() {
       <td><input data-field="description" type="text" maxlength="120" value="${escapeAttr(line.description)}"></td>
       <td class="qty"><input data-field="qty" class="money" type="text" inputmode="decimal" value="${escapeAttr(line.qty)}"></td>
       <td class="amt"><input data-field="price" class="money" type="text" inputmode="decimal" value="${escapeAttr(line.price)}"></td>
-      <td class="amt"><input data-field="total" class="money" type="text" readonly value="${escapeAttr(line.total)}"></td>
-      <td class="inv-row-act no-print"><button type="button" class="inv-remove" data-remove="${i}" ${lines.length < 2 ? 'disabled' : ''}>×</button></td>
+      <td class="amt"><input data-field="total" class="money" type="text" inputmode="decimal" value="${escapeAttr(line.total)}"></td>
     </tr>
   `).join('');
+  syncLoanCopy();
 }
 
 function escapeAttr(raw) {
@@ -187,38 +257,147 @@ function readForm() {
     agreementDate: date,
     designation: STAFF_ROLES[val('preparedByName').value] || '',
     signatureImage: sellerSign,
+    buyerSignature: buyerSign,
+    invoiceCompany: val('invoiceCompany') ? val('invoiceCompany').value.trim() : '',
     signatureScale: Number(localStorage.getItem(SIG_SCALE_KEY + val('preparedByName').value) || 56),
     lines: lines.map((line) => ({
       description: String(line.description || '').trim(),
       qty: String(line.qty || '').trim(),
       price: formatMoney(line.price),
-      total: formatMoneyValue(lineAmount(line))
+      total: formatMoney(line.total) || formatMoneyValue(lineAmount(line))
     })),
-    totalAmount: val('totalAmount').value.trim(),
+    totalLabel: (val('totalLabel') && val('totalLabel').value.trim()) || 'TOTAL AMOUNT',
+    totalAmount: formatMoney(val('totalAmount') && val('totalAmount').value),
+    loanAmount: formatMoney(val('loanAmount') && val('loanAmount').value),
+    loanLineTotal: formatMoney(val('loanLineTotal') && val('loanLineTotal').value),
     makeModel: makeModel(),
     updatedAt: new Date().toISOString()
   };
   TEXT_FIELDS.forEach((id) => { data[id] = val(id) ? val(id).value.trim() : ''; });
   data.make = data.make.toUpperCase();
   data.model = data.model.toUpperCase();
+  data.colour = (data.colour || '').toUpperCase();
   data.makeModel = makeModel();
   return data;
 }
 
-function setSign(dataUrl) {
-  sellerSign = dataUrl || '';
-  const img = val('sellerPreview');
-  const pad = val('seller-pad');
+function applyCompanyBrand(company) {
+  const brand = COMPANY_BRAND[company] || COMPANY_BRAND.Carswitch;
+  ['inv-header-img', 'loan-header-img'].forEach((id) => {
+    const el = val(id);
+    if (el) el.src = brand.header;
+  });
+  ['inv-footer-img', 'loan-footer-img'].forEach((id) => {
+    const el = val(id);
+    if (el) el.src = brand.footer;
+  });
+  document.title = brand.title;
+  const sel = val('invoiceCompany');
+  if (sel && company && COMPANY_BRAND[company]) {
+    sel.value = company;
+    sel.disabled = !!param('company');
+  }
+}
+
+function syncLoanCopy() {
+  const company = (val('invoiceCompany') && val('invoiceCompany').value) || '';
+  applyCompanyBrand(company);
+  if (val('loanInvoiceNo')) val('loanInvoiceNo').value = val('invoiceNo').value;
+  if (val('loanInvoiceDate')) val('loanInvoiceDate').value = val('invoiceDate').value;
+  if (val('loanMake')) val('loanMake').textContent = (val('make') && val('make').value) || '';
+  if (val('loanModel')) val('loanModel').textContent = (val('model') && val('model').value) || '';
+  if (val('loanChassisNr')) val('loanChassisNr').textContent = (val('chassisNr') && val('chassisNr').value) || '';
+  if (val('loanEngineNr')) val('loanEngineNr').textContent = (val('engineNr') && val('engineNr').value) || '';
+  if (val('loanYear')) val('loanYear').textContent = (val('year') && val('year').value) || '';
+  if (val('loanEngineCapacity')) val('loanEngineCapacity').textContent = (val('engineCapacity') && val('engineCapacity').value) || '';
+  if (val('loanCountry')) val('loanCountry').textContent = (val('country') && val('country').value) || '';
+  if (val('loanColour')) val('loanColour').textContent = (val('colour') && val('colour').value) || '';
+  if (val('loanCustomerName')) val('loanCustomerName').textContent = (val('customerName') && val('customerName').value) || '';
+  if (val('loanCustomerAddress')) val('loanCustomerAddress').textContent = (val('address') && val('address').value) || '';
+  if (val('loanNic')) val('loanNic').textContent = (val('nic') && val('nic').value) || '';
+  const pretty = ordinalDateHtml(val('invoiceDate') && val('invoiceDate').value);
+  if (val('pretty-date')) val('pretty-date').innerHTML = pretty;
+  if (val('loan-pretty-date')) val('loan-pretty-date').innerHTML = pretty;
+  const prep = (val('preparedByName') && val('preparedByName').value) || '';
+  if (val('loanPreparedName')) val('loanPreparedName').textContent = displayName(prep);
+  if (val('loanPreparedRole')) {
+    val('loanPreparedRole').textContent = prep
+      ? (STAFF_ROLES[prep] || val('designation').value || '')
+      : '';
+  }
+  const buyer = val('loanBuyerPreview');
+  const seller = val('loanSellerPreview');
+  if (buyer) buyer.src = buyerSign || '';
+  if (seller) seller.src = sellerSign || '';
+}
+
+function displayName(name) {
+  const clean = typeof csCanonical === 'function' ? (csCanonical(name) || name) : name;
+  return STAFF_DISPLAY[clean] || clean || '';
+}
+
+async function defaultSellerSign(name) {
+  const url = STAFF_SIGNS[name];
+  if (!url) return '';
+  if (!defaultSellerSign.cache) defaultSellerSign.cache = {};
+  if (defaultSellerSign.cache[name]) return defaultSellerSign.cache[name];
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    defaultSellerSign.cache[name] = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    defaultSellerSign.cache[name] = '';
+  }
+  return defaultSellerSign.cache[name];
+}
+
+async function applySellerSign(name, explicit) {
+  if (explicit) {
+    setSign('seller', explicit);
+    return;
+  }
+  const versionKey = 'genx-signature-ver-' + name;
+  const saved = name ? localStorage.getItem(SIG_KEY + name) : '';
+  if (STAFF_SIGNS[name] && localStorage.getItem(versionKey) !== '1') {
+    const data = await defaultSellerSign(name);
+    if (data) {
+      localStorage.setItem(SIG_KEY + name, data);
+      localStorage.setItem(versionKey, '1');
+      setSign('seller', data);
+      return;
+    }
+  }
+  if (saved) {
+    setSign('seller', saved);
+    return;
+  }
+  setSign('seller', await defaultSellerSign(name));
+}
+
+function setSign(kind, dataUrl) {
+  if (arguments.length === 1) { dataUrl = kind; kind = 'seller'; }
+  const isBuyer = kind === 'buyer';
+  if (isBuyer) buyerSign = dataUrl || '';
+  else sellerSign = dataUrl || '';
+  const img = val(isBuyer ? 'buyerPreview' : 'sellerPreview');
+  const pad = val(isBuyer ? 'buyer-pad' : 'seller-pad');
   if (img) img.src = dataUrl || '';
   if (pad) pad.classList.toggle('has-sign', !!dataUrl);
+  if (typeof syncLoanCopy === 'function') syncLoanCopy();
 }
 
 function fillForm(data) {
+  invoiceLockedId = data.id || '';
   setQuoteNo(data.id || '');
   val('invoiceDate').value = data.invoiceDate || data.agreementDate || todayIso();
   TEXT_FIELDS.forEach((id) => {
     if (!val(id)) return;
-    if (id === 'make' || id === 'model') val(id).value = String(data[id] || '').toUpperCase();
+    if (id === 'make' || id === 'model' || id === 'colour') val(id).value = String(data[id] || '').toUpperCase();
     else val(id).value = data[id] || '';
   });
   if (Array.isArray(data.lines) && data.lines.length) {
@@ -228,13 +407,36 @@ function fillForm(data) {
       price: formatMoney(line.price),
       total: formatMoney(line.total)
     }));
+  } else if (data.vehiclePrice || data.advanceAmount || data.balancePayment) {
+    lines = [
+      { description: 'full amount', qty: '1', price: formatMoney(data.vehiclePrice), total: formatMoney(data.vehiclePriceTotal || data.vehiclePrice) },
+      { description: 'advanced payment', qty: '1', price: formatMoney(data.advanceAmount), total: formatMoney(data.advanceAmount) }
+    ];
   } else {
     lines = [emptyLine(), emptyLine()];
   }
+  if (val('invoiceCompany')) val('invoiceCompany').value = data.invoiceCompany || param('company') || '';
+  if (val('totalLabel')) val('totalLabel').value = data.totalLabel || 'TOTAL AMOUNT';
+  if (val('totalAmount')) val('totalAmount').value = formatMoney(data.totalAmount || data.balancePayment || '');
+  if (val('loanAmount')) val('loanAmount').value = formatMoney(data.loanAmount || '');
+  if (val('loanLineTotal')) val('loanLineTotal').value = formatMoney(data.loanLineTotal || '');
+  if (val('loanLineDesc') && !val('loanLineDesc').value) val('loanLineDesc').value = 'Price';
+  if (val('loanLineQty') && !val('loanLineQty').value) val('loanLineQty').value = '1';
+  if (val('loanBillTo')) val('loanBillTo').value = data.loanBillTo || '';
+  if (val('nic')) val('nic').value = data.nic || '';
   val('designation').value = STAFF_ROLES[data.preparedByName] || data.designation || '';
-  setSign(data.signatureImage || (data.preparedByName ? localStorage.getItem(SIG_KEY + data.preparedByName) : '') || '');
+  if (val('preparedByName')) {
+    const canon = typeof csCanonical === 'function' ? csCanonical(val('preparedByName').value) : '';
+    if (canon) {
+      val('preparedByName').value = canon;
+      val('designation').value = STAFF_ROLES[canon] || val('designation').value;
+    }
+  }
+  setSign('seller', data.signatureImage || '');
+  setSign('buyer', data.buyerSignature || '');
   renderLines();
-  updateTotals();
+  applyCompanyBrand(val('invoiceCompany').value || param('company') || 'Carswitch');
+  syncLoanCopy();
 }
 
 function loadLocal() {
@@ -259,16 +461,31 @@ function saveLocalCopy(data) {
   }
 }
 
-function nextRef(items) {
-  const year = new Date().getFullYear();
-  const used = new Set();
-  items.forEach((item) => {
-    const match = String(item.id || '').match(new RegExp(`^INV-${year}-(\\d+)$`));
-    if (match) used.add(Number(match[1]));
+function nextRef(items, company, when) {
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const dt = when ? new Date(when) : new Date();
+  const year = Number.isNaN(dt.getTime()) ? new Date().getFullYear() : dt.getFullYear();
+  const mon = months[(Number.isNaN(dt.getTime()) ? new Date() : dt).getMonth()];
+  const wanted = String(company || '').trim();
+  const used = [];
+  (items || []).forEach((item) => {
+    const name = String((item && item.invoiceCompany) || '').trim();
+    if (wanted === 'Genx Importanters') {
+      if (name !== 'Genx Importanters') return;
+    } else if (name === 'Genx Importanters') {
+      return;
+    } else if (wanted === 'Carswitch' && name && name !== 'Carswitch') {
+      return;
+    }
+    const id = String((item && item.id) || '').toUpperCase();
+    let match = id.match(/^INV-(\d{4})-[A-Z]{3}-(\d+)$/);
+    if (!match) match = id.match(/^INV-(\d{4})-(\d+)$/);
+    if (!match) return;
+    const y = Number(match[1]);
+    if (y === year || y === year - 1) used.push(Number(match[2]));
   });
-  let n = 1;
-  while (used.has(n)) n += 1;
-  return `INV-${year}-` + String(n).padStart(4, '0');
+  const n = used.length ? Math.max(...used) + 1 : 1;
+  return `INV-${year}-${mon}-` + String(n).padStart(4, '0');
 }
 
 function allKnown() {
@@ -298,7 +515,7 @@ async function apiFetch(path, options) {
       lastErr = err;
     }
   }
-  throw lastErr || new Error('Folder API එක open වෙලා නැහැ.');
+  throw lastErr || new Error('Save API is not available.');
 }
 
 async function apiList() {
@@ -317,21 +534,21 @@ function setFolderHint(root, onShare) {
   if (!hint) return;
   if (root && onShare) {
     hint.hidden = false;
-    hint.textContent = 'Save වෙන්නේ: ' + root;
+    hint.textContent = 'Saved to: ' + root;
     return;
   }
   if (isHomeCloud() || root === 'cloud') {
     hint.hidden = false;
-    hint.textContent = 'මේක lifetime link එක. PC එක on වෙන්න ඕන නැහැ. Save සහ Download PDF මෙතනින්ම.';
+    hint.textContent = 'Saved online. Save and Download PDF here.';
     return;
   }
   if (root) {
     hint.hidden = false;
-    hint.textContent = 'Office share එක open නැහැ. දැන් save වෙන්නේ: ' + root;
+    hint.textContent = 'Office folder is not open. Saving to: ' + root;
     return;
   }
   hint.hidden = false;
-  hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
+  hint.textContent = 'Saved on this device. Download PDF here.';
 }
 
 function officeSharePath(raw) {
@@ -387,25 +604,29 @@ function triggerBlobDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function postAgreementPdf(saved) {
+async function postAgreementPdf(saved, copy) {
+  const payload = Object.assign({}, saved, { pdfCopy: copy || 'customer' });
   const res = await fetch('/api/agreement-pdf', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(saved)
+    body: JSON.stringify(payload)
   });
   const type = (res.headers.get('content-type') || '').toLowerCase();
   if (res.ok && type.indexOf('pdf') !== -1) return res.blob();
   return null;
 }
 
-async function downloadPdf(saved) {
-  showToast('PDF හදනවා...', 'wait');
+async function downloadPdf(saved, copy) {
+  const mode = copy || 'customer';
+  const label = mode === 'loan' ? 'loan PDF' : 'PDF';
+  showToast('Creating ' + label + '...', 'wait');
   try {
-    const blob = await postAgreementPdf(saved);
+    const blob = await postAgreementPdf(saved, mode);
     if (blob && blob.size > 800) {
-      triggerBlobDownload(blob, (saved.id || 'invoice') + '.pdf');
-      showToast('PDF downloaded', '');
+      const name = (saved.id || 'invoice') + (mode === 'loan' ? '-loan.pdf' : '.pdf');
+      triggerBlobDownload(blob, name);
+      showToast(mode === 'loan' ? 'Loan PDF downloaded' : 'PDF downloaded', '');
       return;
     }
   } catch {
@@ -416,7 +637,7 @@ async function downloadPdf(saved) {
 }
 
 function saveLocalQuote(data) {
-  if (!data.id) data.id = nextRef(allKnown());
+  if (!data.id) throw new Error('Type the invoice number');
   data.updatedAt = new Date().toISOString();
   data.createdAt = data.createdAt || data.updatedAt;
   data.person = data.preparedByName;
@@ -429,44 +650,59 @@ function saveLocalQuote(data) {
 
 async function saveInvoice() {
   if (saving) return null;
+  if (!(val('invoiceCompany') && val('invoiceCompany').value)) {
+    showToast('Select Carswitch or Genx Importanters', 'error');
+    val('invoiceCompany').focus();
+    return null;
+  }
   if (!STAFF.includes(val('preparedByName').value)) {
-    showToast('Seller name select කරන්න', 'error');
+    showToast('Select a seller name', 'error');
     val('preparedByName').focus();
     return null;
   }
   setSaveBusy(true);
   showToast('Saving...', 'wait');
-  updateTotals();
   const data = readForm();
   let items = allKnown();
+  let online = false;
   try {
     const listed = await apiList();
     items = listed.items || items;
+    online = true;
   } catch {
     items = allKnown();
   }
-  const existing = items.find((x) => x.id === data.id);
+  const existing = data.id && items.find((x) => x.id === data.id);
   if (!existing) data.id = '';
   data.createdAt = existing ? existing.createdAt : new Date().toISOString();
   try {
     const saved = await apiSave(data);
     const merged = Object.assign({}, saved, data, { id: saved.id });
     saveLocalCopy(merged);
+    invoiceLockedId = merged.id;
     setQuoteNo(merged.id);
     history.replaceState({}, '', `invoice.html?ref=${encodeURIComponent(merged.id)}`);
     const onShare = lastUsingNetwork || officeSharePath(apiRoot || merged.pdfPath);
     setFolderHint(apiRoot || merged.pdfPath, onShare);
     if (merged.pdfOk === false) {
-      showToast('Folder එකට save උනා, PDF fail: ' + (merged.pdfError || 'retry Save'), 'error');
+      showToast('Saved, but PDF failed: ' + (merged.pdfError || 'try Save again'), 'error');
     } else {
       showToast('Saved successfully', '');
       if (onShare) openSavedFolder(merged.pdfPath);
     }
     return merged;
-  } catch {
+  } catch (err) {
+    if (!data.id) {
+      if (!online) {
+        data.id = nextRef(items, data.invoiceCompany, data.invoiceDate);
+      } else {
+        showToast('Could not get the next invoice number. Try Save again.', 'error');
+        return null;
+      }
+    }
     const saved = saveLocalQuote(data);
     setFolderHint('', false);
-    showToast('Saved successfully', '');
+    showToast('Saved on this device', '');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -482,142 +718,67 @@ function fileToDataUrl(file) {
   });
 }
 
-function knockOutSignatureBackground(canvas) {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const original = new Uint8ClampedArray(image.data);
-  const d = image.data;
-  const w = canvas.width;
-  const h = canvas.height;
-
-  function sample(x, y) {
-    const i = (Math.max(0, Math.min(h - 1, y)) * w + Math.max(0, Math.min(w - 1, x))) * 4;
-    return [d[i], d[i + 1], d[i + 2]];
-  }
-
-  const corners = [
-    ...sample(2, 2), ...sample(w - 3, 2), ...sample(2, h - 3), ...sample(w - 3, h - 3),
-    ...sample(Math.floor(w / 2), 2), ...sample(Math.floor(w / 2), h - 3)
-  ];
-  const bg = [
-    (corners[0] + corners[3] + corners[6] + corners[9] + corners[12] + corners[15]) / 6,
-    (corners[1] + corners[4] + corners[7] + corners[10] + corners[13] + corners[16]) / 6,
-    (corners[2] + corners[5] + corners[8] + corners[11] + corners[14] + corners[17]) / 6
-  ];
-
-  let minX = w;
-  let minY = h;
-  let maxX = 0;
-  let maxY = 0;
-  const paperCut = 40;
-  const inkFull = 88;
-  const bgLuma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2];
-
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i];
-    const g = d[i + 1];
-    const b = d[i + 2];
-    const a = d[i + 3];
-    const dist = Math.sqrt((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2);
-    const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    const paperLike = a < 16
-      || dist < paperCut
-      || (luma > 210 && chroma < 18)
-      || (Math.abs(luma - bgLuma) < 16 && chroma < 22);
-
-    if (paperLike) {
-      d[i + 3] = 0;
-      continue;
-    }
-
-    let t = (dist - paperCut) / (inkFull - paperCut);
-    t = Math.max(0, Math.min(1, t));
-    t = t * t * (3 - 2 * t);
-    const alpha = Math.round(Math.max(t, chroma / 90, 0.55) * (a / 255) * 255);
-    if (alpha < 18) {
-      d[i + 3] = 0;
-      continue;
-    }
-
-    d[i + 3] = alpha;
-    const px = (i / 4) % w;
-    const py = Math.floor(i / 4 / w);
-    if (px < minX) minX = px;
-    if (py < minY) minY = py;
-    if (px > maxX) maxX = px;
-    if (py > maxY) maxY = py;
-  }
-
-  if (maxX < minX || maxY < minY) {
-    image.data.set(original);
-    ctx.putImageData(image, 0, 0);
-    return canvas;
-  }
-
-  ctx.putImageData(image, 0, 0);
-  const pad = 8;
-  const x = Math.max(0, minX - pad);
-  const y = Math.max(0, minY - pad);
-  const cw = Math.min(w - x, maxX - minX + 1 + pad * 2);
-  const ch = Math.min(h - y, maxY - minY + 1 + pad * 2);
-  const cropped = document.createElement('canvas');
-  cropped.width = cw;
-  cropped.height = ch;
-  cropped.getContext('2d').drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
-  return cropped;
-}
-
 function compressSignature(file) {
-  return fileToDataUrl(file).then((dataUrl) => new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const scale = Math.min(1, 520 / img.width, 180 / img.height);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(knockOutSignatureBackground(canvas).toDataURL('image/png'));
-      } catch {
-        resolve(dataUrl);
-      }
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  }));
+  return prepareSignatureFile(file);
 }
 
 function initEditor() {
   val('save-btn').addEventListener('click', (e) => { e.preventDefault(); saveInvoice(); });
-  val('print-btn').addEventListener('click', () => window.print());
-  val('pdf-btn').addEventListener('click', async () => {
-    updateTotals();
+  val('print-btn').addEventListener('click', () => {
+    syncLoanCopy();
+    window.print();
+  });
+  window.addEventListener('beforeprint', syncLoanCopy);
+  if (val('invoiceCompany')) {
+    val('invoiceCompany').addEventListener('change', () => {
+      applyCompanyBrand(val('invoiceCompany').value);
+      syncLoanCopy();
+      previewNextInvoiceNo();
+    });
+  }
+  if (val('invoiceDate')) {
+    val('invoiceDate').addEventListener('change', () => {
+      syncLoanCopy();
+      previewNextInvoiceNo();
+    });
+  }
+  ['customerName', 'address', 'make', 'model', 'chassisNr', 'engineNr', 'year', 'engineCapacity', 'country', 'colour',
+    'invoiceNo', 'invoiceDate', 'totalAmount', 'preparedByName', 'loanBillTo', 'loanAmount', 'loanLineTotal', 'nic'
+  ].forEach((id) => {
+    const el = val(id);
+    if (el) el.addEventListener('input', syncLoanCopy);
+    if (el) el.addEventListener('change', syncLoanCopy);
+  });
+  async function downloadInvoiceCopy(copy) {
     const live = readForm();
     if (!STAFF.includes(live.preparedByName)) {
-      showToast('Seller name select කරන්න', 'error');
+      showToast('Select a seller name', 'error');
       return;
     }
     live.id = live.id || 'invoice';
-    await downloadPdf(live);
-  });
-  val('delete-btn').addEventListener('click', async () => {
+    await downloadPdf(live, copy);
+  }
+  val('pdf-btn').addEventListener('click', () => downloadInvoiceCopy('customer'));
+  if (val('loan-pdf-btn')) {
+    val('loan-pdf-btn').addEventListener('click', () => downloadInvoiceCopy('loan'));
+  }
+  val('delete-btn') && val('delete-btn').addEventListener('click', async () => {
     const id = val('invoiceNo').value.trim() || param('ref');
     if (!id) return;
-    if (!confirm(id + ' delete කරනවද?')) return;
+    if (!confirm('Delete ' + id + '?')) return;
     await apiDelete(id);
     writeLocal(loadLocal().filter((x) => x.id !== id));
     location.href = 'agreements.html';
   });
-  ['make', 'model'].forEach((id) => {
+  ['make', 'model', 'colour'].forEach((id) => {
     val(id).addEventListener('input', () => forceCaps(val(id)));
     val(id).addEventListener('change', () => forceCaps(val(id)));
   });
   val('preparedByName').addEventListener('change', () => {
-    const name = val('preparedByName').value;
+    const name = (typeof csCanonical === 'function' && csCanonical(val('preparedByName').value)) || val('preparedByName').value;
+    if (name) val('preparedByName').value = name;
     val('designation').value = STAFF_ROLES[name] || '';
-    if (name) setSign(localStorage.getItem(SIG_KEY + name) || sellerSign);
+    setSign('seller', '');
   });
   val('add-line').addEventListener('click', () => {
     lines.push(emptyLine());
@@ -630,69 +791,127 @@ function initEditor() {
     const i = Number(row.getAttribute('data-i'));
     if (!lines[i]) return;
     const field = input.getAttribute('data-field');
-    if (field === 'price') {
+    if (field === 'price' || field === 'total') {
       const shown = formatMoneyTyping(input.value);
       if (input.value !== shown) input.value = shown;
-      lines[i].price = shown;
-      updateTotals();
+      lines[i][field] = shown;
+      if (field === 'price') {
+        lines[i].total = String(lines[i].price || '').trim() ? formatMoneyValue(lineAmount(lines[i])) : '';
+        const totalEl = row.querySelector('[data-field="total"]');
+        if (totalEl) totalEl.value = lines[i].total || '';
+      }
+      syncGrandTotal();
+      syncLoanCopy();
       return;
     }
     lines[i][field] = input.value;
-    if (field !== 'description') updateTotals();
+    if (field === 'qty' || field === 'description') {
+      if (String(lines[i].price || '').trim()) {
+        lines[i].total = formatMoneyValue(lineAmount(lines[i]));
+        const totalEl = row.querySelector('[data-field="total"]');
+        if (totalEl) totalEl.value = lines[i].total || '';
+      }
+      syncGrandTotal();
+    }
+    syncLoanCopy();
   });
   val('invoice-lines').addEventListener('blur', (e) => {
     const input = e.target.closest('[data-field]');
     const row = e.target.closest('tr');
     if (!input || !row) return;
     const field = input.getAttribute('data-field');
-    if (field !== 'price' && field !== 'qty') return;
+    if (field !== 'price' && field !== 'qty' && field !== 'total') return;
     const i = Number(row.getAttribute('data-i'));
     if (!lines[i]) return;
-    if (field === 'price' && input.value.trim()) {
-      lines[i].price = formatMoney(input.value);
-      input.value = lines[i].price;
+    if ((field === 'price' || field === 'total') && input.value.trim()) {
+      lines[i][field] = formatMoney(input.value);
+      input.value = lines[i][field];
     }
-    updateTotals();
   }, true);
-  val('invoice-lines').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-remove]');
-    if (!btn || lines.length < 2) return;
-    lines.splice(Number(btn.getAttribute('data-remove')), 1);
-    renderLines();
-    updateTotals();
+  if (val('totalAmount')) val('totalAmount').readOnly = true;
+  ['loanLineTotal', 'loanAmount'].forEach((id) => {
+    const el = val(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      el.dataset.touched = '1';
+      const shown = formatMoneyTyping(el.value);
+      if (el.value !== shown) el.value = shown;
+    });
+    el.addEventListener('blur', () => {
+      if (el.value.trim()) el.value = formatMoney(el.value);
+    });
   });
-  const uploadBtn = document.querySelector('[data-upload="seller"]');
-  const file = val('sellerFile');
-  const pad = val('seller-pad');
-  function pickSellerFile(e) {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+  const newLink = document.getElementById('new-invoice-link');
+  if (newLink) {
+    const company = param('company') || (val('invoiceCompany') && val('invoiceCompany').value) || '';
+    if (company) newLink.href = 'invoice.html?company=' + encodeURIComponent(company);
+  }
+  async function stampSellerSign() {
+    const name = val('preparedByName').value;
+    if (!name) {
+      showToast('Select a seller name', 'error');
+      return;
     }
+    const saved = localStorage.getItem(SIG_KEY + name) || '';
+    if (saved && saved !== sellerSign) {
+      setSign('seller', saved);
+      return;
+    }
+    const fallback = await defaultSellerSign(name);
+    if (fallback && fallback !== sellerSign) {
+      setSign('seller', fallback);
+      return;
+    }
+    const file = val('sellerFile');
     if (file) file.click();
   }
-  if (uploadBtn && file) uploadBtn.addEventListener('click', pickSellerFile);
-  if (pad && file) pad.addEventListener('click', pickSellerFile);
-  if (file) {
-    file.addEventListener('change', async () => {
-      const picked = file.files && file.files[0];
-      file.value = '';
-      if (!picked) return;
-      try {
-        const dataUrl = await compressSignature(picked);
-        if (!dataUrl) throw new Error('empty');
-        setSign(dataUrl);
-        if (val('preparedByName').value) {
-          localStorage.setItem(SIG_KEY + val('preparedByName').value, dataUrl);
-        }
-      } catch {
-        showToast('Signature upload failed. Image එකක් select කරන්න.', 'error');
+
+  function bindSignUpload(kind) {
+    const uploadBtn = document.querySelector('[data-upload="' + kind + '"]');
+    const clearBtn = document.querySelector('[data-clear="' + kind + '"]');
+    const file = val(kind === 'buyer' ? 'buyerFile' : 'sellerFile');
+    const pad = val(kind === 'buyer' ? 'buyer-pad' : 'seller-pad');
+    function pick(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (kind === 'seller') {
+        stampSellerSign();
+        return;
       }
-    });
+      if (file) file.click();
+    }
+    if (uploadBtn) uploadBtn.addEventListener('click', pick);
+    if (pad) pad.addEventListener('click', pick);
+    if (clearBtn) {
+      clearBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSign(kind, '');
+      });
+    }
+    if (file) {
+      file.addEventListener('change', async () => {
+        const picked = file.files && file.files[0];
+        file.value = '';
+        if (!picked) return;
+        try {
+          const dataUrl = await compressSignature(picked);
+          if (!dataUrl) throw new Error('empty');
+          setSign(kind, dataUrl);
+          if (kind === 'seller' && val('preparedByName').value) {
+            localStorage.setItem(SIG_KEY + val('preparedByName').value, dataUrl);
+          }
+        } catch {
+          showToast('Signature upload failed. Select an image.', 'error');
+        }
+      });
+    }
   }
+  bindSignUpload('seller');
+  bindSignUpload('buyer');
 
   (async () => {
     const ref = param('ref');
+    const companyParam = param('company');
     let saved = null;
     try {
       await apiList();
@@ -701,15 +920,44 @@ function initEditor() {
       saved = ref ? loadLocal().find((x) => x.id === ref) : null;
     }
     if (!saved && ref) saved = loadLocal().find((x) => x.id === ref) || null;
-    if (saved) fillForm(saved);
-    else {
+    const staffDefault = (typeof csStaffName === 'function' && csStaffName())
+      || localStorage.getItem(PREP_KEY)
+      || '';
+    if (saved) {
+      if (companyParam && !saved.invoiceCompany) saved.invoiceCompany = companyParam;
+      fillForm(saved);
+    } else {
       fillForm({
         id: '',
         invoiceDate: todayIso(),
-        preparedByName: localStorage.getItem(PREP_KEY) || '',
+        preparedByName: staffDefault,
+        invoiceCompany: companyParam || '',
         kind: 'invoice'
       });
+      await previewNextInvoiceNo();
     }
+    if (!val('preparedByName').value && staffDefault) {
+      val('preparedByName').value = staffDefault;
+      val('designation').value = STAFF_ROLES[staffDefault] || '';
+    }
+    if (companyParam) applyCompanyBrand(companyParam);
+    // Non-admin: lock seller to logged-in user; only open own invoices
+    const me = (typeof csStaffName === 'function' && csStaffName()) || '';
+    const admin = typeof csIsAdmin === 'function' && csIsAdmin();
+    if (me && !admin) {
+      const same = typeof csSamePerson === 'function' ? csSamePerson : (a, b) => a === b;
+      if (saved && (saved.preparedByName || saved.person) && !same(saved.preparedByName, me) && !same(saved.person, me)) {
+        showToast('That invoice belongs to another user', 'error');
+        setTimeout(() => { location.href = 'agreements.html'; }, 900);
+        return;
+      }
+      if (val('preparedByName')) {
+        val('preparedByName').value = me;
+        val('preparedByName').disabled = true;
+        val('designation').value = STAFF_ROLES[me] || '';
+      }
+    }
+    syncLoanCopy();
   })();
 }
 
@@ -732,5 +980,15 @@ function initPhoneShare() {
   });
 }
 
-if (val('invoice-sheet')) initEditor();
+if (val('invoice-sheet')) {
+  const bootCompany = param('company');
+  if (bootCompany) applyCompanyBrand(bootCompany);
+  initEditor();
+}
+(function () {
+  const el = document.getElementById('year');
+  if (!el) return;
+  el.removeAttribute('inputmode');
+  el.setAttribute('maxlength', '20');
+})();
 initPhoneShare();
