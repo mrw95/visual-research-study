@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CS Docs — Pre-Order Agreement</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=93">
+  <style>.lan-hint{display:none!important}</style>
+</head>
+<body class="quote-body">
+  <div class="quote-toolbar no-print">
+    <a class="quote-tool-brand" href="desk.html"><img src="images/cs-docs-icon.png?v=3" alt=""> CS Docs</a>
+    <a class="quote-tool-link" href="agreements.html">Saved agreements</a>
+    <a class="quote-tool-link" href="preorder.html">New pre-order</a>
+    <a class="quote-tool-link" href="agreement.html">Sales agreement</a>
+    <a class="quote-tool-link" href="invoice.html">Invoice</a>
+    <a class="quote-tool-link" href="quotation.html">Quotations</a>
+    <span class="quote-tool-ref" id="toolbar-ref">New</span>
+    <span class="quote-tool-status" id="save-status"></span>
+    <button type="button" class="quote-btn quote-btn-ghost" data-back="/preorder-pick">Back</button>
+    <button type="button" class="quote-btn quote-btn-save" id="save-btn">Save</button>
+    <button type="button" class="quote-btn quote-btn-print" id="print-btn">Print</button>
+    <button type="button" class="quote-btn quote-btn-ghost" id="pdf-btn">Download PDF</button>
+  </div>
+  <div id="save-toast" class="save-toast no-print" hidden></div>
+
+  <main class="quote-sheet agree-sheet" id="preorder-sheet">
+    <img class="quote-head-img" src="images/cs-header.jpg?v=3" alt="CarSwitch">
+    <div class="quote-inner">
+      <header class="quote-dochead">
+        <h2>Sales Agreement – Pre-Order Vehicle</h2>
+        <div class="quote-meta">
+          <label>
+            <span>Agreement Ref No:</span>
+            <input id="agreementNo" type="text" maxlength="40" placeholder="Type agreement number">
+          </label>
+          <label>
+            <span>Date:</span>
+            <input id="agreementDate" type="date">
+          </label>
+        </div>
+      </header>
+
+      <p class="agree-intro" id="agree-intro">This agreement (“Agreement”) is entered into on this date, between the undersigned Buyer and the Seller/Facilitator (CarSwitch (Pvt) Ltd), collectively referred to as the “Parties.” IN CONSIDERATION of the mutual promises and other valuable consideration exchanged by the Parties as set forth herein, the Parties, intending to be legally bound, hereby agree as follows:</p>
+      <p class="agree-small">This Agreement governs the pre-order and import of a vehicle from Japan or another designated country by the Company on behalf of the Customer. Facilitator desires to sell the vehicle described below, known herein as the “Acquired Vehicle”, under the terms and conditions set forth below;</p>
+
+      <div class="agree-bar">Customer/Buyer Details</div>
+      <table class="agree-kv">
+        <tr><th>Customer ID</th><td>:</td><td><input id="customerId" type="text" maxlength="40"></td></tr>
+        <tr><th>Full Name</th><td>:</td><td><input id="customerName" type="text" maxlength="160" autocomplete="name"></td></tr>
+        <tr><th>Address</th><td>:</td><td><input id="address" type="text" maxlength="200"></td></tr>
+        <tr><th>Telephone Nr</th><td>:</td><td><input id="telephone" type="text" maxlength="80" inputmode="tel"></td></tr>
+        <tr><th>NIC Nr</th><td>:</td><td><input id="nic" type="text" maxlength="20"></td></tr>
+      </table>
+
+      <div class="agree-bar">Acquired Vehicle Details (to be confirmed prior to final procurement)</div>
+      <table class="agree-kv">
+        <tr><th>Make &amp; Model</th><td>:</td><td><input id="makeModel" type="text" maxlength="80"></td></tr>
+        <tr><th>Manufactured Year</th><td>:</td><td><input id="year" type="text" maxlength="20" placeholder="e.g. 2023/2024" autocomplete="off"></td></tr>
+        <tr><th>Color</th><td>:</td><td><input id="colour" type="text" maxlength="40"></td></tr>
+        <tr>
+          <th>Trim / Mileage / Auction Grade</th>
+          <td>:</td>
+          <td class="agree-triple">
+            <input id="trim" type="text" maxlength="40" placeholder="Trim">
+            <input id="mileage" type="text" maxlength="40" placeholder="Mileage">
+            <input id="auctionGrade" type="text" maxlength="20" placeholder="Grade">
+          </td>
+        </tr>
+      </table>
+
+      <table class="agree-pay agree-cost-summary">
+        <thead>
+          <tr>
+            <th class="agree-bar-cell" colspan="2">Cost Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="japan-cost">
+            <th>Total Japan Cost - LKR</th>
+            <td class="amt"><input id="japanCostLkr" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr class="japan-cost">
+            <th>Customs Duty - LKR</th>
+            <td class="amt"><input id="customsDuty" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Customs Clearing &amp; Other Charges - LKR</th>
+            <td class="amt"><input id="clearingCharges" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr>
+            <th>Agency Fee - LKR</th>
+            <td class="amt"><input id="agencyFee" class="money" type="text" inputmode="decimal"></td>
+          </tr>
+          <tr class="hand-total agree-total">
+            <th>Total Up to Hand – LKR (Estimated Amount)</th>
+            <td class="amt"><input id="totalEstimatedPrice" class="money" type="text" readonly></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="agree-small"><strong>Total Japan Cost – LKR.</strong> Total cost incurred in Japan for the purchase, export processing and shipment preparation of the vehicle.</p>
+      <p class="agree-small"><strong>Customs Duty – LKR.</strong> Applicable Customs Duty and government taxes payable upon the arrival of the vehicle in Sri Lanka.</p>
+      <p class="agree-small"><strong>Customs Clearing &amp; Other Charges – LKR.</strong> Charges related to customs clearance, port handling and other applicable clearance expenses.</p>
+      <p class="agree-small"><strong>Agency Fee – LKR.</strong> Fee charged for the agency/facilitation services provided in connection with the vehicle import process.</p>
+      <p class="agree-small"><strong>Total Up to Hand – LKR.</strong> Total amount payable up to the point of handing over the vehicle to the Customer, including the above applicable costs and charges.</p>
+      <p class="agree-small"><strong>Note:</strong> The final total price is subject to revision based on:</p>
+      <ul class="agree-small">
+        <li>Changes in Sri Lankan government tax and VAT initiatives</li>
+        <li>Fluctuations in the LKR/JPY exchange rate from the rate mentioned above</li>
+      </ul>
+      <p class="agree-small">The facilitator raises a Performa invoice towards the advance payment made by the Customer. The Customer consents to complete all payment formalities as mentioned above, and failure to do so without reasonable grounds will result in additional charges, which should be borne by the Customer.</p>
+      <p class="agree-warranty">
+        <strong>Delivery Terms:</strong> Within
+        <input id="deliveryWeeks" type="text" maxlength="4" inputmode="numeric" value="10">
+        weeks from the Company’s overseas purchase
+      </p>
+      <p class="agree-note"><strong>Note:</strong> Refer to Annexure 1 &amp; 2 for the full terms and conditions mutually agreed upon by both Parties (the Customer and CarSwitch (Pvt) Ltd).</p>
+      <p class="agree-confirm">This Agreement sets forth the entire Agreement between the parties in respect of the subject matter hereof and supersedes and cancels any and all previous agreements, negotiations, commitments and writings in respect of the subject matter thereof.</p>
+      <p class="agree-small">IN WITNESS WHEREOF, the parties hereto have caused their respective Signatures hereunto, in the presence of two others of the same tenor and date first above written.</p>
+
+      <div class="agree-signs">
+        <label class="sign-field">
+          <span>Customer’s Signature (Buyer)</span>
+          <div class="sign-pad" id="buyer-pad">
+            <button type="button" class="sign-hint no-print" data-upload="buyer">Upload signature</button>
+            <div class="sign-stage"><img id="buyerPreview" alt="Buyer"></div>
+          </div>
+          <input id="buyerFile" type="file" accept="image/*" hidden>
+          <span>NIC Number</span>
+          <input id="buyerSignNic" type="text" maxlength="20">
+        </label>
+        <label class="sign-field">
+          <span>CarSwitch Pvt Ltd (Seller)</span>
+          <select id="preparedByName" required>
+            <option value="">Select name</option>
+            <option value="B.M.N. S.Basnayaka">B.M.N. S.Basnayaka</option>
+            <option value="G.H.I. R.Nayanajith">G.H.I. R.Nayanajith</option>
+            <option value="Malki Rasanga Widanagamge">Malki Rasanga Widanagamge</option>
+            <option value="H.M. C.Harshani Thilakarathna">H.M. C.Harshani Thilakarathna</option>
+            <option value="D.A.R. N.Dissanayaka">D.A.R. N.Dissanayaka</option>
+          </select>
+          <div class="sign-pad" id="seller-pad">
+            <button type="button" class="sign-hint no-print" data-upload="seller">Upload signature</button>
+            <div class="sign-stage"><img id="sellerPreview" alt="Seller"></div>
+          </div>
+          <input id="sellerFile" type="file" accept="image/*" hidden>
+          <span>Designation</span>
+          <input id="designation" type="text" maxlength="60" readonly>
+        </label>
+        <label class="sign-field">
+          <span>Witnesses (For Buyer)</span>
+          <div class="sign-pad" id="buyer-w-pad">
+            <button type="button" class="sign-hint no-print" data-upload="buyerWitness">Upload</button>
+            <div class="sign-stage"><img id="buyerWitnessPreview" alt="Buyer witness"></div>
+          </div>
+          <input id="buyerWitnessFile" type="file" accept="image/*" hidden>
+          <span>NIC Number</span>
+          <input id="buyerWitnessNic" type="text" maxlength="20">
+        </label>
+        <label class="sign-field">
+          <span>Witnesses (For Seller)</span>
+          <div class="sign-pad" id="seller-w-pad">
+            <button type="button" class="sign-hint no-print" data-upload="sellerWitness">Upload</button>
+            <div class="sign-stage"><img id="sellerWitnessPreview" alt="Seller witness"></div>
+          </div>
+          <input id="sellerWitnessFile" type="file" accept="image/*" hidden>
+          <span>Designation</span>
+          <input id="sellerWitnessRole" type="text" maxlength="60">
+        </label>
+      </div>
+
+      <h3 class="agree-annex-title">Annexure 1</h3>
+      <p class="agree-small">Applicable Terms and Conditions under this Sales Agreement – Pre-Order Vehicle.</p>
+      <p class="agree-small"><strong>Import and Handover:</strong> The Company will act as a procurement and logistics agent only. Vehicle clearance and first registration will be executed in the Customer’s name or the party designated in writing. Delivery will be at the CarSwitch premises or at a mutually agreed location, post Customs clearance.</p>
+      <p class="agree-small"><strong>Warranty and Vehicle Condition.</strong> Brand new vehicles will carry the manufacturer's warranty (if applicable in Sri Lanka). Reconditioned vehicles are imported “as is”, with no additional warranty by the Company unless specified. The Customer acknowledges that the Company is not liable for minor cosmetic defects inherent to international shipping.</p>
+      <p class="agree-small"><strong>Taxes and Government Charges.</strong> Ownership shall pass to the Buyer upon execution of this Agreement. Both Parties agree to complete all required vehicle ownership transfer documentation in accordance with the applicable regulations of the Department of Motor Traffic.</p>
+      <p class="agree-warranty">
+        <strong>Exchange Rate Risk and Adjustments.</strong> Prices are based on 1 LKR =
+        <input id="exchangeRate" type="text" maxlength="8" value="2.17">
+        JPY. Any fluctuations at settlement or clearance shall be borne by the Customer.
+      </p>
+      <p class="agree-small"><strong>Cancellation Policy.</strong> Cancellation After to Company’s overseas purchase: Pre-order advance is non-refundable. If the Company fails to procure or ship the vehicle within 60 days from the agreed deadline (except for Force Majeure and governmental initiatives), the Customer may cancel and receive a refund of the advance paid.</p>
+      <p class="agree-small"><strong>Governing Law and Jurisdiction.</strong> This Agreement shall be governed by the laws of the Democratic Socialist Republic of Sri Lanka, and any disputes shall be subject to the jurisdiction of the courts of Colombo.</p>
+      <p class="agree-small"><strong>Delivery.</strong> The Vehicle, including all tools, accessories, keys, and applicable documentation, shall be physically handed over to the Buyer in good condition on the actual date of delivery of the Vehicle.</p>
+      <p class="agree-small"><strong>Default.</strong> In the event of default by either party, the non-defaulting party may pursue legal remedies to enforce the terms of this Agreement.</p>
+
+      <h3 class="agree-annex-title">Annexure 2</h3>
+      <p class="agree-small">If the Vehicle is to be registered or transferred under a party other than the Customer, the following details shall apply:</p>
+      <table class="agree-kv">
+        <tr><th>Name of the Registered/Transferee Party</th><td>:</td><td><input id="transfereeName" type="text" maxlength="160"></td></tr>
+        <tr><th>National Identity Card (NIC) Number</th><td>:</td><td><input id="transfereeNic" type="text" maxlength="20"></td></tr>
+      </table>
+      <p class="agree-small"><strong>Account Details</strong><br>CarSwitch (Pvt Ltd) Commercial Bank<br>New Town, Anuradhapura<br>Account Number: 1000902264</p>
+    </div>
+    <img class="quote-foot-img" src="images/cs-footer.jpg?v=9" alt="">
+  </main>
+  <script src="static/staff-auth.js?v=4"></script>
+  <script src="static/signature.js?v=1"></script>
+  <script>csRequireStaff();</script>
+  <script src="static/preorder.js?v=60"></script>
+</body>
+</html>
