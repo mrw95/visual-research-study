@@ -16,14 +16,11 @@ jobs:
 
       - name: Build static site
         run: |
-          mkdir -p public
-          cp index.html public/
-          cp wa.html public/
+          mkdir -p public/static public/images
+          cp *.html public/
           cp robots.txt public/
-          cp -r static public/
-          mkdir -p public/images
-          cp images/*.png public/images/
-          cp images/*.jpg public/images/ 2>/dev/null || true
+          cp -r static/. public/static/
+          cp -r images/. public/images/
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
