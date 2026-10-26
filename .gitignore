@@ -1,7 +1,5 @@
 submissions.json
 quotations/
-.env
-.env.local
 .env*.local
 config.env
 __pycache__/
@@ -10,8 +8,9 @@ __pycache__/
 .vercel
 tools/cloudflared.exe
 quotation-home-link.txt
-.env*
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
 .gitignore
+config.bat
+node_modules
