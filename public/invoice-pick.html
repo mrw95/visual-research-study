@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CS Docs — Choose Invoice</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="apple-touch-icon" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=87">
+</head>
+<body class="quote-body desk-body">
+  <div class="desk-page pick-page">
+    <header class="desk-hero">
+      <img class="cs-docs-icon desk-brand-icon" src="images/cs-docs-icon.png?v=3" alt="CS Docs">
+      <h1>Invoice</h1>
+      <p>Select company</p>
+      <p class="desk-user" id="pick-user" hidden></p>
+    </header>
+
+    <section class="desk-grid pick-grid">
+      <a class="desk-card pick-card" id="pick-genx" href="/invoice-menu?company=Genx%20Importanters">
+        <img class="pick-logo" src="images/genx-header.png?v=3" alt="Genx Importanters">
+        <span class="desk-kicker">Import</span>
+        <h2>Genx Importanters</h2>
+        <p>Open Genx invoice</p>
+      </a>
+      <a class="desk-card pick-card" id="pick-carswitch" href="/invoice-menu?company=Carswitch">
+        <img class="pick-logo" src="images/cs-invoice-header.jpg?v=1" alt="Carswitch">
+        <span class="desk-kicker">Carswitch</span>
+        <h2>Carswitch</h2>
+        <p>Open Carswitch invoice</p>
+      </a>
+    </section>
+
+    <p class="pick-back no-print">
+      <button type="button" class="quote-btn quote-btn-ghost" data-back="/desk">Back</button>
+    </p>
+  </div>
+  <script src="static/staff-auth.js?v=4"></script>
+  <script>
+    (async function () {
+      if (!csRequireStaff()) return;
+      const session = await csSession();
+      const el = document.getElementById('pick-user');
+      if (el && session.staff) {
+        el.hidden = false;
+        el.textContent = session.staff + (session.role ? ' · ' + session.role : '');
+      }
+      document.querySelectorAll('a.pick-card, a.desk-card').forEach((card) => {
+        card.setAttribute('target', '_self');
+        card.addEventListener('click', (e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          location.assign(card.getAttribute('href'));
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

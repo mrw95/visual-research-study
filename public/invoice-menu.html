@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CS Docs — Invoice</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="images/cs-docs-icon.png?v=3">
+  <link rel="stylesheet" href="static/quotation.css?v=88">
+</head>
+<body class="quote-body desk-body">
+  <div class="desk-page pick-page">
+    <header class="desk-hero">
+      <img class="cs-docs-icon desk-brand-icon" src="images/cs-docs-icon.png?v=3" alt="CS Docs">
+      <h1 id="menu-title">Invoice</h1>
+      <p>New invoice or saved invoices</p>
+    </header>
+    <section class="desk-grid pick-grid">
+      <a class="desk-card" id="menu-new" href="/invoice">
+        <span class="desk-kicker">New</span>
+        <h2>Invoice</h2>
+        <p>Open a new invoice</p>
+      </a>
+      <a class="desk-card" id="menu-saved" href="/agreements">
+        <span class="desk-kicker">Saved</span>
+        <h2>Saved Invoice</h2>
+        <p>Only your saved invoices</p>
+      </a>
+    </section>
+    <p class="pick-back"><button type="button" class="quote-btn quote-btn-ghost" data-back="/invoice-pick">Back</button></p>
+  </div>
+  <script src="static/staff-auth.js?v=4"></script>
+  <script>
+    if (!csRequireStaff()) { /* redirect */ }
+    const company = new URLSearchParams(location.search).get('company') || 'Carswitch';
+    document.getElementById('menu-title').textContent = company;
+    document.getElementById('menu-new').href = '/invoice?company=' + encodeURIComponent(company);
+    document.getElementById('menu-saved').href = '/agreements?kind=invoice&company=' + encodeURIComponent(company);
+    document.querySelectorAll('a.desk-card, a.quote-btn').forEach((card) => {
+      card.setAttribute('target', '_self');
+      card.addEventListener('click', (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        location.assign(card.getAttribute('href'));
+      });
+    });
+  </script>
+</body>
+</html>
