@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Survey Results — Admin</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page admin-page">
+    <header class="study-header">
+      <p class="study-badge">Admin</p>
+      <h1>පිළිතුරු</h1>
+    </header>
+
+    <section class="card">
+      <label class="field-label" for="key">Admin key</label>
+      <div class="admin-row">
+        <input id="key" type="password" placeholder="Admin key">
+        <button type="button" id="load">Load</button>
+      </div>
+    </section>
+
+    <section class="card hidden" id="results-card">
+      <p class="summary" id="summary"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Selected (3)</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <script>
+    document.getElementById('load').addEventListener('click', async () => {
+      const key = document.getElementById('key').value.trim();
+      if (!key) return alert('Admin key enter karanna');
+      const res = await fetch('/api/results?key=' + encodeURIComponent(key));
+      if (!res.ok) return alert('Wrong key');
+      const data = await res.json();
+      const items = data.submissions || [];
+      document.getElementById('summary').textContent = items.length + ' response(s)';
+      document.getElementById('rows').innerHTML = items.map(r => `
+        <tr>
+          <td>${r.time ? r.time.replace('T', ' ').slice(0, 19) : '—'}</td>
+          <td>${(r.labels || r.selected || []).join('<br>')}</td>
+        </tr>
+      `).join('');
+      document.getElementById('results-card').classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
