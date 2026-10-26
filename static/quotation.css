@@ -348,8 +348,8 @@ input[readonly] {
   font-weight: 800;
 }
 
-#lcLkr,
-#japanCostLkr {
+#japanCostLkr,
+#customsDuty {
   color: var(--navy);
   font-weight: 800;
 }
@@ -462,6 +462,19 @@ input[readonly] {
   display: none;
 }
 
+.sign-clear-btn {
+  margin-left: 8px;
+  border: 0;
+  background: transparent;
+  color: #1d5aaa;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .sign-stage img {
   display: block;
   height: var(--sign-h, 48px);
@@ -541,17 +554,7 @@ input[readonly] {
 }
 
 .lan-hint {
-  background: #fff4e5;
-  color: #7a3b00;
-  font: 700 0.92rem/1.4 "Segoe UI", Arial, sans-serif;
-  padding: 10px 16px;
-  padding-left: max(16px, env(safe-area-inset-left));
-  padding-right: max(16px, env(safe-area-inset-right));
-  word-break: break-all;
-}
-
-.lan-hint a {
-  color: var(--navy);
+  display: none !important;
 }
 
 .phone-sheet {
@@ -642,6 +645,10 @@ input[readonly] {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+.staff-chips.is-locked,
+.staff-chips[hidden] {
+  display: none !important;
 }
 
 .staff-chip {
@@ -868,7 +875,7 @@ input[readonly] {
 }
 
 @media print {
-  body { background: #fff; }
+  html, body { background: #fff !important; }
   .no-print { display: none !important; }
   .quote-sheet {
     width: auto;
@@ -1000,6 +1007,7 @@ input[readonly] {
   margin: 0;
   color: var(--navy);
   font-size: 1.35rem;
+  text-align: center;
 }
 .login-card p {
   margin: 0 0 8px;
@@ -1011,12 +1019,15 @@ input[readonly] {
   font-weight: 600;
   color: var(--navy);
 }
-.login-card input[type="password"] {
+.login-card input[type="password"],
+.login-card select {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 1.1rem;
-  letter-spacing: 0.12em;
+  font-size: 1.05rem;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
 }
 .login-error {
   color: #9b1c1c !important;
@@ -1145,7 +1156,7 @@ input[readonly] {
 }
 
 .agree-signs select,
-.agree-signs #designation {
+.agree-signs input[type="text"] {
   width: 100%;
   margin: 6px 0;
   padding: 0 4px 2px 0;
@@ -1428,9 +1439,59 @@ input[readonly] {
   margin-bottom: 6px;
 }
 
-.inv-items-wrap {
+.inv-pay {
   width: 100%;
-  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  table-layout: fixed;
+}
+
+.inv-pay .inv-pay-label { width: 34%; }
+.inv-pay .inv-pay-gap { width: 18px; }
+.inv-pay .inv-pay-amt { width: 33%; }
+
+.inv-pay th,
+.inv-pay td {
+  border: 1px solid #111;
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+.inv-pay th {
+  text-align: left;
+  font-weight: 700;
+  color: #4a4a4a;
+  background: #fff;
+}
+
+.inv-pay td.inv-pay-gap {
+  padding: 0;
+}
+
+.inv-pay td.amt {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-pay input.money {
+  display: block;
+  width: 100%;
+  min-height: 1.6em;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  font: 700 1rem/1.4 "Segoe UI", Arial, sans-serif;
+  color: #14202e;
+  padding: 2px 4px;
+}
+
+.inv-sheet .inv-pay {
+  margin: 4px 0 10px;
+}
+
+.inv-sheet .inv-pay th,
+.inv-sheet .inv-pay td {
+  padding: 6px 8px;
 }
 
 .inv-items {
@@ -1492,14 +1553,25 @@ input[readonly] {
   padding-right: 2px;
 }
 
-.inv-items td.amt input,
-.inv-items #totalAmount {
+.inv-items td.amt input {
   width: 100%;
   min-width: 100%;
   text-align: right;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   padding: 4px 8px;
+}
+
+.inv-items #totalAmount {
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-items #totalLabel {
+  text-align: left;
+  font-weight: 700;
+  color: #084083;
 }
 
 .inv-items input[readonly] {
@@ -1628,11 +1700,86 @@ input[readonly] {
   font-weight: 700;
 }
 
-.desk-hero p {
-  margin: 8px auto 0;
-  max-width: 34rem;
+.desk-user {
+  margin: 10px auto 0;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.desk-user-actions {
+  margin: 8px 0 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(11, 37, 69, 0.45);
+}
+
+.pin-modal[hidden] {
+  display: none !important;
+}
+
+.pin-card {
+  width: min(420px, 100%);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(11, 37, 69, 0.22);
+  padding: 24px;
+  display: grid;
+  gap: 8px;
+}
+
+.pin-card h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 1.2rem;
+}
+
+.pin-hint {
+  margin: 0 0 6px;
   color: var(--muted);
-  line-height: 1.5;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.pin-card label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.pin-card input,
+.pin-card select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 1.05rem;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.pin-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.pin-ok {
+  margin: 0;
+  color: #0f6b3a !important;
+  font-weight: 700;
 }
 
 .desk-grid {
@@ -1690,8 +1837,247 @@ input[readonly] {
   color: #fff;
 }
 
-@media (max-width: 680px) {
-  .desk-grid {
-    grid-template-columns: 1fr;
+.quote-tool-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 4px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  text-decoration: none;
+  font: 800 0.95rem/1 "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.quote-tool-brand img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  object-fit: contain;
+}
+
+.cs-docs-icon {
+  display: block;
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  background: transparent;
+}
+
+.desk-brand-icon {
+  width: 128px;
+  height: 128px;
+  margin: 0 auto 14px;
+}
+
+.login-card .cs-docs-icon {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 8px;
+}
+
+.list-header .cs-docs-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+}
+
+.inv-loan-copy {
+  margin-top: 28px;
+}
+.inv-prep-row {
+  display: grid;
+  grid-template-columns: 1.7fr 0.75fr 1fr 1.15fr;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: end;
+}
+.inv-prep-row > label,
+.inv-prep-row > .sign-field,
+.inv-prep-row > .prep-name,
+.inv-prep-row > .prep-role {
+  display: contents;
+}
+.inv-prep-row .prep-label {
+  grid-row: 1;
+  align-self: end;
+  color: #696969;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.inv-prep-row .prep-name > .prep-label,
+.inv-prep-row .prep-name > select,
+.inv-prep-row .prep-name > .inv-prepared-label { grid-column: 1; }
+.inv-prep-row .prep-role > .prep-label,
+.inv-prep-row .prep-role > input,
+.inv-prep-row .prep-role > .inv-prepared-label { grid-column: 2; }
+.inv-prep-row .prep-sign > .prep-label,
+.inv-prep-row .prep-sign > .sign-pad { grid-column: 3; }
+.inv-prep-row .prep-buyer > .prep-label,
+.inv-prep-row .prep-buyer > .sign-pad { grid-column: 4; }
+.inv-prep-row .prep-name > select,
+.inv-prep-row .prep-name > .inv-prepared-label,
+.inv-prep-row .prep-role > input,
+.inv-prep-row .prep-role > .inv-prepared-label,
+.inv-prep-row .prep-sign > .sign-pad,
+.inv-prep-row .prep-buyer > .sign-pad {
+  grid-row: 2;
+  align-self: end;
+}
+.inv-prep-row select,
+.inv-prep-row input,
+.inv-prep-row .inv-prepared-label {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #1d5aaa;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0;
+  margin: 0;
+  min-height: 1.4em;
+}
+.inv-prepared-label {
+  margin: 0;
+  min-height: 1.4em;
+  color: #1d5aaa;
+  font-weight: 700;
+}
+.inv-prep-row .sign-pad {
+  width: 100%;
+  border-bottom: 1px solid #c5d0dc;
+}
+@media print {
+  .inv-loan-copy {
+    display: block !important;
+    page-break-before: always;
+    break-before: page;
+    margin-top: 0;
+  }
+}
+@media screen {
+  .no-screen { display: none !important; }
+}
+.pick-page .desk-hero h1 {
+  margin-bottom: 4px;
+}
+.pick-grid {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.pick-card {
+  text-align: center;
+}
+.pick-logo {
+  display: block;
+  width: 100%;
+  max-height: 72px;
+  object-fit: contain;
+  object-position: left center;
+  margin: 0 0 14px;
+}
+.pick-back {
+  margin: 28px 0 0;
+  text-align: center;
+}
+.inv-prepared-label {
+  margin: 8px 0 0;
+  min-height: 2.2rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.inv-loan-copy .inv-items td.amt,
+.inv-loan-copy .inv-items th.amt {
+  width: 10rem;
+}
+.inv-sheet .quote-inner,
+.inv-sheet input,
+.inv-sheet select,
+.inv-sheet textarea,
+.inv-sheet th,
+.inv-sheet td,
+.inv-sheet li,
+.inv-sheet .prep-label,
+.inv-sheet .inv-label,
+.inv-sheet .inv-prepared-label,
+.inv-sheet .inv-pretty-date {
+  font-size: 14px;
+}
+.inv-pretty-date sup {
+  font-size: 0.65em;
+}
+.inv-nic {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+.inv-nic span {
+  font-weight: 700;
+}
+
+/* Keep letterhead inside the printer's unprintable edge.
+   Phone numbers sit on the top of the header image, and the
+   footer bar sits on the bottom of the footer image. */
+@media print {
+  html, body, .quote-body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .inv-sheet.quote-sheet {
+    background: #fff !important;
+    width: 210mm;
+    height: 296mm !important;
+    min-height: 0 !important;
+    max-height: 296mm !important;
+    margin: 0 auto !important;
+    padding: 8mm 0 8mm !important;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .inv-sheet .quote-head-img {
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 26mm !important;
+    flex: 0 0 auto;
+    min-height: 0;
+    object-fit: contain !important;
+    object-position: top center !important;
+  }
+  .inv-sheet .quote-foot-img {
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    height: 22mm !important;
+    max-height: 22mm !important;
+    flex: 0 0 22mm;
+    min-height: 0 !important;
+    margin: 0 !important;
+    object-fit: contain !important;
+    object-position: bottom center !important;
+    overflow: hidden;
+  }
+  .inv-sheet .quote-inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 3mm 10mm 3mm;
+    overflow: hidden;
   }
 }

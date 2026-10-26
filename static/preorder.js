@@ -2,26 +2,25 @@ const STORAGE_KEY = 'cs-agreements-v1';
 const PREP_KEY = 'genx-prepared-by';
 const SIG_KEY = 'genx-signature-';
 const STAFF_ROLES = {
-  Nipun: 'Sales Executive',
-  Isuru: 'Sales Executive',
-  Malki: 'Admin & Marketing',
-  Harshani: 'Director',
-  Rakitha: 'CEO'
+  'B.M.N. S.Basnayaka': 'Sales Executive',
+  'G.H.I. R.Nayanajith': 'Sales Executive',
+  'Malki Rasanga Widanagamge': 'Executive Admin and Marketing',
+  'H.M. C.Harshani Thilakarathna': 'Admin',
+  'D.A.R. N.Dissanayaka': 'Managing Director'
 };
 const STAFF = Object.keys(STAFF_ROLES);
 const TEXT_FIELDS = [
   'customerId', 'customerName', 'address', 'telephone', 'nic',
   'makeModel', 'year', 'colour', 'trim', 'mileage', 'auctionGrade',
   'transfereeName', 'transfereeNic', 'deliveryWeeks', 'exchangeRate',
-  'preparedByName'
+  'preparedByName', 'buyerSignNic', 'buyerWitnessNic', 'sellerWitnessRole'
 ];
 const MONEY_FIELDS = [
-  'advanceAmount', 'advancePaid', 'vehicleCost', 'vehiclePaid',
-  'importCharges', 'importPaid', 'otherCharges', 'otherPaid'
+  'japanCostLkr', 'customsDuty', 'clearingCharges', 'agencyFee', 'totalEstimatedPrice'
 ];
 const DOC_FIELDS = [];
-const PAID_FIELDS = ['advancePaid', 'vehiclePaid', 'importPaid', 'otherPaid'];
-const AMOUNT_FIELDS = ['vehicleCost', 'importCharges', 'otherCharges'];
+const PAID_FIELDS = [];
+const AMOUNT_FIELDS = ['japanCostLkr', 'customsDuty', 'clearingCharges', 'agencyFee'];
 
 let apiItems = [];
 let apiRoot = '';
@@ -116,15 +115,12 @@ function updateIntro() {
   const el = val('agree-intro');
   if (!el) return;
   const pretty = prettyDate(val('agreementDate').value || todayIso());
-  el.textContent = `This agreement (“Agreement”) is entered into on this ${pretty}, between the undersigned Buyer and the Seller/Facilitator (CarSwitch (Pvt) Ltd), collectively referred to as the “Parties.”`;
+  el.textContent = `This agreement (“Agreement”) is entered into on this ${pretty}, between the undersigned Buyer and the Seller/Facilitator (CarSwitch (Pvt) Ltd), collectively referred to as the “Parties.” IN CONSIDERATION of the mutual promises and other valuable consideration exchanged by the Parties as set forth herein, the Parties, intending to be legally bound, hereby agree as follows:`;
 }
 
 function updateTotals() {
-  const amount = AMOUNT_FIELDS.reduce((sum, id) => sum + parseNum(val(id) && val(id).value), 0);
-  const paid = PAID_FIELDS.reduce((sum, id) => sum + parseNum(val(id) && val(id).value), 0);
-  if (val('totalAmount')) val('totalAmount').value = formatMoneyValue(amount);
-  if (val('totalPaid')) val('totalPaid').value = formatMoneyValue(paid);
-  if (val('balancePayment')) val('balancePayment').value = formatMoneyValue(amount - paid);
+  const total = AMOUNT_FIELDS.reduce((sum, id) => sum + parseNum(val(id) && val(id).value), 0);
+  if (val('totalEstimatedPrice')) val('totalEstimatedPrice').value = formatMoneyValue(total);
 }
 
 function setQuoteNo(id) {
@@ -150,11 +146,7 @@ function readForm() {
     buyerSignature: buyerSign,
     buyerWitness: buyerWitness,
     sellerWitness: sellerWitness,
-    payBeforeShipment: val('payBeforeShipment') && val('payBeforeShipment').checked ? 'Yes' : 'No',
-    payAfterBl: val('payAfterBl') && val('payAfterBl').checked ? 'Yes' : 'No',
-    totalAmount: val('totalAmount').value.trim(),
-    totalPaid: val('totalPaid').value.trim(),
-    balancePayment: val('balancePayment').value.trim(),
+    totalEstimatedPrice: val('totalEstimatedPrice') ? val('totalEstimatedPrice').value.trim() : '',
     updatedAt: new Date().toISOString()
   };
   TEXT_FIELDS.forEach((id) => { data[id] = val(id) ? val(id).value.trim() : ''; });
@@ -189,12 +181,10 @@ function fillForm(data) {
   DOC_FIELDS.forEach((id) => {
     if (val(id)) val(id).value = data[id] || '';
   });
-  if (val('payBeforeShipment')) val('payBeforeShipment').checked = data.payBeforeShipment === 'Yes';
-  if (val('payAfterBl')) val('payAfterBl').checked = data.payAfterBl === 'Yes';
   if (val('exchangeRate') && !val('exchangeRate').value) val('exchangeRate').value = data.exchangeRate || '2.17';
   if (val('deliveryWeeks') && !data.deliveryWeeks) val('deliveryWeeks').value = '10';
   val('designation').value = STAFF_ROLES[data.preparedByName] || data.designation || '';
-  setSign('seller', data.signatureImage || (data.preparedByName ? localStorage.getItem(SIG_KEY + data.preparedByName) : '') || '');
+  setSign('seller', data.signatureImage || '');
   setSign('buyer', data.buyerSignature || '');
   setSign('buyerWitness', data.buyerWitness || '');
   setSign('sellerWitness', data.sellerWitness || '');
@@ -263,7 +253,7 @@ async function apiFetch(path, options) {
       lastErr = err;
     }
   }
-  throw lastErr || new Error('Folder API එක open වෙලා නැහැ.');
+  throw lastErr || new Error('Save API is not available.');
 }
 
 async function apiList() {
@@ -323,7 +313,7 @@ async function postAgreementPdf(saved) {
 }
 
 async function downloadPdf(saved) {
-  showToast('PDF හදනවා...', 'wait');
+  showToast('Creating PDF...', 'wait');
   try {
     const blob = await postAgreementPdf(saved);
     if (blob && blob.size > 800) {
@@ -339,7 +329,7 @@ async function downloadPdf(saved) {
 }
 
 function saveLocalQuote(data) {
-  if (!data.id) data.id = nextRef(allKnown());
+  if (!data.id) throw new Error('Type the agreement number');
   data.updatedAt = new Date().toISOString();
   data.createdAt = data.createdAt || data.updatedAt;
   data.person = data.preparedByName;
@@ -352,8 +342,14 @@ function saveLocalQuote(data) {
 
 async function saveAgreement() {
   if (saving) return null;
+  const typedId = (val('agreementNo').value || '').trim().toUpperCase();
+  if (!typedId) {
+    showToast('Type the agreement number', 'error');
+    val('agreementNo').focus();
+    return null;
+  }
   if (!STAFF.includes(val('preparedByName').value)) {
-    showToast('Seller name select කරන්න', 'error');
+    showToast('Select a seller name', 'error');
     val('preparedByName').focus();
     return null;
   }
@@ -361,6 +357,7 @@ async function saveAgreement() {
   showToast('Saving...', 'wait');
   updateTotals();
   const data = readForm();
+  data.id = typedId;
   let items = allKnown();
   try {
     const listed = await apiList();
@@ -369,7 +366,6 @@ async function saveAgreement() {
     items = allKnown();
   }
   const existing = items.find((x) => x.id === data.id);
-  if (!existing) data.id = '';
   data.createdAt = existing ? existing.createdAt : new Date().toISOString();
   try {
     const saved = await apiSave(data);
@@ -379,10 +375,11 @@ async function saveAgreement() {
     history.replaceState({}, '', `preorder.html?ref=${encodeURIComponent(merged.id)}`);
     const onShare = /\\\\carswitch\\/i.test(String(apiRoot || merged.pdfPath || ''));
     showToast('Saved successfully', '');
+    if (onShare && typeof openSavedFolder === 'function') openSavedFolder(merged.pdfPath);
     return merged;
   } catch {
     const saved = saveLocalQuote(data);
-    showToast('Saved successfully', '');
+    showToast('Saved on this device', '');
     return saved;
   } finally {
     setSaveBusy(false);
@@ -398,15 +395,30 @@ function fileToDataUrl(file) {
   });
 }
 
+function stampSellerSign() {
+  const name = val('preparedByName').value;
+  if (!STAFF.includes(name)) {
+    showToast('Select a seller name', 'error');
+    return;
+  }
+  const stored = localStorage.getItem(SIG_KEY + name) || '';
+  if (stored && sellerSign !== stored) {
+    setSign('seller', stored);
+    return;
+  }
+  const file = val('sellerFile');
+  if (file) file.click();
+}
+
 function bindUpload(btn, file, kind) {
-  if (!btn || !file) return;
-  btn.addEventListener('click', () => file.click());
+  if (!file) return;
+  if (btn) btn.addEventListener('click', () => file.click());
   file.addEventListener('change', async () => {
     const picked = file.files && file.files[0];
     file.value = '';
     if (!picked) return;
     try {
-      const dataUrl = await fileToDataUrl(picked);
+      const dataUrl = await prepareSignatureFile(picked);
       setSign(kind, dataUrl);
       if (kind === 'seller' && val('preparedByName').value) {
         localStorage.setItem(SIG_KEY + val('preparedByName').value, dataUrl);
@@ -424,16 +436,16 @@ function initEditor() {
     updateTotals();
     const live = readForm();
     if (!STAFF.includes(live.preparedByName)) {
-      showToast('Seller name select කරන්න', 'error');
+      showToast('Select a seller name', 'error');
       return;
     }
     live.id = live.id || 'preorder';
     await downloadPdf(live);
   });
-  val('delete-btn').addEventListener('click', async () => {
+  if (val('delete-btn')) val('delete-btn').addEventListener('click', async () => {
     const id = val('agreementNo').value.trim() || param('ref');
     if (!id) return;
-    if (!confirm(id + ' delete කරනවද?')) return;
+    if (!confirm('Delete ' + id + '?')) return;
     await apiDelete(id);
     writeLocal(loadLocal().filter((x) => x.id !== id));
     location.href = 'agreements.html';
@@ -441,7 +453,7 @@ function initEditor() {
   val('preparedByName').addEventListener('change', () => {
     const name = val('preparedByName').value;
     val('designation').value = STAFF_ROLES[name] || '';
-    if (name) setSign('seller', localStorage.getItem(SIG_KEY + name) || sellerSign);
+    setSign('seller', '');
   });
   val('agreementDate').addEventListener('input', updateIntro);
   MONEY_FIELDS.forEach((id) => {
@@ -461,8 +473,20 @@ function initEditor() {
   };
   document.querySelectorAll('[data-upload]').forEach((btn) => {
     const kind = btn.getAttribute('data-upload');
+    if (kind === 'seller') return;
     bindUpload(btn, val(fileIds[kind]), kind);
   });
+  const sellerBtn = document.querySelector('[data-upload="seller"]');
+  const sellerPad = val('seller-pad');
+  if (sellerBtn) sellerBtn.textContent = 'Place signature';
+  function onSellerClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    stampSellerSign();
+  }
+  if (sellerBtn) sellerBtn.addEventListener('click', onSellerClick);
+  if (sellerPad) sellerPad.addEventListener('click', onSellerClick);
+  bindUpload(null, val('sellerFile'), 'seller');
 
   (async () => {
     const ref = param('ref');
@@ -476,10 +500,13 @@ function initEditor() {
     if (!saved && ref) saved = loadLocal().find((x) => x.id === ref) || null;
     if (saved) fillForm(saved);
     else {
+      const staffDefault = (typeof csStaffName === 'function' && csStaffName())
+        || localStorage.getItem(PREP_KEY)
+        || '';
       fillForm({
         id: '',
         agreementDate: todayIso(),
-        preparedByName: localStorage.getItem(PREP_KEY) || '',
+        preparedByName: staffDefault,
         exchangeRate: '2.17',
         deliveryWeeks: '10',
         kind: 'preorder'
@@ -508,12 +535,12 @@ function initList() {
       const data = await apiList();
       if (hint && data.root) {
         hint.textContent = data.root === 'cloud' || isHomeCloud()
-          ? 'Saved online. PC එක on වෙන්න ඕන නැහැ.'
-          : (/\\\\carswitch\\/i.test(String(data.root)) ? 'Save වෙන්නේ: ' + data.root : 'Saved');
+          ? 'Saved online'
+          : (/\\\\carswitch\\/i.test(String(data.root)) ? 'Saved to: ' + data.root : 'Saved');
       }
     } catch {
       apiItems = loadLocal();
-      if (hint) hint.textContent = 'Saved on this device. Download PDF මෙතනින්.';
+      if (hint) hint.textContent = 'Saved on this device. Download PDF here.';
     }
     render();
   }
@@ -529,7 +556,7 @@ function initList() {
     });
     summary.textContent = `${items.length} / ${source.length} agreements`;
     if (!items.length) {
-      list.innerHTML = '<section class="quote-card"><p>Saved agreements නැහැ. Seller name select කරලා Save කරන්න.</p></section>';
+      list.innerHTML = '<section class="quote-card"><p>No saved agreements. Select a seller name and Save.</p></section>';
       return;
     }
     list.innerHTML = items.map((item) => {
@@ -561,7 +588,7 @@ function initList() {
     list.querySelectorAll('[data-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-del');
-        if (!confirm(id + ' delete කරනවද?')) return;
+        if (!confirm('Delete ' + id + '?')) return;
         await apiDelete(id);
         writeLocal(loadLocal().filter((x) => x.id !== id));
         await refresh();
@@ -600,4 +627,10 @@ function initPhoneShare() {
 }
 
 if (val('preorder-sheet')) initEditor();
+(function () {
+  const el = document.getElementById('year');
+  if (!el) return;
+  el.removeAttribute('inputmode');
+  el.setAttribute('maxlength', '20');
+})();
 initPhoneShare();

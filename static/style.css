@@ -247,7 +247,7 @@ select {
 }
 
 .image-item.selected .caption-name::before {
-  content: '✓ ';
+  content: attr(data-rank) '. ';
   font-weight: 800;
 }
 
